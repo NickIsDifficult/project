@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS collab_tool;
-USE collab_tool;
+CREATE DATABASE IF NOT EXISTS taskdb;
+USE taskdb;
 
 -- 사용자 테이블
 CREATE TABLE IF NOT EXISTS users (

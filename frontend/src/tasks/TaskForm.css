@@ -1,0 +1,23 @@
+.task-form label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.task-form .assignee-list label {
+  font-weight: 400;
+}
+
+.task-form .btn.secondary {
+  align-self: flex-start;
+}
+
+.task-form .drawer__footer {
+  margin-top: 12px;
+}
+
+.task-form input[type="date"] {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}

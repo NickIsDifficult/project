@@ -1,0 +1,230 @@
+/* Overlay (오버레이) */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 999;
+}
+
+/* Drawer 본체 */
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 480px;
+  height: 100%;
+  background: #fff;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+  transform: translateX(100%);
+  transition: transform 0.28s ease;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+}
+
+.drawer.open {
+  transform: translateX(0);
+}
+
+.drawer__header {
+  padding: 16px 18px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.drawer__header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.drawer__header .close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.drawer__footer {
+  padding: 12px 18px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #fafafa;
+}
+
+.btn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: #2f9e44;
+  color: #fff;
+}
+
+.btn.secondary {
+  background: #eee;
+  color: #333;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.textarea {
+  min-height: 80px;
+  resize: none;
+}
+
+.subtask-box {
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-box {
+  padding-left: 10px;
+  border-left: 3px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.assignee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.assignee-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.task-manager {
+  padding: 24px;
+}
+
+.task-list,
+.task-detail {
+  margin-top: 24px;
+}
+
+.task-list ul,
+.task-detail ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.task-list li + li,
+.task-detail li + li {
+  margin-top: 12px;
+}
+
+.task-list button {
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.task-list button:hover {
+  border-color: #2f9e44;
+}
+
+.section-title {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.task-detail article {
+  border: 1px solid #eee;
+  padding: 16px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.task-detail .description {
+  margin: 0 0 16px 0;
+}
+
+.detail-section + .detail-section {
+  margin-top: 16px;
+}
+
+.subtask-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.detail-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  border-left: 2px solid #f0f0f0;
+}
+
+.detail-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 12px;
+  margin-bottom: 6px;
+  background: #fafafa;
+  border-radius: 4px;
+}
+
+.empty {
+  color: #888;
+  font-size: 14px;
+}

@@ -17,6 +17,8 @@ import StatusBoard from "./calendar/StatusBoard";
 
 // 🔐 관리자
 import AdminPage from "./admin/AdminPage";
+// ✅ 업무 관리
+import TaskManager from "./tasks/TaskManager";
 
 function App() {
   const [logged, setLogged] = useState(!!localStorage.getItem("token"));
@@ -96,6 +98,16 @@ function App() {
           element={
             <ProtectedRoute>
               <StatusBoard token={localStorage.getItem("token")} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 업무 관리 */}
+        <Route
+          path="/tasks"
+          element={
+            <ProtectedRoute>
+              <TaskManager />
             </ProtectedRoute>
           }
         />

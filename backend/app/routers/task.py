@@ -1,4 +1,4 @@
-# # backend/app/routers/task.py (예시)
+# # backend/app/routers/task.py
 # from fastapi import APIRouter, Depends
 # from app.utils.token import get_current_member
 # from app.models.member import Member

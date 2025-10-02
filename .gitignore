@@ -1,0 +1,20 @@
+# Node/React
+node_modules/
+dist/
+build/
+.env
+.env.*
+npm-debug.log*
+yarn-error.log*
+ECHO가 설정되어 있습니다.
+# Python/FastAPI
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+ECHO가 설정되어 있습니다.
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store

@@ -42,8 +42,8 @@ export default function ListView({
   // ✅ 담당자 목록
   const assigneeOptions = useMemo(() => {
     const set = new Set();
-    const walk = (list) => {
-      list.forEach((t) => {
+    const walk = list => {
+      list.forEach(t => {
         if (t.assignee_name) set.add(t.assignee_name);
         if (t.subtasks?.length) walk(t.subtasks);
       });
@@ -52,9 +52,19 @@ export default function ListView({
     return ["ALL", ...Array.from(set)];
   }, [initialTasks]);
 
+  // ✅ 정렬 핸들러
+  const handleSort = key => {
+    if (sortBy === key) {
+      setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortOrder("asc");
+    }
+  };
+
   // ✅ 필터 + 정렬
   const filteredTasks = useMemo(() => {
-    const match = (t) => {
+    const match = t => {
       const status = t.status?.trim()?.toUpperCase?.() || "TODO";
       const statusOk = filterStatus === "ALL" || status === filterStatus;
       const assigneeOk = filterAssignee === "ALL" || t.assignee_name === filterAssignee;
@@ -63,10 +73,10 @@ export default function ListView({
       return statusOk && assigneeOk && keywordOk;
     };
 
-    const walk = (list) =>
+    const walk = list =>
       list
-        .map((t) => ({ ...t, subtasks: t.subtasks ? walk(t.subtasks) : [] }))
-        .filter((t) => match(t) || t.subtasks?.length > 0);
+        .map(t => ({ ...t, subtasks: t.subtasks ? walk(t.subtasks) : [] }))
+        .filter(t => match(t) || t.subtasks?.length > 0);
 
     const filtered = walk(tasks);
 
@@ -91,8 +101,8 @@ export default function ListView({
   // ✅ 상태 통계
   const stats = useMemo(() => {
     const flat = [];
-    const flatten = (list) => {
-      list.forEach((t) => {
+    const flatten = list => {
+      list.forEach(t => {
         flat.push(t);
         if (t.subtasks?.length) flatten(t.subtasks);
       });
@@ -100,14 +110,14 @@ export default function ListView({
     flatten(tasks);
     const total = flat.length;
     const counts = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
-    flat.forEach((t) => (counts[t.status] = (counts[t.status] || 0) + 1));
+    flat.forEach(t => (counts[t.status] = (counts[t.status] || 0) + 1));
     const doneRatio = total ? ((counts.DONE / total) * 100).toFixed(1) : 0;
     return { total, ...counts, doneRatio };
   }, [tasks]);
 
   // ✅ 필터 상태 변경
-  const handleStatusFilter = (key) => {
-    setFilterStatus((prev) => (prev === key ? "ALL" : key));
+  const handleStatusFilter = key => {
+    setFilterStatus(prev => (prev === key ? "ALL" : key));
   };
 
   // ✅ 상태 변경
@@ -122,7 +132,7 @@ export default function ListView({
   };
 
   // ✅ 삭제
-  const handleDelete = async (taskId) => {
+  const handleDelete = async taskId => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     try {
       await deleteTask(projectId, taskId);
@@ -134,12 +144,12 @@ export default function ListView({
   };
 
   // ✅ 수정
-  const startEdit = (task) => {
+  const startEdit = task => {
     setEditingId(task.task_id);
     setEditForm({ title: task.title, description: task.description || "" });
   };
   const cancelEdit = () => setEditingId(null);
-  const saveEdit = async (taskId) => {
+  const saveEdit = async taskId => {
     if (!editForm.title.trim()) return toast.error("제목을 입력하세요.");
     try {
       setLoading(true);
@@ -155,13 +165,15 @@ export default function ListView({
   };
 
   // ✅ 접기/펼치기
-  const toggleCollapse = (taskId) => {
-    setCollapsedTasks((prev) => {
+  const toggleCollapse = taskId => {
+    setCollapsedTasks(prev => {
       const next = new Set(prev);
       next.has(taskId) ? next.delete(taskId) : next.add(taskId);
       return next;
     });
   };
+
+  const renderSortIcon = key => (sortBy === key ? (sortOrder === "asc" ? "▲" : "▼") : "⇅");
 
   return (
     <div style={{ padding: 8 }}>
@@ -170,7 +182,7 @@ export default function ListView({
       {/* ✅ 상태별 요약 바 */}
       <div style={summaryBox}>
         <div>📋 전체 {stats.total}건</div>
-        {Object.keys(STATUS_LABELS).map((key) => (
+        {Object.keys(STATUS_LABELS).map(key => (
           <div
             key={key}
             onClick={() => handleStatusFilter(key)}
@@ -195,10 +207,10 @@ export default function ListView({
       <div style={filterBar}>
         <select
           value={filterAssignee}
-          onChange={(e) => setFilterAssignee(e.target.value)}
+          onChange={e => setFilterAssignee(e.target.value)}
           style={filterSelect}
         >
-          {assigneeOptions.map((a) => (
+          {assigneeOptions.map(a => (
             <option key={a} value={a}>
               {a === "ALL" ? "전체 담당자" : a}
             </option>
@@ -208,7 +220,7 @@ export default function ListView({
         <input
           placeholder="업무 제목 검색..."
           value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
+          onChange={e => setSearchKeyword(e.target.value)}
           style={filterInput}
         />
 
@@ -218,6 +230,8 @@ export default function ListView({
             setFilterStatus("ALL");
             setFilterAssignee("ALL");
             setSearchKeyword("");
+            setSortBy("start_date");
+            setSortOrder("asc");
           }}
         >
           🔄 초기화
@@ -227,25 +241,35 @@ export default function ListView({
       {/* ✅ 리스트 테이블 */}
       <table style={table}>
         <colgroup>
-          <col style={{ width: "40%" }} />
-          <col style={{ width: "10%" }} />
-          <col style={{ width: "10%" }} />
+          <col style={{ width: "38%" }} />
+          <col style={{ width: "12%" }} />
           <col style={{ width: "15%" }} />
+          <col style={{ width: "20%" }} />
           <col style={{ width: "15%" }} />
         </colgroup>
 
         <thead>
           <tr style={thead}>
-            <th style={th}>업무명</th>
-            <th style={th}>상태</th>
-            <th style={th}>담당자</th>
-            <th style={th}>기간</th>
-            <th style={th}>작업</th>
+            <th style={th} onClick={() => handleSort("title")}>
+              업무명 {renderSortIcon("title")}
+            </th>
+            <th style={th} onClick={() => handleSort("status")}>
+              상태 {renderSortIcon("status")}
+            </th>
+            <th style={th} onClick={() => handleSort("assignee_name")}>
+              담당자 {renderSortIcon("assignee_name")}
+            </th>
+            <th style={th} onClick={() => handleSort("start_date")}>
+              시작일 {renderSortIcon("start_date")}
+            </th>
+            <th style={th} onClick={() => handleSort("due_date")}>
+              마감일 {renderSortIcon("due_date")}
+            </th>
           </tr>
         </thead>
 
         <tbody>
-          {filteredTasks.map((t) => (
+          {filteredTasks.map(t => (
             <TaskRow
               key={t.task_id}
               task={t}
@@ -299,12 +323,12 @@ function TaskRow({
               <input
                 type="text"
                 value={editForm.title}
-                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                onChange={e => setEditForm({ ...editForm, title: e.target.value })}
                 style={inputStyle}
               />
               <textarea
                 value={editForm.description}
-                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                onChange={e => setEditForm({ ...editForm, description: e.target.value })}
                 style={{ ...inputStyle, minHeight: 60, marginTop: 4 }}
               />
             </>
@@ -327,7 +351,7 @@ function TaskRow({
         <td style={td}>
           <select
             value={task.status}
-            onChange={(e) => onStatusChange(task.task_id, e.target.value)}
+            onChange={e => onStatusChange(task.task_id, e.target.value)}
             style={{
               ...selectStyle,
               background: STATUS_COLORS[task.status],
@@ -384,7 +408,7 @@ function TaskRow({
 
       {hasSubtasks &&
         !isCollapsed &&
-        task.subtasks.map((sub) => (
+        task.subtasks.map(sub => (
           <TaskRow
             key={sub.task_id}
             task={sub}
@@ -407,7 +431,7 @@ function TaskRow({
 }
 
 /* ✅ 스타일 */
-const rowStyle = (editing) => ({
+const rowStyle = editing => ({
   borderBottom: "1px solid #eee",
   background: editing ? "#fffbe6" : "#fff",
   transition: "background 0.2s",

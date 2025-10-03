@@ -74,7 +74,7 @@ export default function ProjectDetailPage() {
   // ---------------------------
   // 하위업무 추가 기능
   // ---------------------------
-  const handleAddSubtask = (parentId) => {
+  const handleAddSubtask = parentId => {
     setParentTaskId(parentId);
     setOpenDrawer(true);
     toast.success(`하위 업무 추가 창을 엽니다 (부모 ID: ${parentId})`);
@@ -201,7 +201,7 @@ export default function ProjectDetailPage() {
           taskId={selectedTask.task_id}
           onClose={() => setSelectedTask(null)}
           // ✅ 하위 업무 추가 기능 전달
-          onAddSubtask={(taskId) => {
+          onAddSubtask={taskId => {
             // ✅ 하위업무 등록창 열기
             setOpenDrawer(true);
 

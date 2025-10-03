@@ -1,3 +1,4 @@
+# app/services/task_service.py
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -52,6 +53,7 @@ def create_task(
             start_date=request.start_date,
             due_date=request.due_date,
             estimate_hours=request.estimate_hours,
+            progress=request.progress or 0,  # ✅ 진행률 반영
         )
 
         db.add(new_task)
@@ -103,21 +105,46 @@ def update_task(
             forbidden("태스크 담당자 또는 프로젝트 소유자만 수정할 수 있습니다.")
 
         update_data = request.model_dump(exclude_unset=True)
+
+        # ✅ 변경 내역 추적용
+        before_progress = task.progress
+        before_status = task.status
+
         for key, value in update_data.items():
             setattr(task, key, value)
 
         db.commit()
         db.refresh(task)
 
-        # 로그 기록
+        # ✅ 로그 메시지
+        detail_msg = f"'{task.title}' 수정됨"
+        if "progress" in update_data:
+            detail_msg += f" (진행률: {update_data['progress']}%)"
+
         log_task_action(
             db=db,
             emp_id=updater_emp_id,
             project_id=task.project_id,
             task_id=task.task_id,
             action="task_updated",
-            detail=f"'{task.title}' 수정됨",
+            detail=detail_msg,
         )
+
+        # ✅ 진행률 변경 시 담당자에게 알림 (필요시 제거 가능)
+        if (
+            "progress" in update_data
+            and task.assignee_emp_id
+            and task.assignee_emp_id != updater_emp_id
+        ):
+            create_notifications(
+                db=db,
+                recipients=[task.assignee_emp_id],
+                actor_emp_id=updater_emp_id,
+                project_id=task.project_id,
+                task_id=task.task_id,
+                ntype=NotificationType.status_change,
+                payload={"progress": update_data["progress"]},
+            )
 
         return task
 
@@ -129,9 +156,7 @@ def update_task(
 # =====================================================
 # ✅ 태스크 상태 변경
 # =====================================================
-def change_task_status(
-    db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int
-):
+def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int):
     """상태 변경 + 로그 + 이력 + 알림"""
     old_status = task.status
     task.status = new_status
@@ -149,7 +174,7 @@ def change_task_status(
             changed_by=actor_emp_id,
         )
 
-        # 🔔 담당자에게 알림
+        # 🔔 담당자에게 알림 (필요시 제거 가능)
         if task.assignee_emp_id and task.assignee_emp_id != actor_emp_id:
             create_notifications(
                 db=db,

@@ -1,16 +1,10 @@
 # app/schemas/project.py
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-from app.models.enums import (
-    MemberRole,
-    MilestoneStatus,
-    ProjectStatus,
-    TaskPriority,
-    TaskStatus,
-)
+from app.models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
 
 
 # ----------------------------
@@ -51,6 +45,7 @@ class TaskBase(BaseModel):
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     estimate_hours: float = 0.0
+    progress: Annotated[int, Field(ge=0, le=100)] = 0
 
 
 class TaskCreate(TaskBase):
@@ -67,6 +62,7 @@ class TaskUpdate(BaseModel):
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     estimate_hours: Optional[float] = None
+    progress: Optional[Annotated[int, Field(ge=0, le=100)]] = None
 
     @field_validator("start_date", "due_date", mode="before")
     def empty_str_to_none(cls, v):
@@ -96,6 +92,7 @@ class TaskTree(BaseModel):
     due_date: Optional[date] = None
     assignee_emp_id: Optional[int] = None
     assignee_name: Optional[str] = None
+    progress: Optional[int] = 0
     subtasks: List["TaskTree"] = []  # 자기참조
 
     class Config:

@@ -316,6 +316,7 @@ CREATE TABLE `task` (
   CONSTRAINT `task_ibfk_2` FOREIGN KEY (`assignee_emp_id`) REFERENCES `employee` (`emp_id`),
   CONSTRAINT `task_ibfk_3` FOREIGN KEY (`parent_task_id`) REFERENCES `task` (`task_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE task ADD COLUMN progress INT DEFAULT 0; -- 0~100%
 
 CREATE TABLE `task_comment` (
   `comment_id` int NOT NULL AUTO_INCREMENT,

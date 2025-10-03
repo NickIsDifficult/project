@@ -10,7 +10,7 @@ const api = axios.create({
 });
 
 // ✅ 토큰 자동 포함
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(config => {
   const token = localStorage.getItem("access_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
@@ -27,7 +27,7 @@ const request = async (fn, context = "태스크") => {
       typeof detail === "string"
         ? detail
         : Array.isArray(detail)
-          ? detail.map((d) => d.msg).join(", ")
+          ? detail.map(d => d.msg).join(", ")
           : detail?.message || error.message;
 
     console.error(`❌ ${context} API 요청 실패:`, error);
@@ -42,11 +42,11 @@ const request = async (fn, context = "태스크") => {
 //
 
 // ✅ 프로젝트별 평면 태스크 목록
-export const getTasks = (projectId) =>
+export const getTasks = projectId =>
   request(() => api.get(`/projects/${projectId}/tasks`), "태스크 목록");
 
 // ✅ 트리형 태스크 목록 (상위 → 하위 → 세부)
-export const getTaskTree = (projectId) =>
+export const getTaskTree = projectId =>
   request(() => api.get(`/projects/${projectId}/tasks/tree`), "트리형 태스크 목록");
 
 // ✅ 개별 태스크 상세
@@ -72,7 +72,17 @@ export const updateTaskStatus = (projectId, taskId, newStatus) =>
       api.patch(`/projects/${projectId}/tasks/${taskId}/status`, {
         status: newStatus,
       }),
-    "태스크 상태 변경"
+    "태스크 상태 변경",
+  );
+
+// ✅ 진행률 변경
+export const updateTaskProgress = (projectId, taskId, progress) =>
+  request(
+    () =>
+      api.patch(`/projects/${projectId}/tasks/${taskId}/progress`, {
+        progress,
+      }),
+    "진행률 변경",
   );
 
 //
@@ -90,15 +100,14 @@ export const createComment = (projectId, taskId, body) =>
 export const updateComment = (projectId, taskId, commentId, body) =>
   request(
     () => api.put(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`, body),
-    "댓글 수정"
+    "댓글 수정",
   );
 
 export const deleteComment = (projectId, taskId, commentId) =>
   request(
     () => api.delete(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`),
-    "댓글 삭제"
+    "댓글 삭제",
   );
-
 
 //
 // ===================================================
@@ -117,6 +126,6 @@ export const uploadAttachment = (projectId, taskId, file) => {
       api.post(`/projects/${projectId}/tasks/${taskId}/attachments`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       }),
-    "첨부파일 업로드"
+    "첨부파일 업로드",
   );
 };

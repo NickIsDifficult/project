@@ -1,17 +1,18 @@
 // src/pages/projects/ProjectDetailPage.jsx
-import React, { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { useNavigate, useParams } from "react-router-dom";
 import { getProject } from "../../services/api/project";
 import { getTaskTree } from "../../services/api/task";
 
-import ListView from "../../components/tasks/ListView";
-import KanbanView from "../../components/tasks/KanbanView";
-import TaskRegistration from "../../components/tasks/TaskRegistration";
-import TaskDetailPanel from "../../components/tasks/TaskDetailPanel";
 import { Button } from "../../components/common/Button";
 import { Drawer } from "../../components/common/Drawer";
 import { Loader } from "../../components/common/Loader";
+import CalendarView from "../../components/tasks/CalendarView";
+import KanbanView from "../../components/tasks/KanbanView";
+import ListView from "../../components/tasks/ListView";
+import TaskDetailPanel from "../../components/tasks/TaskDetailPanel";
+import TaskRegistration from "../../components/tasks/TaskRegistration";
 
 export default function ProjectDetailPage() {
   const { projectId } = useParams();
@@ -125,6 +126,12 @@ export default function ProjectDetailPage() {
         >
           🧩 칸반 뷰
         </Button>
+        <Button
+          variant={viewType === "calendar" ? "primary" : "outline"}
+          onClick={() => setViewType("calendar")}
+        >
+          🗓️ 캘린더 뷰
+        </Button>
 
         <Button
           variant="success"
@@ -137,20 +144,33 @@ export default function ProjectDetailPage() {
 
       {/* ---------- 메인 콘텐츠 ---------- */}
       <div>
-        {viewType === "list" ? (
+        {viewType === "list" && (
           <ListView
             projectId={projectId}
             tasks={tasks}
             onTaskClick={setSelectedTask}
             onTasksChange={fetchTasks}
           />
-        ) : (
+        )}
+
+        {viewType === "kanban" && (
           <KanbanView
             projectId={projectId}
             tasks={tasks}
             onTaskMove={fetchTasks}
             onTaskClick={setSelectedTask}
           />
+        )}
+
+        {viewType === "calendar" && (
+          <div style={{ height: "100%", overflow: "hidden" }}>
+            <CalendarView
+              projectId={projectId}
+              tasks={tasks}
+              onTaskClick={setSelectedTask}
+              onTaskMove={fetchTasks}
+            />
+          </div>
         )}
       </div>
 

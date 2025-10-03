@@ -1,0 +1,12 @@
+[tool.black]
+line-length = 88                # 한 줄 최대 길이
+target-version = ['py311']      # Python 3.11 기준 (venv 버전에 맞게 수정)
+skip-string-normalization = false
+
+[tool.isort]
+profile = "black"               # black 스타일과 호환
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+combine_as_imports = true

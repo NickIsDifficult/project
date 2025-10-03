@@ -1,0 +1,181 @@
+# app/schemas/project.py
+from datetime import date, datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, Field, field_serializer, field_validator
+
+from app.models.enums import (
+    MemberRole,
+    MilestoneStatus,
+    ProjectStatus,
+    TaskPriority,
+    TaskStatus,
+)
+
+
+# ----------------------------
+# TaskComment
+# ----------------------------
+class TaskCommentBase(BaseModel):
+    content: str
+    parent_comment_id: Optional[int] = None
+
+
+class TaskCommentCreate(TaskCommentBase):
+    pass
+
+
+class TaskComment(TaskCommentBase):
+    comment_id: int
+    project_id: Optional[int] = None
+    task_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @field_serializer("created_at", "updated_at", when_used="always")
+    def serialize_datetime(self, v: Optional[datetime], _info):
+        return v.strftime("%Y-%m-%d %H:%M:%S") if v else None
+
+    model_config = {"from_attributes": True}
+
+
+# ----------------------------
+# Task
+# ----------------------------
+class TaskBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    status: TaskStatus = TaskStatus.TODO
+    priority: TaskPriority = TaskPriority.MEDIUM
+    assignee_emp_id: Optional[int] = None
+    start_date: Optional[date] = None
+    due_date: Optional[date] = None
+    estimate_hours: float = 0.0
+
+
+class TaskCreate(TaskBase):
+    project_id: int
+    parent_task_id: Optional[int] = None
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[TaskStatus] = None
+    priority: Optional[TaskPriority] = None
+    assignee_emp_id: Optional[int] = None
+    start_date: Optional[date] = None
+    due_date: Optional[date] = None
+    estimate_hours: Optional[float] = None
+
+    @field_validator("start_date", "due_date", mode="before")
+    def empty_str_to_none(cls, v):
+        return None if v in ("", None, "") else v
+
+
+class TaskStatusUpdate(BaseModel):
+    status: TaskStatus
+
+
+class Task(TaskBase):
+    task_id: int
+    project_id: int
+    comments: List[TaskComment] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}
+
+
+class TaskTree(BaseModel):
+    task_id: int
+    project_id: int
+    title: str
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    start_date: Optional[date] = None
+    due_date: Optional[date] = None
+    assignee_emp_id: Optional[int] = None
+    assignee_name: Optional[str] = None
+    subtasks: List["TaskTree"] = []  # 자기참조
+
+    class Config:
+        from_attributes = True
+
+
+# ----------------------------
+# Milestone
+# ----------------------------
+class MilestoneBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    due_date: Optional[date] = None
+    status: MilestoneStatus = MilestoneStatus.PLANNED
+
+
+class MilestoneCreate(MilestoneBase):
+    project_id: int
+
+
+class Milestone(MilestoneBase):
+    milestone_id: int
+    project_id: int
+
+    model_config = {"from_attributes": True}
+
+
+# ----------------------------
+# ProjectMember
+# ----------------------------
+class ProjectMemberBase(BaseModel):
+    emp_id: int
+    role: MemberRole = MemberRole.MEMBER
+
+
+class ProjectMember(ProjectMemberBase):
+    project_id: int
+
+    model_config = {"from_attributes": True}
+
+
+# ----------------------------
+# Project
+# ----------------------------
+class ProjectBase(BaseModel):
+    project_name: str
+    description: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: ProjectStatus = ProjectStatus.PLANNED
+    owner_emp_id: Optional[int] = None
+
+    @field_serializer("start_date", "end_date", when_used="always")
+    def serialize_date(self, v: Optional[date], _info):
+        return v.strftime("%Y-%m-%d") if v else None
+
+
+class ProjectCreate(ProjectBase):
+    pass
+
+
+class ProjectUpdate(BaseModel):
+    project_name: Optional[str] = None
+    description: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: Optional[ProjectStatus] = None
+    owner_emp_id: Optional[int] = None
+
+    @field_validator("start_date", "end_date", mode="before")
+    def empty_str_to_none(cls, v):
+        return None if v in ("", None, "") else v
+
+    model_config = {"from_attributes": True}
+
+
+class Project(ProjectBase):
+    project_id: int
+    members: List[ProjectMember] = Field(default_factory=list)
+    tasks: List[Task] = Field(default_factory=list)
+    milestones: List[Milestone] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}

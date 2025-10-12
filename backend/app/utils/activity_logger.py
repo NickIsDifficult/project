@@ -1,10 +1,11 @@
 # app/utils/activity_logger.py
 from datetime import datetime
+
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app import models
-from app.models.activity import ActivityAction
+from app.models.activity_log import ActivityAction
 
 
 def log_task_action(
@@ -28,16 +29,12 @@ def log_task_action(
         try:
             action_enum = ActivityAction(action)
         except ValueError:
-            action_enum = (
-                ActivityAction.unknown
-                if hasattr(ActivityAction, "unknown")
-                else action
-            )
+            action_enum = ActivityAction.unknown if hasattr(ActivityAction, "unknown") else action
 
         # ✅ 로그 객체 생성
         log = models.ActivityLog(
             emp_id=emp_id,
-            project_id=project_id,   # 삭제된 task도 로그 유지 위해 NULL 허용
+            project_id=project_id,  # 삭제된 task도 로그 유지 위해 NULL 허용
             task_id=task_id,
             action=action_enum,
             detail=detail,

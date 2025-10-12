@@ -1,20 +1,50 @@
-# Python
+# =====================================
+# 🐍 Python (FastAPI)
+# =====================================
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
 venv/
 .env
+.env.*
 
-# Node.js
+# =====================================
+# ⚛️ Node.js (React/Vite)
+# =====================================
 node_modules/
 dist/
 build/
-
-# VSCode
-.vscode/
-
-# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# OS
+# =====================================
+# 🧠 VSCode / 개발환경
+# =====================================
+.vscode/settings.json   # ✅ API 키 보호용 (추가!)
+.vscode/*.code-workspace
+.idea/
+*.code-workspace
+
+# =====================================
+# 🔐 보안 / 개인 키 / 민감 파일
+# =====================================
+*.key
+*.pem
+*.crt
+*.secret
+*.credentials
+config.json
+secrets.json
+credentials.json
+
+# =====================================
+# 💻 OS / 시스템 파일
+# =====================================
 .DS_Store
 Thumbs.db

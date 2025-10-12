@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel, field_serializer
-from app.models.activity import ActivityAction
+
+from app.models.activity_log import ActivityAction
 
 
 class ActivityLogSchema(BaseModel):
@@ -24,7 +26,7 @@ class ActivityFeedItem(BaseModel):
     created_at: datetime
     emp_id: int
     task_id: Optional[int] = None
-    type: str
+    type: Optional[str] = None
     detail: Optional[str] = None
 
     @field_serializer("created_at", when_used="always")

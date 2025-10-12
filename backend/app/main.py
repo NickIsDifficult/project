@@ -57,7 +57,7 @@ app.include_router(department_router.router)
 app.include_router(employee_router.router)
 app.include_router(history_router.router)
 app.include_router(notification_router.router)
-# app.include_router(activity_router.router)  # ✅ 프로젝트 활동 피드
+app.include_router(activity_router.router)  # ✅ 프로젝트 활동 피드
 
 
 # ---------------------------

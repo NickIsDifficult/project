@@ -1,0 +1,19 @@
+/* 전역 초기화 + 기본값 */
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;           /* 기본 8px 제거 */
+  padding: 0;
+  background: #f9f9f9; /* 필요 없으면 지워도 됨 */
+  color: #333;
+  line-height: 1.5;
+}
+
+/* 이미지/아이콘 baseline 여백 제거 */
+img, svg {
+  display: block;
+}

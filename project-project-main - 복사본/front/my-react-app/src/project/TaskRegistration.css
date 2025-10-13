@@ -1,0 +1,9 @@
+html, body {
+  height: auto;
+  min-height: 100%;
+  overflow-y: visible; /* ✅ 스크롤 제어권을 body로 넘김 */
+}
+
+#root {
+  min-height: 100%;
+}

@@ -1,18 +1,27 @@
-// src/App.jsx
+// ✅ 수정 완료된 src/App.jsx
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import ProjectsPage from "./project/pages/projects/ProjectsPage";
+import ProjectDetailPage from "./project/pages/projects/ProjectDetailPage";
 
-const Screen = lazy(() => import("./screens/Screen.jsx"));      // 메인
-const Projects = lazy(() => import("./project/pages/projects/ProjectsPage.jsx")); // 태스크
-const Calendar = lazy(() => import("./calendar/CalendarView.jsx"))
-const NoticeBoard = lazy(() => import("./notices/NoticeBoard.jsx"))
-const TrashBin = lazy(() => import("./components/TrashBin.jsx"))
+const Screen = lazy(() => import("./screens/Screen.jsx"));
+const Projects = lazy(() => import("./project/pages/projects/ProjectsPage.jsx"));
+const Calendar = lazy(() => import("./calendar/CalendarView.jsx"));
+const NoticeBoard = lazy(() => import("./notices/NoticeBoard.jsx"));
+const TrashBin = lazy(() => import("./components/TrashBin.jsx"));
 
 class ErrorBoundary extends React.Component {
-  constructor(props){ super(props); this.state = { hasError:false, error:null } }
-  static getDerivedStateFromError(error){ return { hasError:true, error } }
-  componentDidCatch(error, info){ console.error("ErrorBoundary", error, info) }
-  render(){
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error("ErrorBoundary", error, info);
+  }
+  render() {
     if (this.state.hasError) {
       return (
         <div style={{ padding: 16, color: "#b00020", whiteSpace: "pre-wrap" }}>
@@ -33,6 +42,10 @@ export default function App() {
           {/* 기본 진입 → /Main으로 */}
           <Route path="/" element={<Navigate to="/Main" replace />} />
 
+          {/* Public Routes */}
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+
           {/* 메인 화면 */}
           <Route path="/Main" element={<Screen />} />
 
@@ -43,10 +56,10 @@ export default function App() {
           <Route path="/Calendar" element={<Calendar />} />
 
           {/* 공지사항 */}
-          <Route path="/NoticeBoard" element={<NoticeBoard />} /> 
-          
+          <Route path="/NoticeBoard" element={<NoticeBoard />} />
+
           {/* 휴지통 */}
-          <Route path="/TrashBin" element={<TrashBin />} /> 
+          <Route path="/TrashBin" element={<TrashBin />} />
 
           {/* 그 외 → /Main */}
           <Route path="*" element={<Navigate to="/Main" replace />} />

@@ -1,1 +1,1 @@
-from schemas import department
+from projectlist.schemas import department

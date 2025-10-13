@@ -2,10 +2,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app import models, schemas
-from core.auth import get_current_user
-from core.exceptions import bad_request, conflict, not_found
-from database import get_db
+from projectlist import models, schemas
+from projectlist.core.auth import get_current_user
+from projectlist.core.exceptions import bad_request, conflict, not_found
+from projectlist.database import get_db
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 

@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, field_serializer
 
-from models.notification import NotificationType
+from projectlist.models.notification import NotificationType
 
 
 # ----------------------------------------

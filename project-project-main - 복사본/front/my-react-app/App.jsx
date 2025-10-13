@@ -1,9 +1,9 @@
-// src/App.js
+// src/App.jsx
 import React, { useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Login from "./Login";
-import ProtectedRoute from "./ProtectedRoute";
+import ProtectedRoute from "./src/ProtectedRoute";
 
 // 📢 공지사항 관련
 import NoticeList from "./notices/NoticeList";
@@ -24,7 +24,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 로그인 화면 */}
+        {/* 🔐 로그인 화면 */}
         <Route
           path="/"
           element={
@@ -37,7 +37,7 @@ function App() {
           }
         />
 
-        {/* 공지사항 등록/목록 */}
+        {/* 📢 공지사항 목록 */}
         <Route
           path="/notices"
           element={
@@ -47,7 +47,7 @@ function App() {
           }
         />
 
-        {/* 공지사항 전체 게시판 */}
+        {/* 📢 전체 게시판 */}
         <Route
           path="/notice-board"
           element={
@@ -57,7 +57,7 @@ function App() {
           }
         />
 
-        {/* 공지사항 검색 */}
+        {/* 🔍 공지사항 검색 */}
         <Route
           path="/notice-search"
           element={
@@ -67,7 +67,7 @@ function App() {
           }
         />
 
-        {/* 공지사항 상세 & 정정 추가 */}
+        {/* 📄 공지사항 상세 */}
         <Route
           path="/notices/:id"
           element={
@@ -77,7 +77,7 @@ function App() {
           }
         />
 
-        {/* 캘린더 */}
+        {/* 📅 캘린더 */}
         <Route
           path="/calendar"
           element={
@@ -90,7 +90,7 @@ function App() {
           }
         />
 
-        {/* 상태창 */}
+        {/* 📊 상태 보드 */}
         <Route
           path="/status-board"
           element={
@@ -100,7 +100,7 @@ function App() {
           }
         />
 
-        {/* 관리자 페이지 */}
+        {/* 🔐 관리자 페이지 */}
         <Route
           path="/admin-test"
           element={

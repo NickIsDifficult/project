@@ -4,7 +4,7 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from models.employee import Employee
+from projectlist.models.employee import Employee
 
 # ✅ @username, @홍길동, @lee_hs 등 다양한 케이스 지원
 MENTION_PATTERN = re.compile(r"@([A-Za-z0-9가-힣._-]+)")

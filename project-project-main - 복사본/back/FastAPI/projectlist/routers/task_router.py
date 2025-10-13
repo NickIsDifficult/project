@@ -4,12 +4,12 @@ from typing import List
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
-from app import models, schemas
-from core.auth import get_current_user
-from core.exceptions import forbidden, not_found
-from database import get_db
-from schemas import attachment as attachment_schema, project as comment_schema
-from services import attachment_service, comment_service, task_service
+from projectlist import models, schemas
+from projectlist.core.auth import get_current_user
+from projectlist.core.exceptions import forbidden, not_found
+from projectlist.database import get_db
+from projectlist.schemas import attachment as attachment_schema, project as comment_schema
+from projectlist.services import attachment_service, comment_service, task_service
 
 # ✅ /projects/... 으로 시작
 router = APIRouter(prefix="/projects", tags=["tasks"])

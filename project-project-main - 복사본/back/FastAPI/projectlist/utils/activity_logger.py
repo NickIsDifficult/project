@@ -4,8 +4,8 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app import models
-from models.activity_log import ActivityAction
+from projectlist import models
+from projectlist.models.activity_log import ActivityAction
 
 
 def log_task_action(

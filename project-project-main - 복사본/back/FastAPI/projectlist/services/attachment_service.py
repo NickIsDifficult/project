@@ -5,9 +5,9 @@ from datetime import datetime
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app import models
-from core.exceptions import bad_request, forbidden, not_found
-from utils.activity_logger import log_task_action
+from projectlist import models
+from projectlist.core.exceptions import bad_request, forbidden, not_found
+from projectlist.utils.activity_logger import log_task_action
 
 # -------------------------------
 # 🧭 기본 저장 경로 설정

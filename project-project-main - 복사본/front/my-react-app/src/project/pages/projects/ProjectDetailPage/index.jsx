@@ -14,6 +14,7 @@ import CalendarView from "../../../components/tasks/TaskCalendarView";
 import TaskDetailPanel from "../../../components/tasks/TaskDetailPanel";
 import TaskKanbanView from "../../../components/tasks/TaskKanbanView";
 import TaskListView from "../../../components/tasks/TaskListView";
+import AppShell from "../../../../layout/AppShell";
 
 export default function ProjectDetailPage() {
   const { projectId } = useParams();
@@ -42,6 +43,7 @@ export default function ProjectDetailPage() {
   if (!project) return <div style={{ padding: 24 }}>❌ 프로젝트를 찾을 수 없습니다.</div>;
 
   return (
+    <AppShell>
     <div style={{ padding: 24 }}>
       <Toaster position="top-right" />
 
@@ -106,5 +108,6 @@ export default function ProjectDetailPage() {
         />
       )}
     </div>
+    </AppShell>
   );
 }

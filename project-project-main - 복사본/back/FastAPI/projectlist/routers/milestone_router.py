@@ -2,12 +2,12 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app import models, schemas
-from core.auth import get_current_user
-from core.exceptions import conflict, forbidden, not_found
-from database import get_db
-from models.project import MilestoneStatus
-from services import milestone_service
+from projectlist import models, schemas
+from projectlist.core.auth import get_current_user
+from projectlist.core.exceptions import conflict, forbidden, not_found
+from projectlist.database import get_db
+from projectlist.models.project import MilestoneStatus
+from projectlist.services import milestone_service
 
 router = APIRouter(prefix="/projects/{project_id}/milestones", tags=["milestones"])
 

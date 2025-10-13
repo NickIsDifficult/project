@@ -2,8 +2,8 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Index, Integer, Text
 
-from database import Base
-from models.enums import ActivityAction  # ✅ enums.py에서 가져오기
+from projectlist.database import Base
+from .enums import ActivityAction  # ✅ enums.py에서 가져오기
 
 
 class ActivityLog(Base):

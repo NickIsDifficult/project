@@ -1,11 +1,11 @@
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app import models
-from core.exceptions import bad_request, forbidden, not_found
-from utils.activity_logger import log_task_action
-from utils.mention import extract_mentions
-from utils.notifier import create_notifications
+from projectlist import models
+from projectlist.core.exceptions import bad_request, forbidden, not_found
+from projectlist.utils.activity_logger import log_task_action
+from projectlist.utils.mention import extract_mentions
+from projectlist.utils.notifier import create_notifications
 
 
 # --------------------------------

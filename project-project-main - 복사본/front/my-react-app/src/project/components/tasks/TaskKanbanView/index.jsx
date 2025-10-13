@@ -11,6 +11,7 @@ export default function TaskKanbanView({ projectId, tasks = [], onTaskClick, onT
   if (loading) return <Loader text="칸반 보드를 불러오는 중..." />;
 
   return (
+    
     <div style={boardWrapper}>
       <DragDropContext onDragEnd={handleDragEnd}>
         <div style={boardContainer}>

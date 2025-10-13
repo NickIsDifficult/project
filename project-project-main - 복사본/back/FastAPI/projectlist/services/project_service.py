@@ -1,9 +1,9 @@
 # app/services/project_service.py
 from sqlalchemy.orm import Session
 
-from app import models, schemas
-from core.exceptions import bad_request, conflict, forbidden, not_found
-from models.enums import MemberRole, ProjectStatus
+from projectlist import models, schemas
+from projectlist.core.exceptions import bad_request, conflict, forbidden, not_found
+from projectlist.models.enums import MemberRole, ProjectStatus
 
 
 # -------------------------------

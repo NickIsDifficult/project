@@ -13,8 +13,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from database import Base
-from models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
+from projectlist.database import Base
+from .enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
 
 
 # ---------------------------------

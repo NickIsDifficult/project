@@ -3,9 +3,9 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app import models
-from core.exceptions import not_found
-from models.project import TaskStatus
+from projectlist import models
+from projectlist.core.exceptions import not_found
+from projectlist.models.project import TaskStatus
 
 
 def create_task_history(

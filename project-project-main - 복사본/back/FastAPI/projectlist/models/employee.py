@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
-from database import Base
+from projectlist.database import Base
 
 
 class UserType(str, enum.Enum):

@@ -10,13 +10,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.19",
+    "@fullcalendar/daygrid": "^6.1.19",
+    "@fullcalendar/interaction": "^6.1.19",
+    "@fullcalendar/list": "^6.1.19",
+    "@fullcalendar/react": "^6.1.19",
+    "@fullcalendar/timegrid": "^6.1.19",
+    "@hello-pangea/dnd": "^18.0.1",
     "axios": "^1.12.2",
     "date-fns": "^4.1.0",
     "react": "^19.1.1",
     "react-big-calendar": "^1.19.4",
     "react-datepicker": "^8.7.0",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.1"
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.9.1",
+    "react-textarea-autosize": "^8.5.9"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

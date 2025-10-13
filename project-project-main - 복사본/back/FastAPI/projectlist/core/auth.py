@@ -7,8 +7,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from app import models
-from database import get_db
+from projectlist import models
+from projectlist.database import get_db
 
 # ---------------------------
 # 설정

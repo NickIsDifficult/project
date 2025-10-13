@@ -1,13 +1,13 @@
 # app/services/task_service.py
 from sqlalchemy.orm import Session
 
-from app import models, schemas
-from core.exceptions import bad_request, forbidden, not_found
-from models.enums import TaskStatus
-from models.notification import NotificationType
-from services import history_service
-from utils.activity_logger import log_task_action
-from utils.notifier import create_notifications
+from projectlist import models, schemas
+from projectlist.core.exceptions import bad_request, forbidden, not_found
+from projectlist.models.enums import TaskStatus
+from projectlist.models.notification import NotificationType
+from projectlist.services import history_service
+from projectlist.utils.activity_logger import log_task_action
+from projectlist.utils.notifier import create_notifications
 
 
 # =====================================================

@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, field_serializer
 
-from models.activity_log import ActivityAction
+from projectlist.models.activity_log import ActivityAction
 
 
 class ActivityLogSchema(BaseModel):

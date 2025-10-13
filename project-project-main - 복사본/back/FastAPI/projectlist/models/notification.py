@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import JSON, Boolean, Column, DateTime, Enum, ForeignKey, Index, Integer
 from sqlalchemy.orm import relationship
 
-from database import Base
+from projectlist.database import Base
 
 
 class NotificationType(str, enum.Enum):

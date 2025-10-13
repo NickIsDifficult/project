@@ -2,11 +2,11 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app import models, schemas
-from core.auth import get_current_user
-from core.exceptions import forbidden
-from database import get_db
-from services.activity_logger import get_project_activity, get_task_activity, is_project_member
+from projectlist import models, schemas
+from projectlist.core.auth import get_current_user
+from projectlist.core.exceptions import forbidden
+from projectlist.database import get_db
+from projectlist.services.activity_logger import get_project_activity, get_task_activity, is_project_member
 
 router = APIRouter(prefix="/projects/{project_id}/activity", tags=["activity_feed"])
 

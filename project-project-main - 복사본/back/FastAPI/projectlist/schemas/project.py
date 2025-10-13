@@ -4,7 +4,7 @@ from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-from models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
+from projectlist.models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
 
 
 # ----------------------------

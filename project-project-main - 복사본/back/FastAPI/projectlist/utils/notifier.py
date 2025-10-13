@@ -5,7 +5,7 @@ from typing import Iterable, List, Optional
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from models.notification import Notification, NotificationType
+from projectlist.models.notification import Notification, NotificationType
 
 
 def create_notifications(

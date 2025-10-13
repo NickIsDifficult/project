@@ -3,9 +3,9 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app import models, schemas
-from core.exceptions import conflict, forbidden, not_found
-from models.project import MilestoneStatus
+from projectlist import models, schemas
+from projectlist.core.exceptions import conflict, forbidden, not_found
+from projectlist.models.project import MilestoneStatus
 
 
 # -------------------------------

@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.core.auth import get_current_user
 from app.core.exceptions import bad_request, conflict, not_found
 from app.database import get_db
+from app.utils.token import get_current_user
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 
@@ -102,7 +102,7 @@ def delete_department(dept_id: int, db: Session = Depends(get_db)):
 # -------------------------------
 # 권한(Role) 목록 조회
 # -------------------------------
-@router.get("/roles", response_model=list[schemas.department.Role])
+@router.get("/roles", response_model=list[schemas.role.Role])
 def read_roles(db: Session = Depends(get_db)):
     roles = db.query(models.Role).all()
     if not roles:

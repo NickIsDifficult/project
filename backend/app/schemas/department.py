@@ -31,16 +31,8 @@ class Department(DepartmentBase):
         from_attributes = True  # ✅ Pydantic v2: orm_mode 대체
 
 
-# -------------------------------
-# 룰룰
-# -------------------------------
-class Role(BaseModel):
-    role_id: int
-    role_name: str
-    role_level: int
-
-    class Config:
-        from_attributes = True
+class DepartmentResponse(Department):
+    pass
 
 
 class DepartmentPermission(BaseModel):

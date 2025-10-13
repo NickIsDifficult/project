@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { createTask, getTasks } from "../../services/api/task";
 import { getEmployees } from "../../services/api/employee";
-import { Button } from "../common/Button";
+import { createTask, getTasks } from "../../services/api/task";
+import { Button } from "../common/ButtonProject";
 
 export default function TaskRegistration({ projectId, parentTaskId = null, onClose }) {
   const [loading, setLoading] = useState(false);
@@ -35,13 +35,13 @@ export default function TaskRegistration({ projectId, parentTaskId = null, onClo
   }, [projectId]);
 
   // ✅ 입력값 변경
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm(prev => ({ ...prev, [name]: value }));
   };
 
   // ✅ 등록 처리
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
 
     if (!form.title.trim()) {
@@ -117,7 +117,7 @@ export default function TaskRegistration({ projectId, parentTaskId = null, onClo
           disabled={!!parentTaskId} // ✅ 이미 상위 업무 지정된 경우 수정 불가
         >
           <option value="">(없음 - 최상위)</option>
-          {tasks.map((t) => (
+          {tasks.map(t => (
             <option key={t.task_id} value={t.task_id}>
               {t.title}
             </option>
@@ -138,7 +138,7 @@ export default function TaskRegistration({ projectId, parentTaskId = null, onClo
             style={inputStyle}
           >
             <option value="">선택 안 함</option>
-            {employees.map((emp) => (
+            {employees.map(emp => (
               <option key={emp.emp_id} value={emp.emp_id}>
                 {emp.name} ({emp.department_name})
               </option>

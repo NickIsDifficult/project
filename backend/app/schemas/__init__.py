@@ -17,3 +17,4 @@ from .project import (
     TaskCreate,
     TaskUpdate,
 )
+from .role import Role

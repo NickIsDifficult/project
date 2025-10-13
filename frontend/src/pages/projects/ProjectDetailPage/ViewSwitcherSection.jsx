@@ -1,6 +1,6 @@
 // src/pages/projects/ProjectDetailPage/ViewSwitcherSection.jsx
 import React from "react";
-import { Button } from "../../../components/common/Button";
+import { Button } from "../../../components/common/ButtonProject";
 
 export default function ViewSwitcherSection({ viewType, setViewType, onAddTask }) {
   const buttons = [

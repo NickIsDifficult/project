@@ -8,18 +8,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import models
 from app.database import Base, engine
-from app.routers import notification_router  # ✅ 추가
 from app.routers import (
     activity_router,
-    auth_router,
     comment_router,
     department_router,
     employee_router,
     history_router,
     milestone_router,
+    notification_router,
     project_router,
     task_router,
 )
+from app.routers.auth import login, signup
 
 logging.basicConfig(level=logging.INFO)
 
@@ -48,7 +48,8 @@ app.add_middleware(
 # ---------------------------
 # 라우터 등록
 # ---------------------------
-app.include_router(auth_router.router)  # 로그인/회원 관리
+app.include_router(login.router)
+app.include_router(signup.router)
 app.include_router(project_router.router)  # 프로젝트 & 멤버
 app.include_router(task_router.router)  # 태스크
 app.include_router(comment_router.router)  # 코멘트

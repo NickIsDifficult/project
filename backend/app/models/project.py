@@ -14,7 +14,13 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.database import Base
-from app.models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
+from app.models.enums import (
+    MemberRole,
+    MilestoneStatus,
+    ProjectStatus,
+    TaskPriority,
+    TaskStatus,
+)
 
 
 # ---------------------------------
@@ -28,7 +34,9 @@ class Project(Base):
     description = Column(Text)
     start_date = Column(Date)
     end_date = Column(Date)
-    status = Column(Enum(ProjectStatus, native_enum=False), default=ProjectStatus.PLANNED)
+    status = Column(
+        Enum(ProjectStatus, native_enum=False), default=ProjectStatus.PLANNED
+    )
     owner_emp_id = Column(
         Integer, ForeignKey("employee.emp_id", ondelete="SET NULL"), nullable=True
     )
@@ -37,12 +45,22 @@ class Project(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # ✅ 관계
-    owner = relationship("Employee", backref="owned_projects", foreign_keys=[owner_emp_id])
-    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+    owner = relationship(
+        "Employee", backref="owned_projects", foreign_keys=[owner_emp_id]
+    )
+    members = relationship(
+        "ProjectMember", back_populates="project", cascade="all, delete-orphan"
+    )
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
-    milestones = relationship("Milestone", back_populates="project", cascade="all, delete-orphan")
-    comments = relationship("TaskComment", back_populates="project", cascade="all, delete-orphan")
-    attachments = relationship("Attachment", back_populates="project", cascade="all, delete-orphan")
+    milestones = relationship(
+        "Milestone", back_populates="project", cascade="all, delete-orphan"
+    )
+    comments = relationship(
+        "TaskComment", back_populates="project", cascade="all, delete-orphan"
+    )
+    attachments = relationship(
+        "Attachment", back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 # ---------------------------------
@@ -54,7 +72,9 @@ class ProjectMember(Base):
     project_id = Column(
         Integer, ForeignKey("project.project_id", ondelete="CASCADE"), primary_key=True
     )
-    emp_id = Column(Integer, ForeignKey("employee.emp_id", ondelete="CASCADE"), primary_key=True)
+    emp_id = Column(
+        Integer, ForeignKey("employee.emp_id", ondelete="CASCADE"), primary_key=True
+    )
     role = Column(Enum(MemberRole, native_enum=False), default=MemberRole.MEMBER)
 
     project = relationship("Project", back_populates="members")
@@ -75,10 +95,16 @@ class Task(Base):
     )
     title = Column(String(300), nullable=False)
     description = Column(Text)
-    assignee_emp_id = Column(Integer, ForeignKey("employee.emp_id", ondelete="SET NULL"))
-    priority = Column(Enum(TaskPriority, native_enum=False), default=TaskPriority.MEDIUM)
+    assignee_emp_id = Column(
+        Integer, ForeignKey("employee.emp_id", ondelete="SET NULL")
+    )
+    priority = Column(
+        Enum(TaskPriority, native_enum=False), default=TaskPriority.MEDIUM
+    )
     status = Column(Enum(TaskStatus, native_enum=False), default=TaskStatus.TODO)
-    parent_task_id = Column(Integer, ForeignKey("task.task_id", ondelete="CASCADE"), nullable=True)
+    parent_task_id = Column(
+        Integer, ForeignKey("task.task_id", ondelete="CASCADE"), nullable=True
+    )
     start_date = Column(Date)
     due_date = Column(Date)
     estimate_hours = Column(DECIMAL(6, 2), default=0)
@@ -88,13 +114,23 @@ class Task(Base):
 
     # ✅ 관계
     project = relationship("Project", back_populates="tasks")
-    assignee = relationship("Employee", back_populates="tasks", foreign_keys=[assignee_emp_id])
-    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")
-    histories = relationship("TaskHistory", back_populates="task", cascade="all, delete-orphan")
+    assignee = relationship(
+        "Employee", back_populates="tasks", foreign_keys=[assignee_emp_id]
+    )
+    comments = relationship(
+        "TaskComment", back_populates="task", cascade="all, delete-orphan"
+    )
+    histories = relationship(
+        "TaskHistory", back_populates="task", cascade="all, delete-orphan"
+    )
 
     parent = relationship("Task", remote_side=[task_id], back_populates="subtasks")
-    subtasks = relationship("Task", back_populates="parent", cascade="all, delete-orphan")
-    attachments = relationship("Attachment", back_populates="task", cascade="all, delete-orphan")
+    subtasks = relationship(
+        "Task", back_populates="parent", cascade="all, delete-orphan"
+    )
+    attachments = relationship(
+        "Attachment", back_populates="task", cascade="all, delete-orphan"
+    )
 
 
 # ---------------------------------
@@ -107,8 +143,12 @@ class TaskComment(Base):
     project_id = Column(
         Integer, ForeignKey("project.project_id", ondelete="CASCADE"), nullable=False
     )
-    task_id = Column(Integer, ForeignKey("task.task_id", ondelete="CASCADE"), nullable=False)
-    emp_id = Column(Integer, ForeignKey("employee.emp_id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(
+        Integer, ForeignKey("task.task_id", ondelete="CASCADE"), nullable=False
+    )
+    emp_id = Column(
+        Integer, ForeignKey("employee.emp_id", ondelete="CASCADE"), nullable=False
+    )
 
     content = Column(Text, nullable=False)
 
@@ -119,6 +159,7 @@ class TaskComment(Base):
     project = relationship("Project", back_populates="comments")
     task = relationship("Task", back_populates="comments")
     employee = relationship("Employee", back_populates="comments")
+    author = relationship("Employee", back_populates="comments")
 
     def __repr__(self):
         return f"<TaskComment(comment_id={self.comment_id}, task_id={self.task_id}, emp_id={self.emp_id})>"
@@ -137,7 +178,9 @@ class Milestone(Base):
     name = Column(String(200), nullable=False)
     description = Column(Text)
     due_date = Column(Date)
-    status = Column(Enum(MilestoneStatus, native_enum=False), default=MilestoneStatus.PLANNED)
+    status = Column(
+        Enum(MilestoneStatus, native_enum=False), default=MilestoneStatus.PLANNED
+    )
 
     project = relationship("Project", back_populates="milestones")
 
@@ -149,7 +192,9 @@ class TaskHistory(Base):
     __tablename__ = "task_history"
 
     history_id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, ForeignKey("task.task_id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(
+        Integer, ForeignKey("task.task_id", ondelete="CASCADE"), nullable=False
+    )
     old_status = Column(Enum(TaskStatus, native_enum=False))
     new_status = Column(Enum(TaskStatus, native_enum=False))
     changed_by = Column(Integer, ForeignKey("employee.emp_id", ondelete="SET NULL"))

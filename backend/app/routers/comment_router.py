@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.core.auth import get_current_user
 from app.core.exceptions import bad_request, forbidden, not_found
 from app.database import get_db
 from app.services import comment_service  # ✅ 서비스 사용
+from app.utils.token import get_current_user
 
 router = APIRouter(prefix="/tasks/{task_id}/comments", tags=["comments"])
 

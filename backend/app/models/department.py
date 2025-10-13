@@ -19,24 +19,8 @@ class Department(Base):
 
     # 관계
     employees = relationship("Employee", back_populates="department")
-    externals = relationship("ExternalPerson", back_populates="department")
+    externals = relationship("External", back_populates="department")
     permissions = relationship("DepartmentPermission", back_populates="department")
-
-
-# ----------------------------------------
-# 직급 / 권한 (Role)
-# ----------------------------------------
-class Role(Base):
-    __tablename__ = "role"
-
-    role_id = Column(Integer, primary_key=True, index=True)
-    role_name = Column(String(50), unique=True, nullable=False)
-    role_level = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    employees = relationship("Employee", back_populates="role")
-    permissions = relationship("DepartmentPermission", back_populates="role")
 
 
 # ----------------------------------------

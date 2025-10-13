@@ -1,7 +1,7 @@
 // src/components/tasks/TaskDetailPanel/TaskComments.jsx
 import { useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
-import { Button } from "../../common/Button";
+import { Button } from "../../common/ButtonProject";
 
 export default function TaskComments({ comments, currentUser, onAdd, onEdit, onDelete }) {
   const [newComment, setNewComment] = useState("");

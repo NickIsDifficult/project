@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.core.auth import get_current_user
 from app.core.exceptions import forbidden, not_found
 from app.database import get_db
 from app.schemas import attachment as attachment_schema, project as comment_schema
 from app.services import attachment_service, comment_service, task_service
+from app.utils.token import get_current_user
 
 # ✅ /projects/... 으로 시작
 router = APIRouter(prefix="/projects", tags=["tasks"])
@@ -31,14 +31,20 @@ def get_task_tree(
     """
     roots = (
         db.query(models.Task)
-        .filter(models.Task.project_id == project_id, models.Task.parent_task_id.is_(None))
+        .filter(
+            models.Task.project_id == project_id, models.Task.parent_task_id.is_(None)
+        )
         .all()
     )
     if not roots:
         not_found("등록된 상위 업무가 없습니다.")
 
     def build_tree(task):
-        subtasks = db.query(models.Task).filter(models.Task.parent_task_id == task.task_id).all()
+        subtasks = (
+            db.query(models.Task)
+            .filter(models.Task.parent_task_id == task.task_id)
+            .all()
+        )
         return {
             "task_id": task.task_id,
             "project_id": task.project_id,
@@ -113,7 +119,9 @@ def update_task(
     return task_service.update_task(db, task, request, current_user.emp_id)
 
 
-@router.patch("/{project_id}/tasks/{task_id}/status", response_model=schemas.project.Task)
+@router.patch(
+    "/{project_id}/tasks/{task_id}/status", response_model=schemas.project.Task
+)
 def update_task_status(
     project_id: int,
     task_id: int,
@@ -125,7 +133,9 @@ def update_task_status(
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
         not_found("태스크를 찾을 수 없습니다.")
-    return task_service.change_task_status(db, task, request.status, current_user.emp_id)
+    return task_service.change_task_status(
+        db, task, request.status, current_user.emp_id
+    )
 
 
 @router.delete("/{project_id}/tasks/{task_id}")
@@ -165,7 +175,9 @@ def get_task_comments(
     return comment_service.get_comments_by_task(db, task_id)
 
 
-@router.post("/{project_id}/tasks/{task_id}/comments", response_model=comment_schema.TaskComment)
+@router.post(
+    "/{project_id}/tasks/{task_id}/comments", response_model=comment_schema.TaskComment
+)
 def create_task_comment(
     project_id: int,
     task_id: int,
@@ -177,11 +189,14 @@ def create_task_comment(
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
         not_found("댓글을 달 태스크를 찾을 수 없습니다.")
-    return comment_service.create_comment(db, task_id, current_user.emp_id, request.content)
+    return comment_service.create_comment(
+        db, task_id, current_user.emp_id, request.content
+    )
 
 
 @router.put(
-    "/{project_id}/tasks/{task_id}/comments/{comment_id}", response_model=comment_schema.TaskComment
+    "/{project_id}/tasks/{task_id}/comments/{comment_id}",
+    response_model=comment_schema.TaskComment,
 )
 def update_task_comment(
     project_id: int,
@@ -195,7 +210,9 @@ def update_task_comment(
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
         not_found("수정할 댓글의 태스크를 찾을 수 없습니다.")
-    return comment_service.update_comment(db, comment_id, current_user.emp_id, request.content)
+    return comment_service.update_comment(
+        db, comment_id, current_user.emp_id, request.content
+    )
 
 
 @router.delete("/{project_id}/tasks/{task_id}/comments/{comment_id}")

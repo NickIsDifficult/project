@@ -3,10 +3,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.core.auth import get_current_user
 from app.core.exceptions import conflict, forbidden, not_found
 from app.database import get_db
 from app.services import project_service
+from app.utils.token import get_current_user
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 

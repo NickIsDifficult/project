@@ -1,5 +1,5 @@
 // src/components/tasks/TaskDetailPanel/TaskComments.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { Button } from "../../common/Button";
 
@@ -8,12 +8,18 @@ export default function TaskComments({ comments, currentUser, onAdd, onEdit, onD
   const [editId, setEditId] = useState(null);
   const [editContent, setEditContent] = useState("");
 
+  /* ---------------------------
+   * 댓글 추가
+   * --------------------------- */
   const handleAdd = async () => {
     if (!newComment.trim()) return;
     await onAdd(newComment);
     setNewComment("");
   };
 
+  /* ---------------------------
+   * 댓글 수정
+   * --------------------------- */
   const handleSaveEdit = async commentId => {
     if (!editContent.trim()) return;
     await onEdit(commentId, editContent);
@@ -22,7 +28,11 @@ export default function TaskComments({ comments, currentUser, onAdd, onEdit, onD
 
   return (
     <div style={{ marginTop: 24 }}>
-      <h4>💬 댓글</h4>
+      <h4 style={{ marginBottom: 8 }}>💬 댓글</h4>
+
+      {/* ---------------------------
+       * 댓글 목록
+       * --------------------------- */}
       {comments.length === 0 ? (
         <p style={{ color: "#888" }}>댓글이 없습니다.</p>
       ) : (
@@ -75,15 +85,16 @@ export default function TaskComments({ comments, currentUser, onAdd, onEdit, onD
                 </div>
               ) : (
                 <>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <strong>{c.author_name}</strong>: {c.content}
                     <br />
                     <span style={{ color: "#aaa", fontSize: 12 }}>
                       {new Date(c.created_at).toLocaleString()}
                     </span>
                   </div>
+
                   {currentUser?.emp_id === c.emp_id && (
-                    <div style={{ display: "flex", gap: 4 }}>
+                    <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
                       <Button
                         variant="outline"
                         onClick={() => {
@@ -110,6 +121,9 @@ export default function TaskComments({ comments, currentUser, onAdd, onEdit, onD
         </ul>
       )}
 
+      {/* ---------------------------
+       * 댓글 입력창
+       * --------------------------- */}
       <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
         <TextareaAutosize
           placeholder="댓글을 입력하세요 (Enter=등록 / Shift+Enter=줄바꿈)"

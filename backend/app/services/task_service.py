@@ -8,6 +8,7 @@ from app.models.notification import NotificationType
 from app.services import history_service
 from app.utils.activity_logger import log_task_action
 from app.utils.notifier import create_notifications
+from app.routers.ws_router import notify_project
 
 
 # =====================================================
@@ -234,3 +235,10 @@ def delete_task(db: Session, task: models.Task, actor_emp_id: int):
     except Exception as e:
         db.rollback()
         bad_request(f"태스크 삭제 중 오류: {str(e)}")
+
+async def update_task_status(project_id: int, task_id: int, new_status: str):
+    # DB 업데이트 후
+    await notify_project(project_id, {
+        "event": "task_updated",
+        "payload": {"task_id": task_id, "status": new_status},
+    })

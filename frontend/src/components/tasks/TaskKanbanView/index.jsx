@@ -1,12 +1,11 @@
 // src/components/tasks/TaskKanbanView/index.jsx
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
-import React from "react";
 import { Loader } from "../../common/Loader";
 import TaskColumn from "./TaskColumn";
 import { useKanbanData } from "./useKanbanData";
 
-export default function TaskKanbanView({ projectId, tasks = [], onTaskClick, onTasksChange }) {
-  const { columns, loading, handleDragEnd } = useKanbanData({ projectId, tasks, onTasksChange });
+export default function TaskKanbanView({ onTaskClick }) {
+  const { columns, loading, handleDragEnd } = useKanbanData();
 
   if (loading) return <Loader text="칸반 보드를 불러오는 중..." />;
 
@@ -19,7 +18,6 @@ export default function TaskKanbanView({ projectId, tasks = [], onTaskClick, onT
               {provided => (
                 <div ref={provided.innerRef} {...provided.droppableProps}>
                   <TaskColumn
-                    projectId={projectId}
                     status={col.key}
                     label={col.label}
                     tasks={col.tasks}
@@ -36,7 +34,9 @@ export default function TaskKanbanView({ projectId, tasks = [], onTaskClick, onT
   );
 }
 
-/* styles */
+/* ---------------------------
+ * ✅ 스타일 정의
+ * --------------------------- */
 const boardWrapper = {
   width: "100%",
   overflowX: "auto", // ✅ 최상위만 스크롤 허용

@@ -1,5 +1,4 @@
 // src/components/tasks/TaskListView/TaskListRow.jsx
-import React from "react";
 import { Button } from "../../common/Button";
 
 const STATUS_LABELS = {
@@ -38,7 +37,9 @@ export default function TaskListRow({
   return (
     <>
       <tr style={rowStyle(editingId === task.task_id)}>
-        {/* 업무명 */}
+        {/* ---------------------------- */}
+        {/* ✅ 업무명 (계층 + 제목 + 설명) */}
+        {/* ---------------------------- */}
         <td style={{ ...td, paddingLeft }}>
           {editingId === task.task_id ? (
             <>
@@ -58,7 +59,11 @@ export default function TaskListRow({
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {hasSubtasks && (
-                  <button onClick={() => toggleCollapse(task.task_id)} style={collapseBtn}>
+                  <button
+                    onClick={() => toggleCollapse(task.task_id)}
+                    style={collapseBtn}
+                    title={isCollapsed ? "펼치기" : "접기"}
+                  >
                     {isCollapsed ? "▶" : "▼"}
                   </button>
                 )}
@@ -69,7 +74,9 @@ export default function TaskListRow({
           )}
         </td>
 
-        {/* 상태 */}
+        {/* ---------------------------- */}
+        {/* ✅ 상태 변경 */}
+        {/* ---------------------------- */}
         <td style={td}>
           <select
             value={task.status}
@@ -79,20 +86,28 @@ export default function TaskListRow({
               background: STATUS_COLORS[task.status],
             }}
           >
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
+            {Object.entries(STATUS_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
               </option>
             ))}
           </select>
         </td>
 
-        {/* 담당자 */}
+        {/* ---------------------------- */}
+        {/* ✅ 담당자 */}
+        {/* ---------------------------- */}
         <td style={td}>
-          {task.assignee_name || <span style={{ color: "#999" }}>— 미지정 —</span>}
+          {task.assignee_name ? (
+            <span>{task.assignee_name}</span>
+          ) : (
+            <span style={{ color: "#999" }}>— 미지정 —</span>
+          )}
         </td>
 
-        {/* 기간 */}
+        {/* ---------------------------- */}
+        {/* ✅ 기간 */}
+        {/* ---------------------------- */}
         <td style={td}>
           {task.start_date && task.due_date ? (
             `${task.start_date} ~ ${task.due_date}`
@@ -101,8 +116,10 @@ export default function TaskListRow({
           )}
         </td>
 
-        {/* 작업 */}
-        <td style={{ ...td, textAlign: "center" }}>
+        {/* ---------------------------- */}
+        {/* ✅ 액션 버튼 영역 */}
+        {/* ---------------------------- */}
+        <td style={{ ...td, textAlign: "center", whiteSpace: "nowrap" }}>
           {editingId === task.task_id ? (
             <>
               <Button variant="success" onClick={() => onEditSave(task.task_id)}>
@@ -128,6 +145,9 @@ export default function TaskListRow({
         </td>
       </tr>
 
+      {/* ---------------------------- */}
+      {/* ✅ 하위 업무 (재귀 렌더링) */}
+      {/* ---------------------------- */}
       {hasSubtasks &&
         !isCollapsed &&
         task.subtasks.map(sub => (
@@ -152,7 +172,9 @@ export default function TaskListRow({
   );
 }
 
-/* styles */
+/* ---------------------------- */
+/* ✅ 스타일 (inline 유지) */
+/* ---------------------------- */
 const rowStyle = editing => ({
   borderBottom: "1px solid #eee",
   background: editing ? "#fffbe6" : "#fff",
@@ -165,7 +187,33 @@ const td = {
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
 };
-const inputStyle = { width: "100%", border: "1px solid #ccc", borderRadius: 6, padding: "6px 8px" };
-const selectStyle = { border: "1px solid #ccc", borderRadius: 6, padding: "4px 6px" };
-const collapseBtn = { border: "none", background: "transparent", cursor: "pointer" };
-const descStyle = { fontSize: 13, color: "#666", marginTop: 2 };
+const inputStyle = {
+  width: "100%",
+  border: "1px solid #ccc",
+  borderRadius: 6,
+  padding: "6px 8px",
+  fontSize: 13,
+  resize: "vertical",
+};
+const selectStyle = {
+  border: "1px solid #ccc",
+  borderRadius: 6,
+  padding: "4px 6px",
+  fontSize: 13,
+};
+const collapseBtn = {
+  border: "none",
+  background: "transparent",
+  cursor: "pointer",
+  fontSize: 12,
+  lineHeight: 1,
+  padding: 2,
+  color: "#555",
+};
+const descStyle = {
+  fontSize: 13,
+  color: "#666",
+  marginTop: 2,
+  whiteSpace: "normal",
+  lineHeight: 1.4,
+};

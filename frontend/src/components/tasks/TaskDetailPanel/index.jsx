@@ -1,5 +1,5 @@
 // src/components/tasks/TaskDetailPanel/index.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../common/Button";
 import { Loader } from "../../common/Loader";
 import TaskAttachments from "./TaskAttachments";
@@ -8,14 +8,7 @@ import TaskEditForm from "./TaskEditForm";
 import TaskInfoView from "./TaskInfoView";
 import { useTaskDetail } from "./useTaskDetail";
 
-export default function TaskDetailPanel({
-  projectId,
-  taskId,
-  onClose,
-  onAddSubtask,
-  currentUser,
-  onTasksChange,
-}) {
+export default function TaskDetailPanel({ taskId, onClose, onAddSubtask, currentUser }) {
   const {
     task,
     comments,
@@ -30,11 +23,15 @@ export default function TaskDetailPanel({
     handleStatusChange,
     handleProgressChange,
     handleSaveEdit,
-  } = useTaskDetail(projectId, taskId, onTasksChange);
+  } = useTaskDetail(taskId);
 
   const [isEditing, setIsEditing] = useState(false);
 
+  /* ---------------------------
+   * 로딩 / 예외 처리
+   * --------------------------- */
   if (loading) return <Loader text="업무 상세 불러오는 중..." />;
+
   if (!task)
     return (
       <div style={{ padding: 24 }}>
@@ -45,8 +42,12 @@ export default function TaskDetailPanel({
       </div>
     );
 
+  /* ---------------------------
+   * UI 렌더링
+   * --------------------------- */
   return (
     <>
+      {/* 배경 오버레이 */}
       <div
         style={{
           position: "fixed",
@@ -59,6 +60,8 @@ export default function TaskDetailPanel({
         }}
         onClick={e => e.target === e.currentTarget && onClose()}
       />
+
+      {/* 오른쪽 패널 */}
       <aside
         style={{
           position: "fixed",
@@ -74,6 +77,7 @@ export default function TaskDetailPanel({
           overflowY: "auto",
         }}
       >
+        {/* 헤더 */}
         <div
           style={{
             borderBottom: "1px solid #ddd",
@@ -86,13 +90,20 @@ export default function TaskDetailPanel({
           <h2 style={{ margin: 0 }}>{task.title}</h2>
           <button
             onClick={onClose}
-            style={{ background: "transparent", border: "none", fontSize: 20, cursor: "pointer" }}
+            style={{
+              background: "transparent",
+              border: "none",
+              fontSize: 20,
+              cursor: "pointer",
+            }}
           >
             ✕
           </button>
         </div>
 
+        {/* 본문 */}
         <div style={{ padding: 16, flex: 1 }}>
+          {/* ✏️ 수정 모드 */}
           {isEditing ? (
             <TaskEditForm
               task={task}
@@ -104,6 +115,7 @@ export default function TaskDetailPanel({
               onCancel={() => setIsEditing(false)}
             />
           ) : (
+            /* 🔍 읽기 모드 */
             <TaskInfoView
               task={task}
               onStatusChange={handleStatusChange}
@@ -113,12 +125,14 @@ export default function TaskDetailPanel({
             />
           )}
 
+          {/* 📎 첨부파일 섹션 */}
           <TaskAttachments
             attachments={attachments}
             onUpload={handleUploadFile}
             onDelete={handleDeleteFile}
           />
 
+          {/* 💬 댓글 섹션 */}
           <TaskComments
             comments={comments}
             currentUser={currentUser}

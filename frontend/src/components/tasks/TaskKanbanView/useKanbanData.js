@@ -1,6 +1,7 @@
 // src/components/tasks/TaskKanbanView/useKanbanData.js
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
 import { updateTaskStatus } from "../../../services/api/task";
 
 const STATUS_COLUMNS = [
@@ -10,22 +11,28 @@ const STATUS_COLUMNS = [
   { key: "DONE", label: "완료 ✅" },
 ];
 
-export function useKanbanData({ projectId, tasks, onTasksChange }) {
+export function useKanbanData() {
+  const { project, tasks, fetchTasks, updateTaskLocal } = useProjectDetailContext();
+
   const [localTasks, setLocalTasks] = useState(tasks);
   const [loading, setLoading] = useState(false);
 
-  // tasks prop이 갱신되면 localTasks도 갱신
+  /* ---------------------------
+   * tasks 변경 시 localTasks 동기화
+   * --------------------------- */
   useEffect(() => {
     setLocalTasks(tasks);
   }, [tasks]);
 
-  // 상태별 그룹화
+  /* ---------------------------
+   * 상태별 그룹화
+   * --------------------------- */
   const columns = useMemo(() => {
     const map = {};
     STATUS_COLUMNS.forEach(col => (map[col.key] = []));
     localTasks.forEach(task => {
       const key = task.status || "TODO";
-      map[key].push(task);
+      if (map[key]) map[key].push(task);
     });
     return STATUS_COLUMNS.map(col => ({
       key: col.key,
@@ -34,7 +41,9 @@ export function useKanbanData({ projectId, tasks, onTasksChange }) {
     }));
   }, [localTasks]);
 
-  // Drag & Drop 후 상태 변경
+  /* ---------------------------
+   * Drag & Drop 상태 변경
+   * --------------------------- */
   const handleDragEnd = useCallback(
     async result => {
       const { destination, source, draggableId } = result;
@@ -44,33 +53,34 @@ export function useKanbanData({ projectId, tasks, onTasksChange }) {
 
       const newStatus = destination.droppableId;
 
-      // 즉시 UI 반영
+      // ✅ 즉시 UI 반영 (Optimistic Update)
       setLocalTasks(prev =>
         prev.map(t =>
           String(t.task_id) === String(draggableId) ? { ...t, status: newStatus } : t,
         ),
       );
+      updateTaskLocal(draggableId, { status: newStatus });
 
       try {
         setLoading(true);
-        await updateTaskStatus(projectId, draggableId, newStatus);
+        await updateTaskStatus(project.project_id, draggableId, newStatus);
         toast.success("업무 상태가 변경되었습니다.");
-        // 서버 동기화용 새 데이터 가져오기
-        await onTasksChange?.();
+        await fetchTasks(); // ✅ 서버 데이터 동기화
       } catch (err) {
-        console.error(err);
+        console.error("❌ 상태 변경 실패:", err);
         toast.error("상태 변경 실패");
-        // 실패 시 UI 롤백
+        // ❌ 롤백
         setLocalTasks(prev =>
           prev.map(t =>
             String(t.task_id) === String(draggableId) ? { ...t, status: source.droppableId } : t,
           ),
         );
+        updateTaskLocal(draggableId, { status: source.droppableId });
       } finally {
         setLoading(false);
       }
     },
-    [projectId, onTasksChange],
+    [project, fetchTasks, updateTaskLocal],
   );
 
   return { columns, loading, handleDragEnd };

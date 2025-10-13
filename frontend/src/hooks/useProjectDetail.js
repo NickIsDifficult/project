@@ -9,9 +9,6 @@ export function useProjectDetail(projectId) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ---------------------------
-  // 프로젝트 데이터
-  // ---------------------------
   const fetchProject = useCallback(async () => {
     try {
       const data = await getProject(projectId);
@@ -22,9 +19,6 @@ export function useProjectDetail(projectId) {
     }
   }, [projectId]);
 
-  // ---------------------------
-  // 업무 트리 데이터
-  // ---------------------------
   const fetchTasks = useCallback(async () => {
     try {
       const data = await getTaskTree(projectId);
@@ -35,18 +29,37 @@ export function useProjectDetail(projectId) {
     }
   }, [projectId]);
 
-  // ---------------------------
-  // 초기 로딩 및 새로고침 함수
-  // ---------------------------
+  const updateTaskLocal = useCallback((taskId, updatedFields) => {
+    const updateTree = tree =>
+      tree.map(t =>
+        t.task_id === taskId
+          ? { ...t, ...updatedFields }
+          : t.children
+            ? { ...t, children: updateTree(t.children) }
+            : t,
+      );
+    setTasks(prev => updateTree(prev));
+  }, []);
+
   const reload = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchProject(), fetchTasks()]);
-    setLoading(false);
+    try {
+      await Promise.all([fetchProject(), fetchTasks()]);
+    } finally {
+      setLoading(false);
+    }
   }, [fetchProject, fetchTasks]);
 
   useEffect(() => {
     reload();
-  }, [reload]);
+  }, [projectId]);
 
-  return { project, tasks, loading, reload, fetchTasks };
+  return {
+    project,
+    tasks,
+    loading,
+    reload,
+    fetchTasks,
+    updateTaskLocal,
+  };
 }

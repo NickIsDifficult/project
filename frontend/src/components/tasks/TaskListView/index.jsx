@@ -1,21 +1,17 @@
 // src/components/tasks/TaskListView/index.jsx
-import React from "react";
+import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
 import { Loader } from "../../common/Loader";
 import TaskListTable from "./TaskListTable";
 import { useTaskList } from "./useTaskList";
 
-export default function TaskListView({
-  projectId,
-  tasks: initialTasks = [],
-  onTasksChange,
-  onTaskClick,
-}) {
-  const hook = useTaskList({ projectId, initialTasks, onTasksChange, onTaskClick });
+export default function TaskListView({ onTaskClick }) {
+  const { loading } = useProjectDetailContext();
+  const hook = useTaskList({ onTaskClick });
 
-  if (hook.loading) return <Loader text="처리 중..." />;
+  if (loading || hook.loading) return <Loader text="업무 불러오는 중..." />;
 
   return (
-    <div style={{ padding: 8 }}>
+    <div className="p-2">
       <TaskListTable {...hook} />
     </div>
   );

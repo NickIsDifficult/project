@@ -1,5 +1,4 @@
 // src/components/tasks/TaskListView/TaskListTable.jsx
-import React from "react";
 import { Button } from "../../common/Button";
 import TaskListRow from "./TaskListRow";
 
@@ -45,7 +44,9 @@ export default function TaskListTable({
 
   return (
     <>
-      {/* 상태별 요약 바 */}
+      {/* --------------------------- */}
+      {/* ✅ 상태 요약 바 */}
+      {/* --------------------------- */}
       <div style={summaryBox}>
         <div>📋 전체 {stats.total}건</div>
         {Object.keys(STATUS_LABELS).map(key => (
@@ -58,6 +59,7 @@ export default function TaskListTable({
               borderRadius: 6,
               background: filterStatus === key ? "#dbeafe" : "transparent",
               border: filterStatus === key ? "1px solid #60a5fa" : "1px solid transparent",
+              transition: "background 0.2s ease, border 0.2s ease",
             }}
           >
             {STATUS_LABELS[key]} {stats[key]}
@@ -69,7 +71,9 @@ export default function TaskListTable({
         </div>
       </div>
 
-      {/* 필터 바 */}
+      {/* --------------------------- */}
+      {/* ✅ 필터 바 */}
+      {/* --------------------------- */}
       <div style={filterBar}>
         <select
           value={filterAssignee}
@@ -95,7 +99,9 @@ export default function TaskListTable({
         </Button>
       </div>
 
-      {/* 리스트 테이블 */}
+      {/* --------------------------- */}
+      {/* ✅ 업무 리스트 테이블 */}
+      {/* --------------------------- */}
       <table style={table}>
         <colgroup>
           <col style={{ width: "38%" }} />
@@ -126,31 +132,41 @@ export default function TaskListTable({
         </thead>
 
         <tbody>
-          {filteredTasks.map(t => (
-            <TaskListRow
-              key={t.task_id}
-              task={t}
-              depth={0}
-              editingId={editingId}
-              editForm={editForm}
-              setEditForm={setEditForm}
-              onTaskClick={onTaskClick}
-              onEditStart={startEdit}
-              onEditCancel={cancelEdit}
-              onEditSave={saveEdit}
-              onDelete={handleDelete}
-              onStatusChange={handleStatusChange}
-              collapsedTasks={collapsedTasks}
-              toggleCollapse={toggleCollapse}
-            />
-          ))}
+          {filteredTasks.length > 0 ? (
+            filteredTasks.map(t => (
+              <TaskListRow
+                key={t.task_id}
+                task={t}
+                depth={0}
+                editingId={editingId}
+                editForm={editForm}
+                setEditForm={setEditForm}
+                onTaskClick={onTaskClick}
+                onEditStart={startEdit}
+                onEditCancel={cancelEdit}
+                onEditSave={saveEdit}
+                onDelete={handleDelete}
+                onStatusChange={handleStatusChange}
+                collapsedTasks={collapsedTasks}
+                toggleCollapse={toggleCollapse}
+              />
+            ))
+          ) : (
+            <tr>
+              <td colSpan={5} style={noDataCell}>
+                표시할 업무가 없습니다.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </>
   );
 }
 
-/* styles */
+/* --------------------------- */
+/* ✅ 스타일 (기존 inline 유지) */
+/* --------------------------- */
 const summaryBox = {
   display: "flex",
   alignItems: "center",
@@ -169,7 +185,11 @@ const progressOuter = {
   borderRadius: 4,
   overflow: "hidden",
 };
-const progressInner = { height: "100%", background: "#4caf50", transition: "width 0.3s ease" };
+const progressInner = {
+  height: "100%",
+  background: "#4caf50",
+  transition: "width 0.3s ease",
+};
 const filterBar = {
   display: "flex",
   flexWrap: "wrap",
@@ -180,8 +200,16 @@ const filterBar = {
   borderRadius: 8,
   padding: "8px 12px",
 };
-const table = { width: "100%", borderCollapse: "collapse", fontSize: 14, tableLayout: "fixed" };
-const thead = { background: "#f8f9fa", borderBottom: "1px solid #ddd" };
+const table = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: 14,
+  tableLayout: "fixed",
+};
+const thead = {
+  background: "#f8f9fa",
+  borderBottom: "1px solid #ddd",
+};
 const th = {
   padding: "10px 8px",
   textAlign: "left",
@@ -201,4 +229,10 @@ const filterInput = {
   padding: "6px 10px",
   minWidth: 160,
   fontSize: 13,
+};
+const noDataCell = {
+  textAlign: "center",
+  color: "#666",
+  padding: "20px 0",
+  fontSize: 14,
 };

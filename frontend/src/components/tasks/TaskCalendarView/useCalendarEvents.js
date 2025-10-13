@@ -1,10 +1,16 @@
+// src/components/tasks/TaskCalendarView/useCalendarEvents.js
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
+import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
 
 /**
- * tasks 배열을 캘린더용 events + undatedTasks로 변환
+ * 📅 tasks 배열을 FullCalendar용 events + undatedTasks로 변환
+ * - Context 기반: useProjectDetailContext()로 tasks 자동 접근
+ * - 담당자별 색상 지정, 상태별 기본색상 지정
+ * - start_date / due_date 없는 task는 undatedTasks로 분리
  */
-export default function useCalendarEvents(tasks = []) {
+export default function useCalendarEvents() {
+  const { tasks } = useProjectDetailContext();
   const [events, setEvents] = useState([]);
   const [undatedTasks, setUndatedTasks] = useState([]);
 
@@ -35,10 +41,12 @@ export default function useCalendarEvents(tasks = []) {
 
     tasks.forEach(t => {
       if (t.start_date || t.due_date) {
+        // 🎨 담당자별 고유 색상 할당
         if (t.assignee_name && !colorByAssignee[t.assignee_name]) {
           colorByAssignee[t.assignee_name] = colorPalette[colorIndex++ % colorPalette.length];
         }
 
+        const start = t.start_date || t.due_date;
         const end = t.due_date
           ? dayjs(t.due_date).add(1, "day").format("YYYY-MM-DD")
           : t.start_date;
@@ -46,7 +54,7 @@ export default function useCalendarEvents(tasks = []) {
         dated.push({
           id: String(t.task_id),
           title: t.title + (t.assignee_name ? ` (${t.assignee_name})` : ""),
-          start: t.start_date,
+          start,
           end,
           color:
             colorByAssignee[t.assignee_name] ||

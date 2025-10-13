@@ -1,21 +1,23 @@
+// src/components/tasks/TaskCalendarView/index.jsx
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import FullCalendar from "@fullcalendar/react";
 import dayjs from "dayjs";
-import React from "react";
 import toast from "react-hot-toast";
 import "../../../assets/fullcalendar-custom.css";
 
+import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
 import { updateTask } from "../../../services/api/task";
 import UndatedTaskList from "./UndatedTaskList";
 import useCalendarEvents from "./useCalendarEvents";
 
-export default function TaskCalendarView({ projectId, tasks = [], onTaskClick, onTasksChange }) {
-  const { events, undatedTasks } = useCalendarEvents(tasks);
+export default function TaskCalendarView({ onTaskClick }) {
+  const { project, fetchTasks, updateTaskLocal } = useProjectDetailContext();
+  const { events, undatedTasks } = useCalendarEvents();
 
-  // ---------------------------
-  // ✅ 드래그 이동 (일정 변경)
-  // ---------------------------
+  /* ---------------------------
+   * 📅 일정 드래그 변경
+   * --------------------------- */
   const handleEventDrop = async info => {
     const { id, start, end } = info.event;
     try {
@@ -24,31 +26,36 @@ export default function TaskCalendarView({ projectId, tasks = [], onTaskClick, o
         ? dayjs(end).subtract(1, "day").add(9, "hour").format("YYYY-MM-DD")
         : correctedStart;
 
-      await updateTask(projectId, id, {
+      // ✅ Optimistic Update
+      updateTaskLocal(id, {
+        start_date: correctedStart,
+        due_date: correctedEnd,
+      });
+
+      await updateTask(project.project_id, id, {
         start_date: correctedStart,
         due_date: correctedEnd,
       });
 
       toast.success(`📅 일정이 변경되었습니다 (${correctedStart} ~ ${correctedEnd})`);
-      onTasksChange?.(); // ✅ 상위(ProjectDetailPage)의 fetchTasks() 호출
+      await fetchTasks(); // 서버 데이터 최신화
     } catch (err) {
+      console.error("❌ 일정 변경 실패:", err);
       toast.error("일정 변경 실패");
-      console.error(err);
-      info.revert();
+      info.revert(); // 롤백
     }
   };
 
-  // ---------------------------
-  // ✅ 업무 클릭 → 상세 패널
-  // ---------------------------
+  /* ---------------------------
+   * 🖱️ 업무 클릭 → 상세 패널 열기
+   * --------------------------- */
   const handleEventClick = info => {
-    const task = tasks.find(t => String(t.task_id) === info.event.id);
-    if (task) onTaskClick?.(task);
+    onTaskClick?.({ task_id: info.event.id });
   };
 
-  // ---------------------------
-  // ✅ 렌더링
-  // ---------------------------
+  /* ---------------------------
+   * 🧱 렌더링
+   * --------------------------- */
   return (
     <div
       style={{
@@ -59,7 +66,7 @@ export default function TaskCalendarView({ projectId, tasks = [], onTaskClick, o
         minHeight: "65vh",
       }}
     >
-      {/* 🔹 캘린더 본체 */}
+      {/* 🔹 메인 캘린더 */}
       <FullCalendar
         plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
@@ -93,7 +100,6 @@ export default function TaskCalendarView({ projectId, tasks = [], onTaskClick, o
         <h4 style={{ fontSize: 14, color: "#555", marginBottom: 6 }}>
           📋 날짜 미지정 업무 ({undatedTasks.length})
         </h4>
-
         <UndatedTaskList tasks={undatedTasks} onTaskClick={onTaskClick} />
       </div>
     </div>

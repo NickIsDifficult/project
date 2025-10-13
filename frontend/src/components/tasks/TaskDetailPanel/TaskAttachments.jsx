@@ -1,6 +1,6 @@
 // src/components/tasks/TaskDetailPanel/TaskAttachments.jsx
 import { useRef } from "react";
-import { Button } from "../../common/Button";
+import { Button } from "../../common/ButtonProject";
 
 export default function TaskAttachments({ attachments, onUpload, onDelete }) {
   const fileInputRef = useRef(null);

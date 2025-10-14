@@ -5,10 +5,10 @@ from app import models, schemas
 from app.core.exceptions import bad_request, forbidden, not_found
 from app.models.enums import TaskStatus
 from app.models.notification import NotificationType
+from app.routers.ws_router import notify_project
 from app.services import history_service
 from app.utils.activity_logger import log_task_action
 from app.utils.notifier import create_notifications
-from app.routers.ws_router import notify_project
 
 
 # =====================================================
@@ -157,7 +157,9 @@ def update_task(
 # =====================================================
 # ✅ 태스크 상태 변경
 # =====================================================
-def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int):
+def change_task_status(
+    db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int
+):
     """상태 변경 + 로그 + 이력 + 알림"""
     old_status = task.status
     task.status = new_status
@@ -236,9 +238,13 @@ def delete_task(db: Session, task: models.Task, actor_emp_id: int):
         db.rollback()
         bad_request(f"태스크 삭제 중 오류: {str(e)}")
 
+
 async def update_task_status(project_id: int, task_id: int, new_status: str):
     # DB 업데이트 후
-    await notify_project(project_id, {
-        "event": "task_updated",
-        "payload": {"task_id": task_id, "status": new_status},
-    })
+    await notify_project(
+        project_id,
+        {
+            "event": "task_updated",
+            "payload": {"task_id": task_id, "status": new_status},
+        },
+    )

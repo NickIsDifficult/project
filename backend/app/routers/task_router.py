@@ -89,7 +89,10 @@ def get_task(
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
         not_found("해당 프로젝트 내에서 태스크를 찾을 수 없습니다.")
-    return task
+    return {
+        **task.__dict__,
+        "assignee_name": task.assignee.name if task.assignee else None,  # ✅ 추가
+    }
 
 
 @router.post("/{project_id}/tasks", response_model=schemas.project.Task)
@@ -112,11 +115,14 @@ def update_task(
     db: Session = Depends(get_db),
     current_user: models.Employee = Depends(get_current_user),
 ):
-    """태스크 수정"""
+
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
         not_found("수정할 태스크를 찾을 수 없습니다.")
-    return task_service.update_task(db, task, request, current_user.emp_id)
+
+    updated = task_service.update_task(db, task, request, current_user.emp_id)
+    assignee_name = updated.assignee.name if updated.assignee else None
+    return {**updated.__dict__, "assignee_name": assignee_name}
 
 
 @router.patch(
@@ -129,13 +135,16 @@ def update_task_status(
     db: Session = Depends(get_db),
     current_user: models.Employee = Depends(get_current_user),
 ):
-    """태스크 상태 변경"""
+
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
         not_found("태스크를 찾을 수 없습니다.")
-    return task_service.change_task_status(
+
+    updated = task_service.change_task_status(
         db, task, request.status, current_user.emp_id
     )
+    assignee_name = updated.assignee.name if updated.assignee else None
+    return {**updated.__dict__, "assignee_name": assignee_name}
 
 
 @router.delete("/{project_id}/tasks/{task_id}")

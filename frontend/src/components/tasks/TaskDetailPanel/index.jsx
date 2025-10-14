@@ -1,5 +1,6 @@
 // src/components/tasks/TaskDetailPanel/index.jsx
 import { useState } from "react";
+import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
 import Button from "../../common/Button";
 import { Loader } from "../../common/Loader";
 import TaskAttachments from "./TaskAttachments";
@@ -9,6 +10,14 @@ import TaskInfoView from "./TaskInfoView";
 import { useTaskDetail } from "./useTaskDetail";
 
 export default function TaskDetailPanel({ taskId, onClose, onAddSubtask, currentUser }) {
+  /* ----------------------------------------
+   * ✅ ProjectDetailContext 연결
+   * ---------------------------------------- */
+  const { fetchTasks, updateTaskLocal } = useProjectDetailContext();
+
+  /* ----------------------------------------
+   * ✅ 업무 상세 데이터 로드 (커스텀 훅)
+   * ---------------------------------------- */
   const {
     task,
     comments,
@@ -27,9 +36,9 @@ export default function TaskDetailPanel({ taskId, onClose, onAddSubtask, current
 
   const [isEditing, setIsEditing] = useState(false);
 
-  /* ---------------------------
+  /* ----------------------------------------
    * 로딩 / 예외 처리
-   * --------------------------- */
+   * ---------------------------------------- */
   if (loading) return <Loader text="업무 상세 불러오는 중..." />;
 
   if (!task)
@@ -42,12 +51,24 @@ export default function TaskDetailPanel({ taskId, onClose, onAddSubtask, current
       </div>
     );
 
-  /* ---------------------------
+  /* ----------------------------------------
+   * ✅ 수정 저장 핸들러 통합
+   * ---------------------------------------- */
+  const handleSaveAndSync = async payload => {
+    const updated = await handleSaveEdit(payload);
+    if (updated) {
+      updateTaskLocal(updated); // Context의 로컬 task 리스트 갱신
+      fetchTasks(); // 전체 새로고침 (서버 반영)
+    }
+    setIsEditing(false);
+  };
+
+  /* ----------------------------------------
    * UI 렌더링
-   * --------------------------- */
+   * ---------------------------------------- */
   return (
     <>
-      {/* 배경 오버레이 */}
+      {/* 🔲 배경 오버레이 */}
       <div
         style={{
           position: "fixed",
@@ -61,7 +82,7 @@ export default function TaskDetailPanel({ taskId, onClose, onAddSubtask, current
         onClick={e => e.target === e.currentTarget && onClose()}
       />
 
-      {/* 오른쪽 패널 */}
+      {/* ⚙️ 오른쪽 패널 */}
       <aside
         style={{
           position: "fixed",
@@ -108,18 +129,21 @@ export default function TaskDetailPanel({ taskId, onClose, onAddSubtask, current
             <TaskEditForm
               task={task}
               employees={employees}
-              onSave={async payload => {
-                await handleSaveEdit(payload);
-                setIsEditing(false);
-              }}
+              onSave={handleSaveAndSync}
               onCancel={() => setIsEditing(false)}
             />
           ) : (
             /* 🔍 읽기 모드 */
             <TaskInfoView
               task={task}
-              onStatusChange={handleStatusChange}
-              onProgressChange={handleProgressChange}
+              onStatusChange={async status => {
+                await handleStatusChange(status);
+                fetchTasks();
+              }}
+              onProgressChange={async progress => {
+                await handleProgressChange(progress);
+                fetchTasks();
+              }}
               onEdit={() => setIsEditing(true)}
               onAddSubtask={onAddSubtask}
             />
@@ -128,8 +152,14 @@ export default function TaskDetailPanel({ taskId, onClose, onAddSubtask, current
           {/* 📎 첨부파일 섹션 */}
           <TaskAttachments
             attachments={attachments}
-            onUpload={handleUploadFile}
-            onDelete={handleDeleteFile}
+            onUpload={async file => {
+              await handleUploadFile(file);
+              fetchTasks();
+            }}
+            onDelete={async id => {
+              await handleDeleteFile(id);
+              fetchTasks();
+            }}
           />
 
           {/* 💬 댓글 섹션 */}

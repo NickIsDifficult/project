@@ -107,7 +107,7 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <div className="view-9" role="button" onClick={() => nav("/dashboard")}>
+          <div className="view-9" role="button" onClick={() => nav("/main")}>
             <div className="rectangle-4" />
             <div className="text-wrapper">대시보드</div>
             <div className="frame-2">

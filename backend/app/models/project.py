@@ -11,6 +11,7 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -132,6 +133,10 @@ class Task(Base):
         "Attachment", back_populates="task", cascade="all, delete-orphan"
     )
 
+    @hybrid_property
+    def assignee_name(self):
+        return self.assignee.name if self.assignee else None
+
 
 # ---------------------------------
 # 댓글
@@ -159,7 +164,6 @@ class TaskComment(Base):
     project = relationship("Project", back_populates="comments")
     task = relationship("Task", back_populates="comments")
     employee = relationship("Employee", back_populates="comments")
-    author = relationship("Employee", back_populates="comments")
 
     def __repr__(self):
         return f"<TaskComment(comment_id={self.comment_id}, task_id={self.task_id}, emp_id={self.emp_id})>"

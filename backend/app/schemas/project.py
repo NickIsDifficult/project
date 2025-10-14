@@ -4,7 +4,13 @@ from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-from app.models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
+from app.models.enums import (
+    MemberRole,
+    MilestoneStatus,
+    ProjectStatus,
+    TaskPriority,
+    TaskStatus,
+)
 
 
 # ----------------------------
@@ -23,6 +29,8 @@ class TaskComment(TaskCommentBase):
     comment_id: int
     project_id: Optional[int] = None
     task_id: int
+    emp_id: Optional[int] = None  # ✅ 댓글 작성자 ID (수정/삭제 권한용)
+    author_name: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -76,6 +84,7 @@ class TaskStatusUpdate(BaseModel):
 class Task(TaskBase):
     task_id: int
     project_id: int
+    assignee_name: Optional[str] = None
     comments: List[TaskComment] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}

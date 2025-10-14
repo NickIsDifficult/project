@@ -1,5 +1,6 @@
 from datetime import datetime
-from sqlalchemy.orm import Session
+
+from sqlalchemy.orm import Session, joinedload
 
 from app import models
 from app.core.exceptions import bad_request, forbidden, not_found
@@ -13,12 +14,22 @@ from app.utils.notifier import create_notifications
 # --------------------------------
 def get_comments_by_task(db: Session, task_id: int):
     """특정 태스크의 댓글 목록 조회"""
-    return (
+    comments = (
         db.query(models.TaskComment)
         .filter(models.TaskComment.task_id == task_id)
         .order_by(models.TaskComment.created_at.asc())
         .all()
     )
+
+    # ✅ 작성자 이름(author_name) 포함하여 반환
+    return [
+        {
+            **c.__dict__,
+            "emp_id": c.emp_id,
+            "author_name": c.employee.name if c.employee else None,
+        }
+        for c in comments
+    ]
 
 
 # --------------------------------
@@ -29,6 +40,7 @@ def create_comment(db: Session, task_id: int, emp_id: int, content: str):
     if not content.strip():
         bad_request("댓글 내용을 입력하세요.")
 
+    # ✅ 태스크 존재 확인
     task = db.query(models.Task).filter(models.Task.task_id == task_id).first()
     if not task:
         not_found("해당 태스크를 찾을 수 없습니다.")
@@ -44,7 +56,21 @@ def create_comment(db: Session, task_id: int, emp_id: int, content: str):
     try:
         db.add(new_comment)
         db.commit()
-        db.refresh(new_comment)
+
+        # ✅ 작성자(employee) 관계를 즉시 로드
+        new_comment = (
+            db.query(models.TaskComment)
+            .options(joinedload(models.TaskComment.employee))
+            .filter(models.TaskComment.comment_id == new_comment.comment_id)
+            .first()
+        )
+
+        # ✅ 작성자 이름(author_name) 필드 포함
+        response_data = {
+            **new_comment.__dict__,
+            "emp_id": new_comment.emp_id,
+            "author_name": new_comment.employee.name if new_comment.employee else None,
+        }
 
         # ✅ 멘션 감지 및 알림
         mentioned_users = extract_mentions(content)
@@ -69,7 +95,7 @@ def create_comment(db: Session, task_id: int, emp_id: int, content: str):
             detail=f"'{content[:30]}...'",
         )
 
-        return new_comment
+        return response_data
 
     except Exception as e:
         db.rollback()
@@ -108,7 +134,12 @@ def update_comment(db: Session, comment_id: int, emp_id: int, content: str):
             detail=f"댓글 {comment.comment_id} 수정됨",
         )
 
-        return comment
+        # ✅ 작성자 이름 포함 반환
+        return {
+            **comment.__dict__,
+            "emp_id": comment.emp_id,
+            "author_name": comment.employee.name if comment.employee else None,
+        }
 
     except Exception as e:
         db.rollback()

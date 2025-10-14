@@ -27,4 +27,4 @@ class Employee(Base):
     attachments = relationship("Attachment", back_populates="uploader")
     project_memberships = relationship("ProjectMember", back_populates="employee")
     tasks = relationship("Task", back_populates="assignee")
-    comments = relationship("TaskComment", back_populates="author")
+    comments = relationship("TaskComment", back_populates="employee")

@@ -1,4 +1,4 @@
-# 경로: backend/app/routers/auth/login.py
+# app/routers/auth/login.py
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException

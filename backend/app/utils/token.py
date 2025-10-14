@@ -1,3 +1,4 @@
+# app/utils/token.py
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -32,12 +33,11 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(
-    data: dict, expires_minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES
-) -> str:
+def create_access_token(data: dict, expires_minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> str:
     """JWT 액세스 토큰 생성"""
     to_encode = data.copy()
-    to_encode["exp"] = datetime.utcnow() + timedelta(minutes=expires_minutes)
+    expire = datetime.utcnow() + timedelta(minutes=expires_minutes)
+    to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -48,15 +48,14 @@ def get_current_user(Authorization: str = Header(None), db=Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="인증 헤더가 누락되었습니다.",
         )
+
     token = Authorization.split(" ")[1]
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        login_id = payload.get("sub")
+        login_id = payload.get("login_id")  # ✅ login_id 기반으로 변경
         if not login_id:
-            raise HTTPException(
-                status_code=401, detail="토큰에 사용자 정보가 없습니다."
-            )
+            raise HTTPException(status_code=401, detail="토큰에 사용자 정보가 없습니다.")
     except JWTError:
         raise HTTPException(status_code=401, detail="토큰이 유효하지 않습니다.")
 

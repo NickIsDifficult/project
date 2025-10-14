@@ -1,5 +1,5 @@
 // src/services/api/activity.js
-import { api } from "./base";
+import api from "./http";
 
 //
 // ===================================================

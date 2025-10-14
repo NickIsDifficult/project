@@ -1,5 +1,4 @@
 // src/pages/projects/ProjectDetailPage/TaskDrawerSection.jsx
-import React from "react";
 import { Drawer } from "../../../components/common/Drawer";
 import TaskRegistration from "../../../components/tasks/TaskRegistration";
 

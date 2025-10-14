@@ -1,7 +1,7 @@
 // frontend/src/pages/Signup/Signup.jsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ButtonLogin from "../../components/common/ButtonLogin";
+import Button from "../../components/common/Button";
 import Popup from "../../components/common/Popup";
 import { getDepartments, getRoles, signup } from "../../services/api/auth";
 
@@ -157,7 +157,7 @@ export default function Signup() {
           </>
         )}
 
-        <ButtonLogin type="submit">회원가입</ButtonLogin>
+        <Button type="submit">회원가입</Button>
       </form>
 
       <div style={{ marginTop: 14, textAlign: "center" }}>

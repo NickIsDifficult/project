@@ -1,5 +1,5 @@
 // src/services/api/employee.js
-import { api } from "./base";
+import api from "./http";
 
 const request = async (fn, context = "직원") => {
   try {

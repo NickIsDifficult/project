@@ -1,6 +1,6 @@
 // src/components/tasks/TaskDetailPanel/TaskEditForm.jsx
-import React, { useState } from "react";
-import { Button } from "../../common/ButtonProject";
+import { useState } from "react";
+import Button from "../../common/Button";
 
 export default function TaskEditForm({ task, employees, onSave, onCancel }) {
   const [form, setForm] = useState({

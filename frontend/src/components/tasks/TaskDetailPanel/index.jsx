@@ -1,6 +1,6 @@
 // src/components/tasks/TaskDetailPanel/index.jsx
-import React, { useState } from "react";
-import { Button } from "../../common/ButtonProject";
+import { useState } from "react";
+import Button from "../../common/Button";
 import { Loader } from "../../common/Loader";
 import TaskAttachments from "./TaskAttachments";
 import TaskComments from "./TaskComments";

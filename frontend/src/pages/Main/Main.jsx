@@ -1,7 +1,6 @@
 // frontend/src/pages/Main/Main.jsx
-import React from "react";
 import { useNavigate } from "react-router-dom";
-import ButtonLogin from "../../components/common/ButtonLogin";
+import Button from "../../components/common/Button";
 
 export default function Main() {
   const nav = useNavigate();
@@ -19,9 +18,9 @@ export default function Main() {
       <pre style={{ whiteSpace: "pre-wrap", background: "#f4f6f8", padding: 12, borderRadius: 12 }}>
         {token ? token : "토큰 없음"}
       </pre>
-      <ButtonLogin onClick={logout} style={{ background: "#444" }}>
+      <Button onClick={logout} style={{ background: "#444" }}>
         로그아웃
-      </ButtonLogin>
+      </Button>
     </div>
   );
 }

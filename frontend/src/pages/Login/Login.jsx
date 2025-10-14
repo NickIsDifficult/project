@@ -1,7 +1,7 @@
 // frontend/src/pages/Login/Login.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ButtonLogin from "../../components/common/ButtonLogin";
+import Button from "../../components/common/Button";
 import { login } from "../../services/api/auth";
 
 export default function Login() {
@@ -41,7 +41,9 @@ export default function Login() {
           onChange={e => setPassword(e.target.value)}
           placeholder="0000"
         />
-        <ButtonLogin type="submit">로그인</ButtonLogin>
+        <Button type="submit" fullWidth variant="login">
+          로그인
+        </Button>
       </form>
       <div style={{ marginTop: 14, textAlign: "center" }}>
         <small>

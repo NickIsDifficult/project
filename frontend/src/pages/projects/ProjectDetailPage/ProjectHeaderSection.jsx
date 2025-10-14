@@ -1,6 +1,5 @@
 // src/pages/projects/ProjectDetailPage/ProjectHeaderSection.jsx
-import React from "react";
-import { Button } from "../../../components/common/ButtonProject";
+import Button from "../../../components/common/Button";
 
 export default function ProjectHeaderSection({ project, onBack }) {
   return (

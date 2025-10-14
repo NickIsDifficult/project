@@ -16,6 +16,7 @@ import TaskCalendarView from "../../../components/tasks/TaskCalendarView";
 import TaskDetailPanel from "../../../components/tasks/TaskDetailPanel";
 import TaskKanbanView from "../../../components/tasks/TaskKanbanView";
 import TaskListView from "../../../components/tasks/TaskListView";
+import AppShell from "../../../layout/AppShell";
 
 /* ---------------------------
  * ✅ 내부 콘텐츠 (Context 사용)
@@ -41,45 +42,47 @@ function ProjectDetailContent({ projectId }) {
   if (!project) return <div className="p-6">❌ 프로젝트를 찾을 수 없습니다.</div>;
 
   return (
-    <div className="p-6">
-      <Toaster position="top-right" />
+    <AppShell>
+      <div className="p-6">
+        <Toaster position="top-right" />
 
-      {/* ---------- 프로젝트 헤더 ---------- */}
-      <ProjectHeaderSection project={project} onBack={() => navigate("/projects")} />
+        {/* ---------- 프로젝트 헤더 ---------- */}
+        <ProjectHeaderSection project={project} onBack={() => navigate("/projects")} />
 
-      {/* ---------- 뷰 전환 탭 ---------- */}
-      <ViewSwitcherSection
-        viewType={viewType}
-        setViewType={setViewType}
-        onAddTask={() => setOpenDrawer(true)}
-      />
-
-      {/* ---------- 메인 콘텐츠 ---------- */}
-      {viewType === "list" && <TaskListView onTaskClick={setSelectedTask} />}
-      {viewType === "kanban" && <TaskKanbanView onTaskClick={setSelectedTask} />}
-      {viewType === "calendar" && <TaskCalendarView onTaskClick={setSelectedTask} />}
-
-      {/* ---------- 업무 등록 Drawer ---------- */}
-      <TaskDrawerSection
-        openDrawer={openDrawer}
-        setOpenDrawer={setOpenDrawer}
-        parentTaskId={parentTaskId}
-        setParentTaskId={setParentTaskId}
-      />
-
-      {/* ---------- 업무 상세 패널 ---------- */}
-      {selectedTask && (
-        <TaskDetailPanel
-          taskId={selectedTask.task_id}
-          onClose={() => setSelectedTask(null)}
-          onAddSubtask={taskId => {
-            setParentTaskId(taskId);
-            setOpenDrawer(true);
-            setSelectedTask(null);
-          }}
+        {/* ---------- 뷰 전환 탭 ---------- */}
+        <ViewSwitcherSection
+          viewType={viewType}
+          setViewType={setViewType}
+          onAddTask={() => setOpenDrawer(true)}
         />
-      )}
-    </div>
+
+        {/* ---------- 메인 콘텐츠 ---------- */}
+        {viewType === "list" && <TaskListView onTaskClick={setSelectedTask} />}
+        {viewType === "kanban" && <TaskKanbanView onTaskClick={setSelectedTask} />}
+        {viewType === "calendar" && <TaskCalendarView onTaskClick={setSelectedTask} />}
+
+        {/* ---------- 업무 등록 Drawer ---------- */}
+        <TaskDrawerSection
+          openDrawer={openDrawer}
+          setOpenDrawer={setOpenDrawer}
+          parentTaskId={parentTaskId}
+          setParentTaskId={setParentTaskId}
+        />
+
+        {/* ---------- 업무 상세 패널 ---------- */}
+        {selectedTask && (
+          <TaskDetailPanel
+            taskId={selectedTask.task_id}
+            onClose={() => setSelectedTask(null)}
+            onAddSubtask={taskId => {
+              setParentTaskId(taskId);
+              setOpenDrawer(true);
+              setSelectedTask(null);
+            }}
+          />
+        )}
+      </div>
+    </AppShell>
   );
 }
 

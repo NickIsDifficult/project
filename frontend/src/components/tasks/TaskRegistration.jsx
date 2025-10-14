@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { getEmployees } from "../../services/api/employee";
 import { createTask, getTasks } from "../../services/api/task";
-import { Button } from "../common/ButtonProject";
+import Button from "../common/Button";
 
 export default function TaskRegistration({ projectId, parentTaskId = null, onClose }) {
   const [loading, setLoading] = useState(false);

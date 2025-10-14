@@ -1,6 +1,5 @@
 // src/components/tasks/TaskListView/TaskListTable.jsx
-import React from "react";
-import { Button } from "../../common/ButtonProject";
+import Button from "../../common/Button";
 import TaskListRow from "./TaskListRow";
 
 const STATUS_LABELS = {

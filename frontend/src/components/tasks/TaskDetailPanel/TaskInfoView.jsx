@@ -1,6 +1,5 @@
 // src/components/tasks/TaskDetailPanel/TaskInfoView.jsx
-import React from "react";
-import { Button } from "../../common/ButtonProject";
+import Button from "../../common/Button";
 
 const STATUS_LABELS = {
   TODO: "할 일",

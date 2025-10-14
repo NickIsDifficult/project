@@ -1,3 +1,4 @@
+# app/routers/auth/signup.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -32,11 +33,8 @@ def list_departments(for_user: str = "EMPLOYEE", db: Session = Depends(get_db)):
 
 @router.get("/lookup/roles", response_model=list[RoleResponse])
 def list_roles(for_user: str = "EMPLOYEE", db: Session = Depends(get_db)):
-    if for_user not in ("EMPLOYEE", "EXTERNAL"):
-        for_user = "EMPLOYEE"
+    """직책 목록 조회 (현재 user_type 구분 없음 — 전체 반환)"""
     rows = db.scalars(select(Role).order_by(Role.role_id.asc())).all()
-    if for_user == "EMPLOYEE":
-        rows = [r for r in rows if r.role_id != 1]
     return rows
 
 

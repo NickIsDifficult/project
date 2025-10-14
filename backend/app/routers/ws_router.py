@@ -1,4 +1,4 @@
-# backend/app/routers/ws_router.py
+# app/routers/ws_router.py
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import Dict, List
 import json

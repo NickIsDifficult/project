@@ -28,7 +28,7 @@ const normalizeTaskPayload = (data = {}) => {
   const safe = { ...data };
 
   // 숫자형 필드 캐스팅
-  const intFields = ["assignee_emp_id", "parent_task_id", "priority", "progress"];
+  const intFields = ["assignee_emp_id", "parent_task_id", "progress"];
   const floatFields = ["estimate_hours"];
 
   for (const key of intFields) {

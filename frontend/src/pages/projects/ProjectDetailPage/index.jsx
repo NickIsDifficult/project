@@ -1,3 +1,4 @@
+// src/pages/projects/ProjectDetailPage/index.jsx
 import { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
@@ -67,6 +68,7 @@ function ProjectDetailContent({ projectId }) {
           setOpenDrawer={setOpenDrawer}
           parentTaskId={parentTaskId}
           setParentTaskId={setParentTaskId}
+          projectId={projectId}
         />
 
         {/* ---------- 업무 상세 패널 ---------- */}

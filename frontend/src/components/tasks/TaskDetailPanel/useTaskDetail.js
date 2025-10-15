@@ -1,4 +1,5 @@
 // src/components/tasks/TaskDetailPanel/useTaskDetail.js
+import { debounce } from "lodash";
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
@@ -113,7 +114,6 @@ export function useTaskDetail(taskId) {
   const handleDeleteComment = async commentId => {
     await deleteComment(project.project_id, taskId, commentId);
     setComments(prev => prev.filter(c => c.comment_id !== commentId));
-    toast.success("댓글이 삭제되었습니다.");
   };
 
   /* ----------------------------------------
@@ -135,17 +135,26 @@ export function useTaskDetail(taskId) {
   /* ----------------------------------------
    * ⚙️ 상태 / 진행률 변경
    * ---------------------------------------- */
+  /* ✅ 디바운스된 fetchTasks 래퍼 생성 */
+  const debouncedFetchTasks = useCallback(
+    debounce(() => {
+      fetchTasks(); // 여러 호출이 들어와도 0.8초에 한 번만 실행
+    }, 800),
+    [fetchTasks],
+  );
+
+  /* ✅ 상태 변경 */
   const handleStatusChange = async newStatus => {
     if (!task) return;
-
     const prevStatus = task.status;
+
     setTask(prev => ({ ...prev, status: newStatus }));
-    updateTaskLocal(taskId, { status: newStatus }); // ✅ 즉시 로컬 반영
+    updateTaskLocal(taskId, { status: newStatus });
 
     try {
       await updateTaskStatus(project.project_id, taskId, newStatus);
       toast.success("상태가 변경되었습니다.");
-      await fetchTasks(); // 서버 동기화
+      await fetchTasks();
     } catch (err) {
       console.error(err);
       toast.error("상태 변경 실패");
@@ -154,20 +163,41 @@ export function useTaskDetail(taskId) {
     }
   };
 
-  const handleProgressChange = async progress => {
-    if (isNaN(progress)) return;
-    setTask(prev => ({ ...prev, progress }));
-    updateTaskLocal(taskId, { progress });
+  /* ✅ 진행률 변경용 디바운스 서버 호출 */
+  const debouncedProgressUpdate = useCallback(
+    debounce(async newProgress => {
+      try {
+        await updateTask(project.project_id, taskId, { progress: newProgress });
+        toast.success("진행률이 저장되었습니다.");
+        debouncedFetchTasks(); // ✅ 여기서도 디바운스된 fetch
+      } catch (err) {
+        console.error("❌ 진행률 변경 실패:", err);
+        toast.error("진행률 저장 실패");
+      }
+    }, 800),
+    [project.project_id, taskId, debouncedFetchTasks],
+  );
 
-    try {
-      await updateTask(project.project_id, taskId, { progress });
-      toast.success("진행률이 변경되었습니다.");
-      await fetchTasks();
-    } catch (err) {
-      console.error(err);
-      toast.error("진행률 변경 실패");
-    }
-  };
+  /* ✅ 진행률 변경 (로컬 즉시 반영 + 서버 디바운스) */
+  const handleProgressChange = useCallback(
+    progress => {
+      if (isNaN(progress)) return;
+      setTask(prev => ({ ...prev, progress }));
+      updateTaskLocal(taskId, { progress });
+
+      // ✅ 서버 반영을 디바운스로 제한
+      debouncedProgressUpdate(progress);
+    },
+    [taskId, updateTaskLocal, debouncedProgressUpdate],
+  );
+
+  /* ✅ cleanup (컴포넌트 언마운트 시 디바운스 취소) */
+  useEffect(() => {
+    return () => {
+      debouncedProgressUpdate.cancel();
+      debouncedFetchTasks.cancel();
+    };
+  }, [debouncedProgressUpdate, debouncedFetchTasks]);
 
   /* ----------------------------------------
    * ✏️ 업무 수정 저장

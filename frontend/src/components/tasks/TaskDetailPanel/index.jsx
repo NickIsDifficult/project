@@ -1,5 +1,5 @@
 // src/components/tasks/TaskDetailPanel/index.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
 import Button from "../../common/Button";
 import { Loader } from "../../common/Loader";
@@ -9,7 +9,24 @@ import TaskEditForm from "./TaskEditForm";
 import TaskInfoView from "./TaskInfoView";
 import { useTaskDetail } from "./useTaskDetail";
 
-export default function TaskDetailPanel({ taskId, onClose, onAddSubtask, currentUser }) {
+// ✅ JWT 디코더 (base64url → JSON)
+function decodeJwt(token) {
+  try {
+    const payload = token.split(".")[1];
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(""),
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+export default function TaskDetailPanel({ taskId, onClose, onAddSubtask }) {
   /* ----------------------------------------
    * ✅ ProjectDetailContext 연결
    * ---------------------------------------- */
@@ -35,6 +52,70 @@ export default function TaskDetailPanel({ taskId, onClose, onAddSubtask, current
   } = useTaskDetail(taskId);
 
   const [isEditing, setIsEditing] = useState(false);
+
+  /* ----------------------------------------
+   * ✅ 로그인 사용자 로드
+   * ---------------------------------------- */
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        // 1) localStorage: user, profile 등 흔한 키 순회
+        const keys = ["user", "profile", "currentUser"];
+        for (const k of keys) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed?.emp_id) {
+              if (mounted) setCurrentUser(parsed);
+              console.log("✅ currentUser(from localStorage):", parsed);
+              return;
+            }
+          }
+        }
+
+        // 2) access_token 디코드 → emp_id 또는 login_id 추출
+        const token = localStorage.getItem("access_token");
+        if (token) {
+          const claims = decodeJwt(token);
+          // 백엔드에 따라 sub/login_id/user_id/emp_id 등 다양할 수 있음
+          const probableEmpId =
+            claims?.emp_id ?? claims?.user_id ?? claims?.member_id ?? claims?.uid ?? null;
+
+          if (probableEmpId && mounted) {
+            setCurrentUser({ emp_id: Number(probableEmpId) });
+            console.log("✅ currentUser(from token claims):", { emp_id: Number(probableEmpId) });
+            return;
+          }
+
+          // 3) 마지막 수단: /auth/me 호출 (있으면 사용, 없으면 무시)
+          try {
+            const { data } = await API.get("/auth/me");
+            // 기대되는 형태: { emp_id, name, ... }
+            if (data?.emp_id && mounted) {
+              setCurrentUser(data);
+              console.log("✅ currentUser(from /auth/me):", data);
+              return;
+            }
+          } catch (e) {
+            // /auth/me가 없거나 401/404여도 조용히 넘어감
+            console.warn("⚠️ /auth/me 조회 실패(무시 가능):", e?.message);
+          }
+        }
+
+        console.warn("⚠️ currentUser를 찾지 못했습니다. 버튼 표시가 제한될 수 있습니다.");
+      } catch (e) {
+        console.error("❌ currentUser 로딩 오류:", e);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   /* ----------------------------------------
    * 로딩 / 예외 처리

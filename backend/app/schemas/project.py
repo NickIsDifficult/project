@@ -60,6 +60,16 @@ class TaskCreate(TaskBase):
     project_id: int
     parent_task_id: Optional[int] = None
 
+    @field_validator("priority", mode="before")
+    def normalize_priority(cls, v):
+        if isinstance(v, str):
+            return v.upper()
+        return v
+
+    @field_validator("status", mode="before")
+    def normalize_status(cls, v):
+        return v.upper() if isinstance(v, str) else v
+
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None

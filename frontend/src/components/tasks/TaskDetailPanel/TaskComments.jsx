@@ -11,7 +11,9 @@ export default function TaskComments({ comments, currentUser, onAdd, onEdit, onD
 
   // ✅ props로 받은 comments가 변경될 때마다 로컬 상태 동기화
   useEffect(() => {
-    setLocalComments(comments || []);
+    if (comments && JSON.stringify(comments) !== JSON.stringify(localComments)) {
+      setLocalComments(comments);
+    }
   }, [comments]);
 
   /* ---------------------------
@@ -55,9 +57,11 @@ export default function TaskComments({ comments, currentUser, onAdd, onEdit, onD
    * --------------------------- */
   const handleDelete = async commentId => {
     try {
-      await onDelete(commentId);
-      setLocalComments(prev => prev.filter(c => c.comment_id !== commentId));
-      toast.success("댓글이 삭제되었습니다.");
+      const success = await onDelete(commentId);
+      if (success !== false) {
+        setLocalComments(prev => prev.filter(c => c.comment_id !== commentId));
+        toast.success("댓글이 삭제되었습니다."); // ✅ 내부에서만 띄움
+      }
     } catch (err) {
       console.error("❌ 댓글 삭제 실패:", err);
       toast.error("댓글 삭제에 실패했습니다.");
@@ -95,9 +99,6 @@ export default function TaskComments({ comments, currentUser, onAdd, onEdit, onD
                 alignItems: "flex-start",
               }}
             >
-              {console.log("currentUser:", currentUser?.emp_id, typeof currentUser?.emp_id)}
-              {console.log("comment:", c.emp_id, typeof c.emp_id)}
-
               {editId === c.comment_id ? (
                 <div style={{ flex: 1 }}>
                   <TextareaAutosize
@@ -141,27 +142,28 @@ export default function TaskComments({ comments, currentUser, onAdd, onEdit, onD
                     </span>
                   </div>
 
-                  {Number(currentUser?.emp_id) === Number(c.emp_id) && (
-                    <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setEditId(c.comment_id);
-                          setEditContent(c.content);
-                        }}
-                        style={{ padding: "2px 6px", fontSize: 12 }}
-                      >
-                        수정
-                      </Button>
-                      <Button
-                        variant="danger"
-                        onClick={() => handleDelete(c.comment_id)}
-                        style={{ padding: "2px 6px", fontSize: 12 }}
-                      >
-                        삭제
-                      </Button>
-                    </div>
-                  )}
+                  {currentUser?.emp_id != null &&
+                    Number(currentUser.emp_id) === Number(c.emp_id) && (
+                      <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setEditId(c.comment_id);
+                            setEditContent(c.content);
+                          }}
+                          style={{ padding: "2px 6px", fontSize: 12 }}
+                        >
+                          수정
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onClick={() => handleDelete(c.comment_id)}
+                          style={{ padding: "2px 6px", fontSize: 12 }}
+                        >
+                          삭제
+                        </Button>
+                      </div>
+                    )}
                 </>
               )}
             </li>

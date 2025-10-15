@@ -135,14 +135,6 @@ export function useTaskDetail(taskId) {
   /* ----------------------------------------
    * ⚙️ 상태 / 진행률 변경
    * ---------------------------------------- */
-  /* ✅ 디바운스된 fetchTasks 래퍼 생성 */
-  const debouncedFetchTasks = useCallback(
-    debounce(() => {
-      fetchTasks(); // 여러 호출이 들어와도 0.8초에 한 번만 실행
-    }, 800),
-    [fetchTasks],
-  );
-
   /* ✅ 상태 변경 */
   const handleStatusChange = async newStatus => {
     if (!task) return;
@@ -163,29 +155,37 @@ export function useTaskDetail(taskId) {
     }
   };
 
+  /* ✅ 디바운스된 fetchTasks 래퍼 생성 */
+  const debouncedFetchTasks = useCallback(
+    debounce(() => {
+      fetchTasks();
+    }, 1500),
+    [fetchTasks],
+  );
+
   /* ✅ 진행률 변경용 디바운스 서버 호출 */
   const debouncedProgressUpdate = useCallback(
     debounce(async newProgress => {
       try {
         await updateTask(project.project_id, taskId, { progress: newProgress });
-        toast.success("진행률이 저장되었습니다.");
-        debouncedFetchTasks(); // ✅ 여기서도 디바운스된 fetch
+        toast.success("진행률이 저장되었습니다.", { id: "progress-toast" });
+        debouncedFetchTasks();
       } catch (err) {
         console.error("❌ 진행률 변경 실패:", err);
-        toast.error("진행률 저장 실패");
+        toast.error("진행률 저장 실패", { id: "progress-toast" });
       }
-    }, 800),
+    }, 1000), // 👈 사용자가 손을 뗀 뒤 1초 뒤에 실행
     [project.project_id, taskId, debouncedFetchTasks],
   );
 
-  /* ✅ 진행률 변경 (로컬 즉시 반영 + 서버 디바운스) */
+  /* ✅ 진행률 변경 핸들러 (로컬 즉시 반영, 서버는 디바운스) */
   const handleProgressChange = useCallback(
     progress => {
       if (isNaN(progress)) return;
       setTask(prev => ({ ...prev, progress }));
       updateTaskLocal(taskId, { progress });
 
-      // ✅ 서버 반영을 디바운스로 제한
+      // ✅ 사용자 입력 종료 후 1초 뒤 서버 반영
       debouncedProgressUpdate(progress);
     },
     [taskId, updateTaskLocal, debouncedProgressUpdate],

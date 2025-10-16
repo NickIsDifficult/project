@@ -77,7 +77,7 @@ export function useKanbanData() {
         if (!targetTask) return;
 
         await updateTaskStatus(targetTask.project_id, draggableId, newStatus);
-        toast.success(`[${targetTask.project_name}] 상태 변경 완료 (${newStatus})`);
+        toast.success(`[${targetTask.project_name}] 상태 변경되었습니다다 (${newStatus})`);
 
         // 해당 프로젝트만 다시 fetch
         await fetchTasksByProject(targetTask.project_id);

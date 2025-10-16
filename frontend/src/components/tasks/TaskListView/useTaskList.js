@@ -95,22 +95,27 @@ export function useTaskList({ allTasks = [] }) {
   /* ------------------------------
    * ✅ 상태 변경 / 수정 / 삭제
    * ------------------------------ */
-  const handleStatusChange = async (taskId, newStatus) => {
+  const handleStatusChange = async (taskId, newStatus, projectId) => {
+    if (!projectId || String(taskId).startsWith("project-")) return; // 🧩 프로젝트는 제외
     try {
-      await updateTaskStatus(null, taskId, newStatus);
+      await updateTaskStatus(projectId, taskId, newStatus);
+      fetchTasksByProject(projectId);
+      // ✅ 로컬 즉시 반영
+      setTasks(prev => prev.map(t => (t.task_id === taskId ? { ...t, status: newStatus } : t)));
       updateTaskLocal(taskId, { status: newStatus });
-      toast.success(`상태가 ${newStatus}로 변경되었습니다.`);
+      toast.success(`상태가 변경되었습니다.`);
     } catch {
       toast.error("상태 변경 실패");
     }
   };
 
-  const handleDelete = async taskId => {
+  const handleDelete = async (taskId, projectId) => {
+    if (!projectId || String(taskId).startsWith("project-")) return;
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     try {
-      await deleteTask(null, taskId);
+      await deleteTask(projectId, taskId);
       toast.success("업무가 삭제되었습니다.");
-      fetchTasksByProject(); // 전역 새로고침
+      fetchTasksByProject(projectId);
     } catch {
       toast.error("삭제 실패");
     }
@@ -122,10 +127,11 @@ export function useTaskList({ allTasks = [] }) {
   };
   const cancelEdit = () => setEditingId(null);
 
-  const saveEdit = async taskId => {
+  const saveEdit = async (taskId, projectId) => {
     if (!editForm.title.trim()) return toast.error("제목을 입력하세요.");
+    if (!projectId || String(taskId).startsWith("project-")) return;
     try {
-      const updated = await updateTask(null, taskId, editForm);
+      const updated = await updateTask(projectId, taskId, editForm);
       updateTaskLocal(taskId, updated);
       toast.success("업무가 수정되었습니다.");
       setEditingId(null);
@@ -146,7 +152,7 @@ export function useTaskList({ allTasks = [] }) {
    * ✅ 상세 보기 (디테일 패널)
    * ------------------------------ */
   const onTaskClick = task => {
-    setSelectedTask(task); // 🔍 패널 열기
+    if (!task.isProject) setSelectedTask(task);
   };
 
   /* ------------------------------
@@ -177,6 +183,6 @@ export function useTaskList({ allTasks = [] }) {
     saveEdit,
     toggleCollapse,
     setEditForm,
-    onTaskClick, // ✅ 디테일 패널 오픈 콜백
+    onTaskClick,
   };
 }

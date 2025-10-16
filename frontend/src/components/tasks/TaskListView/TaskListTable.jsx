@@ -135,7 +135,7 @@ export default function TaskListTable({
           {filteredTasks.length > 0 ? (
             filteredTasks.map(t => (
               <TaskListRow
-                key={t.task_id}
+                key={`${t.project_id || "proj"}-${t.task_id}`}
                 task={t}
                 depth={0}
                 editingId={editingId}

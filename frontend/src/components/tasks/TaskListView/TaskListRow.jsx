@@ -1,4 +1,3 @@
-// src/components/tasks/TaskListView/TaskListRow.jsx
 import Button from "../../common/Button";
 
 const STATUS_LABELS = {
@@ -15,9 +14,14 @@ const STATUS_COLORS = {
   DONE: "#c8e6c9",
 };
 
+/**
+ * ✅ TaskListRow (프로젝트/업무 통합 재귀형)
+ * - project → main task → subtask → detailtask 구조
+ * - project도 트리 구조의 루트 노드로 포함됨
+ */
 export default function TaskListRow({
   task,
-  depth,
+  depth = 0,
   editingId,
   editForm,
   setEditForm,
@@ -33,15 +37,22 @@ export default function TaskListRow({
   const paddingLeft = depth * 20;
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
   const isCollapsed = collapsedTasks.has(task.task_id);
+  const isProject = task.isProject; // ✅ 프로젝트 여부 플래그
 
   return (
     <>
-      <tr style={rowStyle(editingId === task.task_id)}>
+      <tr
+        style={{
+          ...rowStyle(editingId === task.task_id),
+          background: isProject ? "#f5f6f8" : rowStyle().background,
+          fontWeight: isProject ? 700 : 400,
+        }}
+      >
         {/* ---------------------------- */}
-        {/* ✅ 업무명 (계층 + 제목 + 설명) */}
+        {/* ✅ 업무명 / 프로젝트명 */}
         {/* ---------------------------- */}
         <td style={{ ...td, paddingLeft }}>
-          {editingId === task.task_id ? (
+          {editingId === task.task_id && !isProject ? (
             <>
               <input
                 type="text"
@@ -67,92 +78,101 @@ export default function TaskListRow({
                     {isCollapsed ? "▶" : "▼"}
                   </button>
                 )}
-                <div style={{ fontWeight: 500 }}>{task.title}</div>
+                <div
+                  style={{
+                    fontWeight: isProject ? 700 : 500,
+                    color: isProject ? "#222" : "#333",
+                  }}
+                >
+                  {isProject ? `🏗 ${task.title}` : task.title}
+                </div>
               </div>
-              {task.description && <div style={descStyle}>{task.description}</div>}
+              {!isProject && task.description && <div style={descStyle}>{task.description}</div>}
             </>
           )}
         </td>
 
         {/* ---------------------------- */}
-        {/* ✅ 상태 변경 */}
+        {/* ✅ 상태 / 담당자 / 기간 / 액션버튼 (업무 전용) */}
         {/* ---------------------------- */}
-        <td style={td}>
-          <select
-            value={task.status}
-            onChange={e => onStatusChange(task.task_id, e.target.value)}
-            style={{
-              ...selectStyle,
-              background: STATUS_COLORS[task.status],
-            }}
-          >
-            {Object.entries(STATUS_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </td>
+        {!isProject ? (
+          <>
+            <td style={td}>
+              <select
+                value={task.status}
+                onChange={e => onStatusChange(task.task_id, e.target.value, task.project_id)}
+                style={{
+                  ...selectStyle,
+                  background: STATUS_COLORS[task.status],
+                }}
+              >
+                {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </td>
 
-        {/* ---------------------------- */}
-        {/* ✅ 담당자 */}
-        {/* ---------------------------- */}
-        <td style={td}>
-          {task.assignee_name ? (
-            <span>{task.assignee_name}</span>
-          ) : (
-            <span style={{ color: "#999" }}>— 미지정 —</span>
-          )}
-        </td>
+            <td style={td}>
+              {task.assignee_name ? (
+                <span>{task.assignee_name}</span>
+              ) : (
+                <span style={{ color: "#999" }}>— 미지정 —</span>
+              )}
+            </td>
 
-        {/* ---------------------------- */}
-        {/* ✅ 기간 */}
-        {/* ---------------------------- */}
-        <td style={td}>
-          {task.start_date && task.due_date ? (
-            `${task.start_date} ~ ${task.due_date}`
-          ) : (
-            <span style={{ color: "#ff7043", fontStyle: "italic" }}>📅 미지정</span>
-          )}
-        </td>
+            <td style={td}>
+              {task.start_date && task.due_date ? (
+                `${task.start_date} ~ ${task.due_date}`
+              ) : (
+                <span style={{ color: "#ff7043", fontStyle: "italic" }}>📅 미지정</span>
+              )}
+            </td>
 
-        {/* ---------------------------- */}
-        {/* ✅ 액션 버튼 영역 */}
-        {/* ---------------------------- */}
-        <td style={{ ...td, textAlign: "center", whiteSpace: "nowrap" }}>
-          {editingId === task.task_id ? (
-            <>
-              <Button variant="success" onClick={() => onEditSave(task.task_id)}>
-                저장
-              </Button>
-              <Button variant="secondary" onClick={onEditCancel}>
-                취소
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => onTaskClick(task)}>
-                🔍 상세
-              </Button>
-              <Button variant="outline" onClick={() => onEditStart(task)}>
-                ✏️ 수정
-              </Button>
-              <Button variant="outline" onClick={() => onDelete(task.task_id)}>
-                🗑️ 삭제
-              </Button>
-            </>
-          )}
-        </td>
+            <td style={{ ...td, textAlign: "center", whiteSpace: "nowrap" }}>
+              {editingId === task.task_id ? (
+                <>
+                  <Button
+                    variant="success"
+                    onClick={() => onEditSave(task.task_id, task.project_id)}
+                  >
+                    저장
+                  </Button>
+                  <Button variant="secondary" onClick={onEditCancel}>
+                    취소
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => onTaskClick(task)}>
+                    🔍 상세
+                  </Button>
+                  <Button variant="outline" onClick={() => onEditStart(task)}>
+                    ✏️ 수정
+                  </Button>
+                  <Button variant="outline" onClick={() => onDelete(task.task_id, task.project_id)}>
+                    🗑️ 삭제
+                  </Button>
+                </>
+              )}
+            </td>
+          </>
+        ) : (
+          <td colSpan={4} style={{ textAlign: "center", color: "#777" }}>
+            <em>프로젝트</em>
+          </td>
+        )}
       </tr>
 
       {/* ---------------------------- */}
-      {/* ✅ 하위 업무 (재귀 렌더링) */}
+      {/* ✅ 하위 업무 재귀 렌더링 (프로젝트 포함) */}
       {/* ---------------------------- */}
       {hasSubtasks &&
         !isCollapsed &&
         task.subtasks.map(sub => (
           <TaskListRow
-            key={sub.task_id}
+            key={`${task.project_id || "proj"}-${sub.task_id}`}
             task={sub}
             depth={depth + 1}
             editingId={editingId}

@@ -1,35 +1,38 @@
+import { useMemo } from "react";
+import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { Loader } from "../../common/Loader";
 import TaskListTable from "./TaskListTable";
 import { useTaskList } from "./useTaskList";
 
-export default function TaskListView({ tasks = [] }) {
-  const hook = useTaskList({ allTasks: tasks });
+/**
+ * ✅ TaskListView (전역 프로젝트 포함형)
+ * - 각 프로젝트를 루트 노드로 하여 업무를 재귀 렌더링
+ * - ProjectGlobalContext 기반
+ */
+export default function TaskListView() {
+  const { projects, tasksByProject, loading } = useProjectGlobal();
 
-  if (hook.loading) return <Loader text="업무 불러오는 중..." />;
+  // ✅ 프로젝트 + 업무 트리 구조로 통합
+  const projectNodes = useMemo(() => {
+    if (!projects?.length) return [];
+    return projects.map(project => ({
+      task_id: `project-${project.project_id}`,
+      title: project.project_name,
+      isProject: true,
+      subtasks: tasksByProject[project.project_id] || [],
+    }));
+  }, [projects, tasksByProject]);
 
-  // ✅ 프로젝트별로 그룹화 + 가짜 루트 노드 생성
-  const projectNodes = Object.entries(
-    tasks.reduce((acc, t) => {
-      const project = t.project_name || "미분류 프로젝트";
-      if (!acc[project]) acc[project] = [];
-      acc[project].push(t);
-      return acc;
-    }, {}),
-  ).map(([projectName, projectTasks]) => ({
-    task_id: `project-${projectName}`,
-    title: projectName,
-    description: "",
-    status: "PROJECT",
-    assignee_name: "",
-    start_date: null,
-    due_date: null,
-    subtasks: projectTasks, // ✅ 하위 업무 연결
-    isProject: true,
-  }));
+  const hook = useTaskList({ allTasks: projectNodes });
+
+  if (loading) return <Loader text="업무 불러오는 중..." />;
+
+  if (!projects.length)
+    return <div className="p-6 text-gray-600">❌ 등록된 프로젝트가 없습니다.</div>;
 
   return (
-    <div className="p-2">
-      <TaskListTable {...hook} filteredTasks={projectNodes} />
+    <div className="p-4">
+      <TaskListTable {...hook} />
     </div>
   );
 }

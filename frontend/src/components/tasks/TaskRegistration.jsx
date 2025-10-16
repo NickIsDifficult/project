@@ -1,228 +1,171 @@
-// src/components/tasks/TaskRegistration.jsx
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { getEmployees } from "../../services/api/employee";
-import { createTask, getTasks } from "../../services/api/task";
-import Button from "../common/Button";
+import { useProjectGlobal } from "../../context/ProjectGlobalContext";
+import { createTask } from "../../services/api/task"; // ✅ 기존 API 구조 가정
 
-export default function TaskRegistration({ projectId, parentTaskId = null, onClose }) {
-  const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState([]);
-  const [tasks, setTasks] = useState([]); // ✅ 상위 업무 선택용
+export default function TaskRegistration({ onClose }) {
+  const { selectedProjectId, parentTaskId, fetchTasksByProject } = useProjectGlobal();
 
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    assignee_emp_id: "",
-    start_date: "",
-    due_date: "",
-    priority: "MEDIUM",
-    status: "TODO",
-    parent_task_id: parentTaskId ? String(parentTaskId) : "",
-  });
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
 
-  // ✅ 담당자 및 상위업무 목록 로드
+  // ESC 키로 닫기
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [empData, taskData] = await Promise.all([getEmployees(), getTasks(projectId)]);
-        setEmployees(empData);
-        setTasks(taskData);
-      } catch (err) {
-        console.error("데이터 로드 실패:", err);
-      }
-    };
-    fetchData();
-  }, [projectId]);
+    const onKey = e => e.key === "Escape" && onClose?.();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
-  // ✅ 입력값 변경
-  const handleChange = e => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  // ✅ 등록 처리
-  const handleSubmit = async e => {
-    e.preventDefault();
-
-    if (!form.title.trim()) {
+  // ✅ 업무 등록
+  const handleSubmit = async () => {
+    if (!title.trim()) {
       toast.error("업무 제목을 입력해주세요.");
       return;
     }
 
-    const payload = {
-      project_id: Number(projectId),
-      title: form.title.trim(),
-      description: form.description || null,
-      assignee_emp_id: form.assignee_emp_id ? Number(form.assignee_emp_id) : null,
-      parent_task_id: form.parent_task_id ? Number(form.parent_task_id) : null,
-      start_date: form.start_date ? form.start_date : null,
-      due_date: form.due_date ? form.due_date : null,
-      priority: form.priority?.toUpperCase?.() || "MEDIUM",
-      status: form.status?.toUpperCase?.() || "TODO",
-    };
-
-    console.log("📤 전송 payload:", payload);
-
     try {
-      setLoading(true);
-      await createTask(projectId, payload);
-      toast.success("새 업무가 등록되었습니다.");
-      onClose();
+      const payload = {
+        project_id: selectedProjectId,
+        title,
+        description,
+        assignee_emp_id: assigneeId ? Number(assigneeId) : null,
+        start_date: startDate || null,
+        due_date: dueDate || null,
+        parent_task_id: parentTaskId || null,
+      };
+
+      await createTask(payload);
+      toast.success(parentTaskId ? "하위 업무가 등록되었습니다." : "업무가 등록되었습니다.");
+      await fetchTasksByProject(selectedProjectId);
+      onClose?.();
     } catch (err) {
-      console.error("업무 등록 실패:", err);
-      toast.error(err.message || "업무 등록 실패");
-    } finally {
-      setLoading(false);
+      console.error("❌ 업무 등록 실패:", err);
+      toast.error("업무 등록 실패");
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ padding: "8px 16px" }}>
-      {/* --------------------------- */}
-      {/* 기본 정보 */}
-      {/* --------------------------- */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>제목 *</label>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        padding: 16,
+        height: "100%",
+        overflowY: "auto",
+      }}
+    >
+      <h2 style={{ fontSize: 18, fontWeight: 600 }}>
+        {parentTaskId ? "📎 하위 업무 등록" : "📝 새 업무 등록"}
+      </h2>
+
+      {/* 제목 */}
+      <div>
+        <label>업무 제목</label>
         <input
           type="text"
-          name="title"
-          value={form.title}
-          onChange={handleChange}
           placeholder="업무 제목을 입력하세요"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
           style={inputStyle}
         />
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>설명</label>
+      {/* 설명 */}
+      <div>
+        <label>업무 설명</label>
         <textarea
-          name="description"
-          value={form.description}
-          onChange={handleChange}
           placeholder="업무 설명을 입력하세요"
-          style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          style={{ ...inputStyle, minHeight: 80 }}
         />
       </div>
 
-      {/* --------------------------- */}
-      {/* 상위 업무 지정 */}
-      {/* --------------------------- */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>상위 업무</label>
-        <select
-          name="parent_task_id"
-          value={form.parent_task_id}
-          onChange={handleChange}
+      {/* 담당자 */}
+      <div>
+        <label>담당자 ID</label>
+        <input
+          type="number"
+          placeholder="예: 101"
+          value={assigneeId}
+          onChange={e => setAssigneeId(e.target.value)}
           style={inputStyle}
-          disabled={!!parentTaskId} // ✅ 이미 상위 업무 지정된 경우 수정 불가
-        >
-          <option value="">(없음 - 최상위)</option>
-          {tasks.map(t => (
-            <option key={t.task_id} value={t.task_id}>
-              {t.title}
-            </option>
-          ))}
-        </select>
+        />
       </div>
 
-      {/* --------------------------- */}
-      {/* 담당자 / 우선순위 */}
-      {/* --------------------------- */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+      {/* 날짜 */}
+      <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1 }}>
-          <label style={labelStyle}>담당자</label>
-          <select
-            name="assignee_emp_id"
-            value={form.assignee_emp_id}
-            onChange={handleChange}
-            style={inputStyle}
-          >
-            <option value="">선택 안 함</option>
-            {employees.map(emp => (
-              <option key={emp.emp_id} value={emp.emp_id}>
-                {emp.name} ({emp.department_name})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>우선순위</label>
-          <select name="priority" value={form.priority} onChange={handleChange} style={inputStyle}>
-            <option value="LOW">낮음</option>
-            <option value="MEDIUM">보통</option>
-            <option value="HIGH">높음</option>
-            <option value="URGENT">긴급</option>
-          </select>
-        </div>
-      </div>
-
-      {/* --------------------------- */}
-      {/* 일정 */}
-      {/* --------------------------- */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>시작일</label>
+          <label>시작일</label>
           <input
             type="date"
-            name="start_date"
-            value={form.start_date}
-            onChange={handleChange}
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
             style={inputStyle}
           />
         </div>
-
         <div style={{ flex: 1 }}>
-          <label style={labelStyle}>마감일</label>
+          <label>마감일</label>
           <input
             type="date"
-            name="due_date"
-            value={form.due_date}
-            onChange={handleChange}
+            value={dueDate}
+            onChange={e => setDueDate(e.target.value)}
             style={inputStyle}
           />
         </div>
       </div>
 
-      {/* --------------------------- */}
-      {/* 하단 버튼 */}
-      {/* --------------------------- */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 8,
-          marginTop: 24,
-        }}
-      >
-        <Button variant="secondary" type="button" onClick={onClose}>
+      {/* 버튼 */}
+      <div style={buttonRow}>
+        <button onClick={handleSubmit} style={saveBtn}>
+          저장
+        </button>
+        <button onClick={onClose} style={cancelBtn}>
           취소
-        </Button>
-        <Button variant="success" type="submit" disabled={loading}>
-          {loading ? "등록 중..." : "등록"}
-        </Button>
+        </button>
       </div>
-    </form>
+    </div>
   );
 }
 
-// ---------------------------
-// 스타일
-// ---------------------------
-const labelStyle = {
-  display: "block",
-  fontSize: 14,
-  fontWeight: 500,
-  marginBottom: 6,
-  color: "#333",
-};
-
+/* ----------------------------- */
+/* ✅ 스타일 (inline 유지) */
+/* ----------------------------- */
 const inputStyle = {
   width: "100%",
-  padding: "8px 10px",
-  borderRadius: "6px",
   border: "1px solid #ccc",
+  borderRadius: 6,
+  padding: "8px",
   fontSize: 14,
-  outline: "none",
+  boxSizing: "border-box",
+};
+
+const buttonRow = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 8,
+  borderTop: "1px solid #eee",
+  paddingTop: 12,
+  marginTop: 16,
+};
+
+const saveBtn = {
+  background: "#1976d2",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  padding: "8px 14px",
+  cursor: "pointer",
+};
+
+const cancelBtn = {
+  background: "#f1f1f1",
+  border: "1px solid #ccc",
+  borderRadius: 6,
+  padding: "8px 14px",
+  cursor: "pointer",
 };

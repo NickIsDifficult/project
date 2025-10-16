@@ -16,6 +16,8 @@ export function ProjectGlobalProvider({ children }) {
   const [selectedTask, setSelectedTask] = useState(null); // 현재 선택된 업무(상세 패널)
   const [viewType, setViewType] = useState("list"); // 현재 뷰 타입
   const [loading, setLoading] = useState(false); // 전역 로딩 상태
+  const [openDrawer, setOpenDrawer] = useState(false);
+  const [parentTaskId, setParentTaskId] = useState(null);
 
   /** ✅ 프로젝트 목록 불러오기 */
   async function fetchAllProjects() {
@@ -105,6 +107,10 @@ export function ProjectGlobalProvider({ children }) {
     fetchAllProjects,
     fetchTasksByProject,
     updateTaskLocal,
+    openDrawer,
+    setOpenDrawer,
+    parentTaskId,
+    setParentTaskId,
   };
 
   return <ProjectGlobalContext.Provider value={value}>{children}</ProjectGlobalContext.Provider>;

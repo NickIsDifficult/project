@@ -1,59 +1,39 @@
-// src/components/tasks/TaskListView/useTaskList.js
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
+import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { deleteTask, updateTask, updateTaskStatus } from "../../../services/api/task";
 
-const STATUS_LABELS = {
-  TODO: "할 일",
-  IN_PROGRESS: "진행 중",
-  REVIEW: "검토 중",
-  DONE: "완료",
-};
+export function useTaskList({ allTasks = [] }) {
+  const { fetchTasksByProject, updateTaskLocal, setSelectedTask } = useProjectGlobal();
 
-export function useTaskList({ onTaskClick }) {
-  const { project, tasks: globalTasks, fetchTasks, updateTaskLocal } = useProjectDetailContext();
-
-  const [tasks, setTasks] = useState(globalTasks);
+  const [tasks, setTasks] = useState(allTasks);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ title: "", description: "" });
   const [collapsedTasks, setCollapsedTasks] = useState(new Set());
 
-  // ---------------------------
-  // 데이터 동기화 (Context → local state)
-  // ---------------------------
-  useEffect(() => {
-    setTasks(globalTasks);
-  }, [globalTasks]);
+  /* ------------------------------
+   * ✅ 동기화
+   * ------------------------------ */
+  useEffect(() => setTasks(allTasks), [allTasks]);
 
-  // ---------------------------
-  // 필터/정렬/검색 상태
-  // ---------------------------
+  /* ------------------------------
+   * ✅ 필터 / 정렬 / 검색
+   * ------------------------------ */
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterAssignee, setFilterAssignee] = useState("ALL");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [sortBy, setSortBy] = useState("start_date");
   const [sortOrder, setSortOrder] = useState("asc");
 
-  // ---------------------------
-  // 담당자 옵션 계산
-  // ---------------------------
   const assigneeOptions = useMemo(() => {
     const set = new Set();
-    const walk = list => {
-      list.forEach(t => {
-        if (t.assignee_name) set.add(t.assignee_name);
-        if (t.subtasks?.length) walk(t.subtasks);
-      });
-    };
-    walk(globalTasks);
+    tasks.forEach(t => {
+      if (t.assignee_name) set.add(t.assignee_name);
+    });
     return ["ALL", ...Array.from(set)];
-  }, [globalTasks]);
+  }, [tasks]);
 
-  // ---------------------------
-  // 정렬 핸들러
-  // ---------------------------
   const handleSort = key => {
     if (sortBy === key) setSortOrder(p => (p === "asc" ? "desc" : "asc"));
     else {
@@ -62,9 +42,6 @@ export function useTaskList({ onTaskClick }) {
     }
   };
 
-  // ---------------------------
-  // 필터 + 정렬
-  // ---------------------------
   const filteredTasks = useMemo(() => {
     const match = t => {
       const status = t.status?.trim()?.toUpperCase?.() || "TODO";
@@ -75,20 +52,12 @@ export function useTaskList({ onTaskClick }) {
       return statusOk && assigneeOk && keywordOk;
     };
 
-    const walk = list =>
-      list
-        .map(t => ({ ...t, subtasks: t.subtasks ? walk(t.subtasks) : [] }))
-        .filter(t => match(t) || t.subtasks?.length > 0);
-
-    const filtered = walk(tasks);
+    const filtered = tasks.filter(match);
 
     const sorted = filtered.sort((a, b) => {
       const valA = a[sortBy] ?? "";
       const valB = b[sortBy] ?? "";
-      if (sortBy === "status") {
-        const order = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"];
-        return (order.indexOf(valA) - order.indexOf(valB)) * (sortOrder === "asc" ? 1 : -1);
-      } else if (sortBy.includes("date")) {
+      if (sortBy.includes("date")) {
         const dateA = valA ? new Date(valA) : new Date(0);
         const dateB = valB ? new Date(valB) : new Date(0);
         return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
@@ -102,28 +71,17 @@ export function useTaskList({ onTaskClick }) {
     return sorted;
   }, [tasks, filterStatus, filterAssignee, searchKeyword, sortBy, sortOrder]);
 
-  // ---------------------------
-  // 상태 요약 (통계)
-  // ---------------------------
+  /* ------------------------------
+   * ✅ 상태 요약
+   * ------------------------------ */
   const stats = useMemo(() => {
-    const flat = [];
-    const flatten = list => {
-      list.forEach(t => {
-        flat.push(t);
-        if (t.subtasks?.length) flatten(t.subtasks);
-      });
-    };
-    flatten(tasks);
-    const total = flat.length;
+    const total = tasks.length;
     const counts = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
-    flat.forEach(t => (counts[t.status] = (counts[t.status] || 0) + 1));
+    tasks.forEach(t => (counts[t.status] = (counts[t.status] || 0) + 1));
     const doneRatio = total ? ((counts.DONE / total) * 100).toFixed(1) : 0;
     return { total, ...counts, doneRatio };
   }, [tasks]);
 
-  // ---------------------------
-  // 필터 초기화
-  // ---------------------------
   const resetFilters = () => {
     setFilterStatus("ALL");
     setFilterAssignee("ALL");
@@ -132,45 +90,32 @@ export function useTaskList({ onTaskClick }) {
     setSortOrder("asc");
   };
 
-  // ---------------------------
-  // 상태 필터 토글
-  // ---------------------------
   const handleStatusFilter = key => setFilterStatus(prev => (prev === key ? "ALL" : key));
 
-  // ---------------------------
-  // 상태 변경
-  // ---------------------------
+  /* ------------------------------
+   * ✅ 상태 변경 / 수정 / 삭제
+   * ------------------------------ */
   const handleStatusChange = async (taskId, newStatus) => {
-    updateTaskLocal(taskId, { status: newStatus }); // ✅ Context 기반 즉시 반영
-
     try {
-      await updateTaskStatus(project.project_id, taskId, newStatus);
-      toast.success(`상태가 '${STATUS_LABELS[newStatus]}'로 변경되었습니다.`);
-      await fetchTasks();
-    } catch (err) {
-      console.error(err);
+      await updateTaskStatus(null, taskId, newStatus);
+      updateTaskLocal(taskId, { status: newStatus });
+      toast.success(`상태가 ${newStatus}로 변경되었습니다.`);
+    } catch {
       toast.error("상태 변경 실패");
-      await fetchTasks(); // 실패 시 서버 데이터 재동기화
     }
   };
 
-  // ---------------------------
-  // 삭제
-  // ---------------------------
   const handleDelete = async taskId => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     try {
-      await deleteTask(project.project_id, taskId);
+      await deleteTask(null, taskId);
       toast.success("업무가 삭제되었습니다.");
-      await fetchTasks();
+      fetchTasksByProject(); // 전역 새로고침
     } catch {
       toast.error("삭제 실패");
     }
   };
 
-  // ---------------------------
-  // 인라인 수정
-  // ---------------------------
   const startEdit = task => {
     setEditingId(task.task_id);
     setEditForm({ title: task.title, description: task.description || "" });
@@ -180,21 +125,15 @@ export function useTaskList({ onTaskClick }) {
   const saveEdit = async taskId => {
     if (!editForm.title.trim()) return toast.error("제목을 입력하세요.");
     try {
-      setLoading(true);
-      await updateTask(project.project_id, taskId, editForm);
+      const updated = await updateTask(null, taskId, editForm);
+      updateTaskLocal(taskId, updated);
       toast.success("업무가 수정되었습니다.");
       setEditingId(null);
-      await fetchTasks();
     } catch {
-      toast.error("수정 실패");
-    } finally {
-      setLoading(false);
+      toast.error("업무 수정 실패");
     }
   };
 
-  // ---------------------------
-  // 접기/펼치기
-  // ---------------------------
   const toggleCollapse = taskId => {
     setCollapsedTasks(prev => {
       const next = new Set(prev);
@@ -203,9 +142,16 @@ export function useTaskList({ onTaskClick }) {
     });
   };
 
-  // ---------------------------
-  // 반환값
-  // ---------------------------
+  /* ------------------------------
+   * ✅ 상세 보기 (디테일 패널)
+   * ------------------------------ */
+  const onTaskClick = task => {
+    setSelectedTask(task); // 🔍 패널 열기
+  };
+
+  /* ------------------------------
+   * 📤 반환
+   * ------------------------------ */
   return {
     loading,
     filteredTasks,
@@ -214,7 +160,6 @@ export function useTaskList({ onTaskClick }) {
     editingId,
     editForm,
     collapsedTasks,
-    onTaskClick,
     filterStatus,
     filterAssignee,
     searchKeyword,
@@ -232,5 +177,6 @@ export function useTaskList({ onTaskClick }) {
     saveEdit,
     toggleCollapse,
     setEditForm,
+    onTaskClick, // ✅ 디테일 패널 오픈 콜백
   };
 }

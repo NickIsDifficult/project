@@ -1,81 +1,91 @@
 // src/pages/projects/ProjectDetailPage/index.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "react-hot-toast";
-import { useNavigate, useParams } from "react-router-dom";
-
 import { Loader } from "../../../components/common/Loader";
-import {
-  ProjectDetailProvider,
-  useProjectDetailContext,
-} from "../../../context/ProjectDetailContext";
-
-import ProjectHeaderSection from "./ProjectHeaderSection";
-import TaskDrawerSection from "./TaskDrawerSection";
-import ViewSwitcherSection from "./ViewSwitcherSection";
+import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
+import AppShell from "../../../layout/AppShell";
 
 import TaskCalendarView from "../../../components/tasks/TaskCalendarView";
 import TaskDetailPanel from "../../../components/tasks/TaskDetailPanel";
 import TaskKanbanView from "../../../components/tasks/TaskKanbanView";
 import TaskListView from "../../../components/tasks/TaskListView";
-import AppShell from "../../../layout/AppShell";
+import TaskDrawerSection from "./TaskDrawerSection";
+import ViewSwitcherSection from "./ViewSwitcherSection";
 
-/* ---------------------------
- * ✅ 내부 콘텐츠 (Context 사용)
- * --------------------------- */
-function ProjectDetailContent({ projectId }) {
-  const navigate = useNavigate();
-  const { project, loading } = useProjectDetailContext();
+export default function ProjectDetailPage() {
+  const { projects, tasksByProject, fetchTasksByProject, loading, selectedTask, setSelectedTask } =
+    useProjectGlobal();
 
-  const [viewType, setViewType] = useState(
-    () => localStorage.getItem(`viewType_project_${projectId}`) || "list",
-  );
+  const [viewType, setViewType] = useState(() => localStorage.getItem("viewType_global") || "list");
   const [openDrawer, setOpenDrawer] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
   const [parentTaskId, setParentTaskId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
 
-  // viewType 저장
   useEffect(() => {
-    localStorage.setItem(`viewType_project_${projectId}`, viewType);
-  }, [viewType, projectId]);
+    localStorage.setItem("viewType_global", viewType);
+  }, [viewType]);
 
-  // 로딩 / 에러 처리
-  if (loading) return <Loader text="데이터 불러오는 중..." />;
-  if (!project) return <div className="p-6">❌ 프로젝트를 찾을 수 없습니다.</div>;
+  useEffect(() => {
+    if (projects?.length) {
+      projects.forEach(p => {
+        if (!tasksByProject[p.project_id]) fetchTasksByProject(p.project_id);
+      });
+    }
+  }, [projects]);
+
+  // ✅ 전체 프로젝트의 업무를 하나의 배열로 통합
+  const allTasks = useMemo(() => {
+    const merged = [];
+    projects.forEach(project => {
+      const tasks = tasksByProject[project.project_id] || [];
+      tasks.forEach(t => {
+        merged.push({
+          ...t,
+          project_id: project.project_id,
+          project_name: project.project_name,
+        });
+      });
+    });
+    return merged;
+  }, [projects, tasksByProject]);
+
+  if (loading) return <Loader text="전체 프로젝트 불러오는 중..." />;
+  if (!projects?.length) return <div className="p-6">❌ 등록된 프로젝트가 없습니다.</div>;
 
   return (
     <AppShell>
       <div className="p-6">
         <Toaster position="top-right" />
+        <h1 style={{ fontSize: 26, fontWeight: "bold", marginBottom: 20 }}>
+          📊 전체 프로젝트 업무 관리
+        </h1>
 
-        {/* ---------- 프로젝트 헤더 ---------- */}
-        <ProjectHeaderSection project={project} onBack={() => navigate("/projects")} />
-
-        {/* ---------- 뷰 전환 탭 ---------- */}
         <ViewSwitcherSection
           viewType={viewType}
           setViewType={setViewType}
           onAddTask={() => setOpenDrawer(true)}
         />
 
-        {/* ---------- 메인 콘텐츠 ---------- */}
-        {viewType === "list" && <TaskListView onTaskClick={setSelectedTask} />}
-        {viewType === "kanban" && <TaskKanbanView onTaskClick={setSelectedTask} />}
-        {viewType === "calendar" && <TaskCalendarView onTaskClick={setSelectedTask} />}
+        {viewType === "list" && <TaskListView tasks={allTasks} />}
+        {viewType === "kanban" && <TaskKanbanView tasks={allTasks} />}
+        {viewType === "calendar" && <TaskCalendarView tasks={allTasks} />}
 
-        {/* ---------- 업무 등록 Drawer ---------- */}
-        <TaskDrawerSection
-          openDrawer={openDrawer}
-          setOpenDrawer={setOpenDrawer}
-          parentTaskId={parentTaskId}
-          setParentTaskId={setParentTaskId}
-          projectId={projectId}
-        />
+        {selectedProjectId && (
+          <TaskDrawerSection
+            openDrawer={openDrawer}
+            setOpenDrawer={setOpenDrawer}
+            parentTaskId={parentTaskId}
+            setParentTaskId={setParentTaskId}
+            projectId={selectedProjectId}
+          />
+        )}
 
-        {/* ---------- 업무 상세 패널 ---------- */}
+        {/* ✅ 오른쪽 슬라이드 상세 패널 */}
         {selectedTask && (
           <TaskDetailPanel
+            projectId={selectedTask.project_id}
             taskId={selectedTask.task_id}
-            onClose={() => setSelectedTask(null)}
+            onClose={() => setSelectedTask(null)} // 닫기
             onAddSubtask={taskId => {
               setParentTaskId(taskId);
               setOpenDrawer(true);
@@ -85,18 +95,5 @@ function ProjectDetailContent({ projectId }) {
         )}
       </div>
     </AppShell>
-  );
-}
-
-/* ---------------------------
- * ✅ 최상위 Provider 래퍼
- * --------------------------- */
-export default function ProjectDetailPage() {
-  const { projectId } = useParams();
-
-  return (
-    <ProjectDetailProvider projectId={projectId}>
-      <ProjectDetailContent projectId={projectId} />
-    </ProjectDetailProvider>
   );
 }

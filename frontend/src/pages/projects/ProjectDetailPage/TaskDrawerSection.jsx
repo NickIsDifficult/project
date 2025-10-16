@@ -1,7 +1,7 @@
 // src/pages/projects/ProjectDetailPage/TaskDrawerSection.jsx
 import { Drawer } from "../../../components/common/Drawer";
 import TaskRegistration from "../../../components/tasks/TaskRegistration";
-import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
+import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 
 export default function TaskDrawerSection({
   openDrawer,
@@ -10,17 +10,16 @@ export default function TaskDrawerSection({
   setParentTaskId,
   projectId,
 }) {
-  // ✅ Context에서 fetchTasks 직접 사용 (props 제거)
-  const { fetchTasks } = useProjectDetailContext();
+  const { fetchTasksByProject } = useProjectGlobal();
 
   const handleClose = () => {
     setOpenDrawer(false);
     setParentTaskId(null);
   };
 
-  const handleAfterSubmit = () => {
+  const handleAfterSubmit = async () => {
+    await fetchTasksByProject(projectId);
     handleClose();
-    fetchTasks(); // 등록 후 프로젝트 업무 목록 새로고침
   };
 
   return (

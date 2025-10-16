@@ -1,5 +1,6 @@
 // src/routes/routesConfig.js
 import { lazy } from "react";
+import { ProjectGlobalProvider } from "../context/ProjectGlobalContext";
 import LoginPage from "../pages/Login/Login";
 import SignupPage from "../pages/Signup/Signup";
 
@@ -7,7 +8,6 @@ const Screen = lazy(() => import("../pages/screens/Screen"));
 const Calendar = lazy(() => import("../pages/calendar/CalendarView"));
 const NoticeBoard = lazy(() => import("../pages/notices/NoticeBoard"));
 const TrashBin = lazy(() => import("../components/TrashBin"));
-const ProjectsPage = lazy(() => import("../pages/projects/ProjectsPage"));
 const ProjectDetailPage = lazy(() => import("../pages/projects/ProjectDetailPage"));
 const NotFoundPage = lazy(() => import("../pages/errors/NotFoundPage"));
 
@@ -22,12 +22,11 @@ export const routesConfig = [
   { path: "/main", element: <Screen />, isPrivate: true },
   {
     path: "/projects",
-    element: <ProjectsPage />,
-    isPrivate: true,
-  },
-  {
-    path: "/projects/:projectId",
-    element: <ProjectDetailPage />,
+    element: (
+      <ProjectGlobalProvider>
+        <ProjectDetailPage />
+      </ProjectGlobalProvider>
+    ),
     isPrivate: true,
   },
   {
@@ -47,3 +46,5 @@ export const routesConfig = [
   },
   { path: "*", element: <NotFoundPage />, isPrivate: false },
 ];
+
+export default routesConfig;

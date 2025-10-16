@@ -5,9 +5,9 @@ import TaskColumn from "./TaskColumn";
 import { useKanbanData } from "./useKanbanData";
 
 export default function TaskKanbanView({ onTaskClick }) {
-  const { columns, loading, handleDragEnd } = useKanbanData();
+  const { columns, handleDragEnd } = useKanbanData();
 
-  if (loading) return <Loader text="칸반 보드를 불러오는 중..." />;
+  if (!columns?.length) return <Loader text="칸반 데이터를 불러오는 중..." />;
 
   return (
     <div style={boardWrapper}>
@@ -16,13 +16,8 @@ export default function TaskKanbanView({ onTaskClick }) {
           {columns.map(col => (
             <Droppable key={col.key} droppableId={col.key} direction="vertical">
               {provided => (
-                <div ref={provided.innerRef} {...provided.droppableProps}>
-                  <TaskColumn
-                    status={col.key}
-                    label={col.label}
-                    tasks={col.tasks}
-                    onTaskClick={onTaskClick}
-                  />
+                <div ref={provided.innerRef} {...provided.droppableProps} style={colStyle}>
+                  <TaskColumn label={col.label} tasks={col.tasks} onTaskClick={onTaskClick} />
                   {provided.placeholder}
                 </div>
               )}
@@ -35,11 +30,11 @@ export default function TaskKanbanView({ onTaskClick }) {
 }
 
 /* ---------------------------
- * ✅ 스타일 정의
+ * 🎨 스타일 정의
  * --------------------------- */
 const boardWrapper = {
   width: "100%",
-  overflowX: "auto", // ✅ 최상위만 스크롤 허용
+  overflowX: "auto",
   padding: "8px 0",
 };
 
@@ -49,4 +44,8 @@ const boardContainer = {
   gap: 12,
   minHeight: "calc(100vh - 180px)",
   padding: "0 8px",
+};
+
+const colStyle = {
+  minWidth: 280,
 };

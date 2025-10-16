@@ -2,7 +2,7 @@
 import { debounce } from "lodash";
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
+import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { getEmployees } from "../../../services/api/employee";
 import {
   createComment,
@@ -18,13 +18,13 @@ import {
 } from "../../../services/api/task";
 
 /**
- * ✅ useTaskDetail
- * 개별 업무(Task)의 상세 데이터, 댓글, 첨부파일 관리 훅
- * - ProjectDetailContext와 완전히 연동됨
- * - 로컬/서버 양방향 동기화
+ * ✅ useTaskDetail (전역형)
+ * - ProjectGlobalContext 기반
+ * - taskId + projectId 로 동작
+ * - 댓글 / 첨부 / 상태 / 진행률 / 수정 관리
  */
-export function useTaskDetail(taskId) {
-  const { project, fetchTasks, updateTaskLocal } = useProjectDetailContext();
+export function useTaskDetail(projectId, taskId) {
+  const { fetchTasksByProject, updateTaskLocal } = useProjectGlobal();
 
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
@@ -32,31 +32,48 @@ export function useTaskDetail(taskId) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  /* ----------------------------------------
-   * ✅ 데이터 로딩
-   * ---------------------------------------- */
+  /* -------------------------------
+   * ✅ 데이터 불러오기
+   * ------------------------------- */
   const fetchTask = useCallback(async () => {
-    const data = await getTask(project.project_id, taskId);
-    setTask(data);
-    return data;
-  }, [project, taskId]);
+    try {
+      const data = await getTask(projectId, taskId);
+      setTask(data);
+      return data;
+    } catch (err) {
+      console.error("❌ 업무 상세 불러오기 실패:", err);
+      toast.error("업무 정보를 불러올 수 없습니다.");
+    }
+  }, [projectId, taskId]);
 
   const fetchComments = useCallback(async () => {
-    const data = await getComments(project.project_id, taskId);
-    setComments(data);
-    return data;
-  }, [project, taskId]);
+    try {
+      const data = await getComments(projectId, taskId);
+      setComments(data);
+      return data;
+    } catch {
+      toast.error("댓글을 불러올 수 없습니다.");
+    }
+  }, [projectId, taskId]);
 
   const fetchAttachments = useCallback(async () => {
-    const data = await getAttachments(project.project_id, taskId);
-    setAttachments(data);
-    return data;
-  }, [project, taskId]);
+    try {
+      const data = await getAttachments(projectId, taskId);
+      setAttachments(data);
+      return data;
+    } catch {
+      toast.error("첨부파일을 불러올 수 없습니다.");
+    }
+  }, [projectId, taskId]);
 
   const fetchEmployees = useCallback(async () => {
-    const data = await getEmployees();
-    setEmployees(data);
-    return data;
+    try {
+      const data = await getEmployees();
+      setEmployees(data);
+      return data;
+    } catch {
+      console.warn("⚠️ 직원 목록 불러오기 실패 (선택적 데이터)");
+    }
   }, []);
 
   const reload = useCallback(async () => {
@@ -64,162 +81,135 @@ export function useTaskDetail(taskId) {
       setLoading(true);
       await Promise.all([fetchTask(), fetchComments(), fetchAttachments(), fetchEmployees()]);
     } catch (err) {
-      console.error("❌ 업무 상세 불러오기 실패:", err);
-      toast.error("업무 정보를 불러오지 못했습니다.");
+      console.error("❌ 업무 상세 초기화 실패:", err);
     } finally {
       setLoading(false);
     }
   }, [fetchTask, fetchComments, fetchAttachments, fetchEmployees]);
 
   useEffect(() => {
-    if (taskId) reload();
-  }, [reload, taskId]);
+    if (projectId && taskId) reload();
+  }, [reload, projectId, taskId]);
 
-  /* ----------------------------------------
-   * 💬 댓글 관련 핸들러
-   * ---------------------------------------- */
+  /* -------------------------------
+   * 💬 댓글 관리
+   * ------------------------------- */
   const handleAddComment = async content => {
-    if (!content.trim()) return null;
-
+    if (!content.trim()) return;
     try {
-      // 백엔드에서 author_name 포함된 댓글 반환
-      const newComment = await createComment(project.project_id, taskId, { content });
-      if (newComment) {
-        setComments(prev => [...prev, newComment]); // 즉시 반영
-        return newComment; // ✅ 댓글만 반환 (toast 없음)
-      }
-      return null;
-    } catch (err) {
-      console.error("❌ 댓글 등록 실패:", err);
-      return null;
+      const newComment = await createComment(projectId, taskId, { content });
+      setComments(prev => [...prev, newComment]);
+      toast.success("댓글이 추가되었습니다.");
+    } catch {
+      toast.error("댓글 추가 실패");
     }
   };
 
   const handleUpdateComment = async (commentId, content) => {
-    if (!content.trim()) return null;
-
     try {
-      const updated = await updateComment(project.project_id, taskId, commentId, { content });
-      if (updated) {
-        setComments(prev => prev.map(c => (c.comment_id === commentId ? updated : c)));
-        return updated;
-      }
-      return null;
-    } catch (err) {
-      console.error("❌ 댓글 수정 실패:", err);
-      return null;
+      const updated = await updateComment(projectId, taskId, commentId, { content });
+      setComments(prev => prev.map(c => (c.comment_id === commentId ? updated : c)));
+      toast.success("댓글 수정 완료");
+    } catch {
+      toast.error("댓글 수정 실패");
     }
   };
 
   const handleDeleteComment = async commentId => {
-    await deleteComment(project.project_id, taskId, commentId);
-    setComments(prev => prev.filter(c => c.comment_id !== commentId));
-  };
-
-  /* ----------------------------------------
-   * 📎 첨부파일 관련 핸들러
-   * ---------------------------------------- */
-  const handleUploadFile = async file => {
-    if (!file) return toast.error("파일을 선택하세요.");
-    await uploadAttachment(project.project_id, taskId, file);
-    toast.success("파일이 업로드되었습니다.");
-    fetchAttachments();
-  };
-
-  const handleDeleteFile = async attachmentId => {
-    await deleteAttachment(project.project_id, taskId, attachmentId);
-    toast.success("파일이 삭제되었습니다.");
-    fetchAttachments();
-  };
-
-  /* ----------------------------------------
-   * ⚙️ 상태 / 진행률 변경
-   * ---------------------------------------- */
-  /* ✅ 상태 변경 */
-  const handleStatusChange = async newStatus => {
-    if (!task) return;
-    const prevStatus = task.status;
-
-    setTask(prev => ({ ...prev, status: newStatus }));
-    updateTaskLocal(taskId, { status: newStatus });
-
     try {
-      await updateTaskStatus(project.project_id, taskId, newStatus);
-      toast.success("상태가 변경되었습니다.");
-      await fetchTasks();
-    } catch (err) {
-      console.error(err);
-      toast.error("상태 변경 실패");
-      setTask(prev => ({ ...prev, status: prevStatus }));
-      updateTaskLocal(taskId, { status: prevStatus });
+      await deleteComment(projectId, taskId, commentId);
+      setComments(prev => prev.filter(c => c.comment_id !== commentId));
+      toast.success("댓글 삭제 완료");
+    } catch {
+      toast.error("댓글 삭제 실패");
     }
   };
 
-  /* ✅ 디바운스된 fetchTasks 래퍼 생성 */
-  const debouncedFetchTasks = useCallback(
-    debounce(() => {
-      fetchTasks();
-    }, 1500),
-    [fetchTasks],
-  );
+  /* -------------------------------
+   * 📎 첨부파일 관리
+   * ------------------------------- */
+  const handleUploadFile = async file => {
+    try {
+      await uploadAttachment(projectId, taskId, file);
+      toast.success("파일 업로드 완료");
+      await fetchAttachments();
+    } catch {
+      toast.error("파일 업로드 실패");
+    }
+  };
 
-  /* ✅ 진행률 변경용 디바운스 서버 호출 */
-  const debouncedProgressUpdate = useCallback(
-    debounce(async newProgress => {
+  const handleDeleteFile = async attachmentId => {
+    try {
+      await deleteAttachment(projectId, taskId, attachmentId);
+      toast.success("파일 삭제 완료");
+      await fetchAttachments();
+    } catch {
+      toast.error("파일 삭제 실패");
+    }
+  };
+
+  /* -------------------------------
+   * ⚙️ 상태 / 진행률 변경
+   * ------------------------------- */
+  const handleStatusChange = async newStatus => {
+    if (!task) return;
+    const prevStatus = task.status;
+    setTask(prev => ({ ...prev, status: newStatus }));
+    updateTaskLocal(taskId, { ...task, status: newStatus });
+
+    try {
+      await updateTaskStatus(projectId, taskId, newStatus);
+      toast.success("상태 변경 완료");
+      await fetchTasksByProject(projectId);
+    } catch (err) {
+      toast.error("상태 변경 실패");
+      setTask(prev => ({ ...prev, status: prevStatus }));
+      updateTaskLocal(taskId, { ...task, status: prevStatus });
+    }
+  };
+
+  // ✅ 진행률 변경 - 1초 디바운스
+  const debouncedUpdate = useCallback(
+    debounce(async progress => {
       try {
-        await updateTask(project.project_id, taskId, { progress: newProgress });
-        toast.success("진행률이 저장되었습니다.", { id: "progress-toast" });
-        debouncedFetchTasks();
+        await updateTask(projectId, taskId, { progress });
+        toast.success("진행률 저장 완료", { id: "progress-toast" });
+        await fetchTasksByProject(projectId);
       } catch (err) {
-        console.error("❌ 진행률 변경 실패:", err);
+        console.error("❌ 진행률 업데이트 실패:", err);
         toast.error("진행률 저장 실패", { id: "progress-toast" });
       }
-    }, 1000), // 👈 사용자가 손을 뗀 뒤 1초 뒤에 실행
-    [project.project_id, taskId, debouncedFetchTasks],
+    }, 1000),
+    [projectId, taskId, fetchTasksByProject],
   );
 
-  /* ✅ 진행률 변경 핸들러 (로컬 즉시 반영, 서버는 디바운스) */
-  const handleProgressChange = useCallback(
-    progress => {
-      if (isNaN(progress)) return;
-      setTask(prev => ({ ...prev, progress }));
-      updateTaskLocal(taskId, { progress });
+  const handleProgressChange = progress => {
+    setTask(prev => ({ ...prev, progress }));
+    updateTaskLocal(taskId, { ...task, progress });
+    debouncedUpdate(progress);
+  };
 
-      // ✅ 사용자 입력 종료 후 1초 뒤 서버 반영
-      debouncedProgressUpdate(progress);
-    },
-    [taskId, updateTaskLocal, debouncedProgressUpdate],
-  );
-
-  /* ✅ cleanup (컴포넌트 언마운트 시 디바운스 취소) */
-  useEffect(() => {
-    return () => {
-      debouncedProgressUpdate.cancel();
-      debouncedFetchTasks.cancel();
-    };
-  }, [debouncedProgressUpdate, debouncedFetchTasks]);
-
-  /* ----------------------------------------
-   * ✏️ 업무 수정 저장
-   * ---------------------------------------- */
+  /* -------------------------------
+   * ✏️ 업무 수정 (편집 저장)
+   * ------------------------------- */
   const handleSaveEdit = async payload => {
     try {
-      const updated = await updateTask(project.project_id, taskId, payload);
+      const updated = await updateTask(projectId, taskId, payload);
       setTask(updated);
-      updateTaskLocal(taskId, updated); // ✅ Context에 즉시 반영
-      toast.success("업무가 수정되었습니다.");
-      await fetchTasks();
-      return updated; // ✅ Panel에서 활용 가능
+      updateTaskLocal(taskId, updated);
+      toast.success("업무 수정 완료");
+      await fetchTasksByProject(projectId);
+      return updated;
     } catch (err) {
-      console.error(err);
+      console.error("❌ 업무 수정 실패:", err);
       toast.error("업무 수정 실패");
       return null;
     }
   };
 
-  /* ----------------------------------------
-   * 📤 반환
-   * ---------------------------------------- */
+  /* -------------------------------
+   * 📤 반환 (TaskDetailPanel에서 사용)
+   * ------------------------------- */
   return {
     task,
     comments,

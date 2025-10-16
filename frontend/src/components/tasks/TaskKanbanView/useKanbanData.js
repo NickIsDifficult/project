@@ -1,9 +1,12 @@
 // src/components/tasks/TaskKanbanView/useKanbanData.js
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
+import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { updateTaskStatus } from "../../../services/api/task";
 
+/* ---------------------------
+ * ✅ 상태 컬럼 정의
+ * --------------------------- */
 const STATUS_COLUMNS = [
   { key: "TODO", label: "할 일 📝" },
   { key: "IN_PROGRESS", label: "진행 중 🚧" },
@@ -12,20 +15,29 @@ const STATUS_COLUMNS = [
 ];
 
 export function useKanbanData() {
-  const { project, tasks, fetchTasks, updateTaskLocal } = useProjectDetailContext();
-
-  const [localTasks, setLocalTasks] = useState(tasks);
-  const [loading, setLoading] = useState(false);
+  const { projects, tasksByProject, fetchTasksByProject } = useProjectGlobal();
+  const [localTasks, setLocalTasks] = useState([]);
 
   /* ---------------------------
-   * tasks 변경 시 localTasks 동기화
+   * ✅ 모든 프로젝트의 업무 합치기
    * --------------------------- */
   useEffect(() => {
-    setLocalTasks(tasks);
-  }, [tasks]);
+    const merged = [];
+    projects.forEach(project => {
+      const tasks = tasksByProject[project.project_id] || [];
+      tasks.forEach(t => {
+        merged.push({
+          ...t,
+          project_id: project.project_id,
+          project_name: project.project_name,
+        });
+      });
+    });
+    setLocalTasks(merged);
+  }, [projects, tasksByProject]);
 
   /* ---------------------------
-   * 상태별 그룹화
+   * ✅ 상태별 그룹화
    * --------------------------- */
   const columns = useMemo(() => {
     const map = {};
@@ -42,46 +54,40 @@ export function useKanbanData() {
   }, [localTasks]);
 
   /* ---------------------------
-   * Drag & Drop 상태 변경
+   * ✅ Drag & Drop 상태 변경
    * --------------------------- */
   const handleDragEnd = useCallback(
     async result => {
       const { destination, source, draggableId } = result;
       if (!destination) return;
-      if (destination.droppableId === source.droppableId && destination.index === source.index)
-        return;
+      if (destination.droppableId === source.droppableId) return;
 
       const newStatus = destination.droppableId;
 
-      // ✅ 즉시 UI 반영 (Optimistic Update)
+      // ✅ 즉시 UI 반영
       setLocalTasks(prev =>
         prev.map(t =>
           String(t.task_id) === String(draggableId) ? { ...t, status: newStatus } : t,
         ),
       );
-      updateTaskLocal(draggableId, { status: newStatus });
 
+      // ✅ 서버 동기화
       try {
-        setLoading(true);
-        await updateTaskStatus(project.project_id, draggableId, newStatus);
-        toast.success("업무 상태가 변경되었습니다.");
-        await fetchTasks(); // ✅ 서버 데이터 동기화
+        const targetTask = localTasks.find(t => String(t.task_id) === String(draggableId));
+        if (!targetTask) return;
+
+        await updateTaskStatus(targetTask.project_id, draggableId, newStatus);
+        toast.success(`[${targetTask.project_name}] 상태 변경 완료 (${newStatus})`);
+
+        // 해당 프로젝트만 다시 fetch
+        await fetchTasksByProject(targetTask.project_id);
       } catch (err) {
         console.error("❌ 상태 변경 실패:", err);
         toast.error("상태 변경 실패");
-        // ❌ 롤백
-        setLocalTasks(prev =>
-          prev.map(t =>
-            String(t.task_id) === String(draggableId) ? { ...t, status: source.droppableId } : t,
-          ),
-        );
-        updateTaskLocal(draggableId, { status: source.droppableId });
-      } finally {
-        setLoading(false);
       }
     },
-    [project, fetchTasks, updateTaskLocal],
+    [localTasks, fetchTasksByProject],
   );
 
-  return { columns, loading, handleDragEnd };
+  return { columns, handleDragEnd };
 }

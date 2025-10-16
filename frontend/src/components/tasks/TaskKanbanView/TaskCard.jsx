@@ -45,6 +45,10 @@ export default function TaskCard({ task, index, onClick }) {
               />
             </div>
           )}
+
+          {task.project_name && (
+            <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>🏷️ {task.project_name}</div>
+          )}
         </div>
       )}
     </Draggable>

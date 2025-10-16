@@ -1,4 +1,4 @@
-```sql
+
 -- 1) 부모 테이블 (의존성 없음)
 CREATE TABLE `department` (
   `dept_id` int NOT NULL AUTO_INCREMENT,
@@ -332,6 +332,9 @@ CREATE TABLE `notification` (
   KEY `idx_notification_recipient` (`recipient_emp_id`),
   KEY `idx_notification_task` (`task_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE notification
+ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+
 
 -- 17) employee/external_person 참조
 CREATE TABLE `member` (
@@ -354,4 +357,4 @@ CREATE TABLE `member` (
   CONSTRAINT `member_ibfk_2` FOREIGN KEY (`ext_id`) REFERENCES `external_person` (`ext_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-```
+

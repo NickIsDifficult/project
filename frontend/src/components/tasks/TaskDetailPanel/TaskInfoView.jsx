@@ -1,4 +1,3 @@
-// src/components/tasks/TaskDetailPanel/TaskInfoView.jsx
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useMemo } from "react";
@@ -16,33 +15,41 @@ export default function TaskInfoView({
   onProgressChange,
   onAddSubtask,
 }) {
+  if (!task)
+    return (
+      <p className="text-gray-500 text-sm text-center mt-6">업무 데이터를 불러올 수 없습니다.</p>
+    );
+
   const formattedDate = useMemo(() => {
-    if (!task?.start_date && !task?.end_date) return "기간 미정";
+    if (!task.start_date && !task.end_date) return "기간 미정";
     const start = task.start_date
       ? format(new Date(task.start_date), "yyyy.MM.dd", { locale: ko })
       : "";
     const end = task.end_date ? format(new Date(task.end_date), "yyyy.MM.dd", { locale: ko }) : "";
     return `${start} ~ ${end}`;
-  }, [task?.start_date, task?.end_date]);
+  }, [task.start_date, task.end_date]);
 
-  const statuses = [
-    { key: "TODO", label: "🕓 대기중" },
-    { key: "IN_PROGRESS", label: "🚧 진행중" },
-    { key: "DONE", label: "✅ 완료" },
-    { key: "ON_HOLD", label: "⏸️ 보류" },
-  ];
+  const STATUS_LABELS = {
+    TODO: "🕓 대기중",
+    IN_PROGRESS: "🚧 진행중",
+    REVIEW: "🔍 검토중",
+    DONE: "✅ 완료",
+    ON_HOLD: "⏸️ 보류",
+  };
 
-  const priorities = {
+  const PRIORITY_LABELS = {
     HIGH: "🔥 높음",
     MEDIUM: "⚖️ 보통",
     LOW: "🌱 낮음",
   };
 
+  const title = task.title || task.task_name || "제목 없음";
+
   return (
     <div className="space-y-4">
       {/* 🏷️ 기본 정보 */}
       <div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">{task.title}</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">{title}</h2>
         <p className="text-gray-600 whitespace-pre-wrap">{task.description || "설명 없음"}</p>
       </div>
 
@@ -57,7 +64,7 @@ export default function TaskInfoView({
         </p>
         <p>
           <span className="font-medium text-gray-600">🏷️ 우선순위:</span>{" "}
-          {priorities[task.priority] || "미정"}
+          {PRIORITY_LABELS[task.priority] || "미정"}
         </p>
         <p>
           <span className="font-medium text-gray-600">📅 기간:</span> {formattedDate}
@@ -68,13 +75,13 @@ export default function TaskInfoView({
       <div className="flex items-center gap-2">
         <span className="font-medium text-gray-600">상태:</span>
         <select
-          value={task.status}
+          value={task.status || "TODO"}
           onChange={e => onStatusChange(e.target.value)}
           className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-400"
         >
-          {statuses.map(s => (
-            <option key={s.key} value={s.key}>
-              {s.label}
+          {Object.entries(STATUS_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
             </option>
           ))}
         </select>
@@ -83,7 +90,7 @@ export default function TaskInfoView({
       {/* 📊 진행률 */}
       <div>
         <label className="block text-sm font-medium text-gray-600 mb-1">
-          진행률: {task.progress}%
+          진행률: {task.progress || 0}%
         </label>
         <input
           type="range"
@@ -96,7 +103,7 @@ export default function TaskInfoView({
         />
       </div>
 
-      {/* 🔘 버튼 영역 */}
+      {/* 🔘 버튼 */}
       <div className="flex gap-2 pt-2">
         <Button variant="primary" onClick={onEdit}>
           ✏️ 수정

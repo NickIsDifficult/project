@@ -1,4 +1,3 @@
-// src/components/tasks/TaskDetailPanel/TaskEditForm.jsx
 import { useState } from "react";
 import toast from "react-hot-toast";
 import Button from "../../common/Button";
@@ -8,11 +7,11 @@ import Button from "../../common/Button";
  * - 업무 수정 폼 (TaskDetailPanel에서 호출)
  * - 저장 시 onSave(formData) 실행
  */
-export default function TaskEditForm({ task, employees, onSave, onCancel }) {
+export default function TaskEditForm({ task, employees = [], onSave, onCancel }) {
   const [form, setForm] = useState({
-    title: task.title || "",
+    title: task.title || task.task_name || "",
     description: task.description || "",
-    assignee_id: task.assignee_id || "",
+    assignee_emp_id: task.assignee_emp_id || "",
     start_date: task.start_date || "",
     end_date: task.end_date || "",
   });
@@ -22,8 +21,9 @@ export default function TaskEditForm({ task, employees, onSave, onCancel }) {
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
+
     if (!form.title.trim()) {
       toast.error("제목을 입력해주세요.");
       return;
@@ -32,7 +32,14 @@ export default function TaskEditForm({ task, employees, onSave, onCancel }) {
       toast.error("종료일은 시작일 이후여야 합니다.");
       return;
     }
-    onSave(form);
+
+    try {
+      await onSave(form);
+      toast.success("업무가 수정되었습니다.");
+    } catch (err) {
+      console.error("❌ 업무 수정 실패:", err);
+      toast.error("업무 수정 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -45,8 +52,8 @@ export default function TaskEditForm({ task, employees, onSave, onCancel }) {
           value={form.title}
           onChange={handleChange}
           required
-          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
           placeholder="업무 제목을 입력하세요"
+          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
       </div>
 
@@ -58,8 +65,8 @@ export default function TaskEditForm({ task, employees, onSave, onCancel }) {
           value={form.description}
           onChange={handleChange}
           rows={4}
-          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
           placeholder="업무 내용을 입력하세요"
+          className="w-full border border-gray-300 rounded px-3 py-2 resize-none focus:ring-1 focus:ring-blue-400"
         />
       </div>
 
@@ -67,8 +74,8 @@ export default function TaskEditForm({ task, employees, onSave, onCancel }) {
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
         <select
-          name="assignee_id"
-          value={form.assignee_id}
+          name="assignee_emp_id"
+          value={form.assignee_emp_id}
           onChange={handleChange}
           className="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:ring-1 focus:ring-blue-400"
         >
@@ -110,7 +117,7 @@ export default function TaskEditForm({ task, employees, onSave, onCancel }) {
         <Button variant="primary" type="submit">
           💾 저장
         </Button>
-        <Button variant="secondary" onClick={onCancel}>
+        <Button variant="secondary" type="button" onClick={onCancel}>
           취소
         </Button>
       </div>

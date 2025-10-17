@@ -58,7 +58,7 @@ export default function ProjectDetailPage() {
       <div className="p-6">
         <Toaster position="top-right" />
 
-        {/* ✅ 상단 네비게이션 버튼 */}
+        {/* ✅ 상단 네비게이션 */}
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
           <h1 style={{ fontSize: 26, fontWeight: "bold", margin: 0 }}>
             📊 전체 프로젝트 업무 관리
@@ -68,33 +68,37 @@ export default function ProjectDetailPage() {
           </Button>
         </div>
 
-        {/* ✅ 뷰 전환 및 새 업무 버튼 */}
+        {/* ✅ 뷰 전환 / 새 업무 버튼 */}
         <ViewSwitcherSection onAddTask={() => setOpenDrawer(true)} />
 
-        {/* ✅ 뷰 타입별 업무 표시 */}
+        {/* ✅ 뷰 전환 (리스트/칸반/캘린더) */}
         {viewType === "list" && <TaskListView tasks={allTasks} />}
         {viewType === "kanban" && <TaskKanbanView tasks={allTasks} />}
         {viewType === "calendar" && <TaskCalendarView tasks={allTasks} />}
 
         {/* ✅ 업무 등록 Drawer */}
-        <ProjectDrawerSection
-          openDrawer={openDrawer}
-          setOpenDrawer={setOpenDrawer}
-          parentTaskId={parentTaskId}
-          setParentTaskId={setParentTaskId}
-          projectId={selectedProjectId}
-        />
+        {openDrawer && (
+          <ProjectDrawerSection
+            openDrawer={openDrawer}
+            setOpenDrawer={setOpenDrawer}
+            parentTaskId={parentTaskId}
+            setParentTaskId={setParentTaskId}
+            projectId={selectedProjectId}
+          />
+        )}
 
-        {/* ✅ 오른쪽 슬라이드 상세 패널 */}
+        {/* ✅ 업무/프로젝트 상세 패널 */}
         {selectedTask && (
           <TaskDetailPanel
-            projectId={selectedTask.project_id}
-            taskId={selectedTask.task_id}
+            projectId={selectedTask.project_id || selectedTask.task_id}
+            taskId={selectedTask.isProject ? undefined : selectedTask.task_id}
+            isProject={selectedTask.isProject}
             onClose={() => setSelectedTask(null)}
             onAddSubtask={taskId => {
+              // ✅ 하위 업무 추가 시 패널 닫고 드로어 열기
               setParentTaskId(taskId);
-              setOpenDrawer(true);
               setSelectedTask(null);
+              setOpenDrawer(true);
             }}
           />
         )}

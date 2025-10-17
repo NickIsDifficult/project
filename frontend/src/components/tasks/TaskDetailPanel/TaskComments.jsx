@@ -1,5 +1,5 @@
 // src/components/tasks/TaskDetailPanel/TaskComments.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import TextareaAutosize from "react-textarea-autosize";
 import Button from "../../common/Button";
@@ -14,6 +14,7 @@ export default function TaskComments({ comments = [], currentUser, onAdd, onEdit
   const [newComment, setNewComment] = useState("");
   const [editId, setEditId] = useState(null);
   const [editContent, setEditContent] = useState("");
+  const textareaRef = useRef(null);
 
   // ✅ props 변경 시 로컬 상태 동기화
   useEffect(() => {
@@ -28,8 +29,11 @@ export default function TaskComments({ comments = [], currentUser, onAdd, onEdit
     if (!content) return toast.error("댓글 내용을 입력하세요.");
     try {
       const added = await onAdd(content);
-      if (added) setLocalComments(prev => [...prev, added]);
+      if (added) {
+        setLocalComments(prev => [...prev, added]);
+      }
       setNewComment("");
+      textareaRef.current?.focus();
       toast.success("댓글이 등록되었습니다.");
     } catch (err) {
       console.error("❌ 댓글 등록 실패:", err);
@@ -87,8 +91,8 @@ export default function TaskComments({ comments = [], currentUser, onAdd, onEdit
         <ul className="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-2 divide-y divide-gray-100">
           {localComments.map(c => (
             <li key={c.comment_id} className="py-2 flex justify-between items-start text-sm">
-              {/* 수정 모드 */}
               {editId === c.comment_id ? (
+                // ✏️ 수정 모드
                 <div className="flex-1">
                   <TextareaAutosize
                     value={editContent}
@@ -112,7 +116,7 @@ export default function TaskComments({ comments = [], currentUser, onAdd, onEdit
               ) : (
                 <>
                   <div className="flex-1">
-                    <p className="text-gray-800">
+                    <p className="text-gray-800 break-words">
                       <strong>{c.author_name || "알 수 없음"}</strong>: {c.content}
                     </p>
                     <p className="text-gray-400 text-xs mt-1">
@@ -127,7 +131,7 @@ export default function TaskComments({ comments = [], currentUser, onAdd, onEdit
                     </p>
                   </div>
 
-                  {/* 본인 댓글만 수정/삭제 가능 */}
+                  {/* 본인 댓글만 수정/삭제 */}
                   {currentUser?.emp_id && Number(currentUser.emp_id) === Number(c.emp_id) && (
                     <div className="flex gap-2 ml-2">
                       <Button
@@ -155,6 +159,7 @@ export default function TaskComments({ comments = [], currentUser, onAdd, onEdit
       {/* 댓글 작성 입력란 */}
       <div className="mt-3 flex gap-2">
         <TextareaAutosize
+          ref={textareaRef}
           placeholder="댓글을 입력하세요 (Enter=등록 / Shift+Enter=줄바꿈)"
           value={newComment}
           onChange={e => setNewComment(e.target.value)}
@@ -167,7 +172,7 @@ export default function TaskComments({ comments = [], currentUser, onAdd, onEdit
           minRows={2}
           className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400 resize-none"
         />
-        <Button variant="primary" onClick={handleAdd}>
+        <Button variant="primary" onClick={handleAdd} disabled={!newComment.trim()}>
           등록
         </Button>
       </div>

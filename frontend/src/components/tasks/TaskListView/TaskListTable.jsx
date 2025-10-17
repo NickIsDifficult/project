@@ -1,4 +1,3 @@
-// src/components/tasks/TaskListView/TaskListTable.jsx
 import Button from "../../common/Button";
 import TaskListRow from "./TaskListRow";
 
@@ -9,13 +8,18 @@ const STATUS_LABELS = {
   DONE: "완료",
 };
 
+/**
+ * ✅ TaskListTable (전역 프로젝트/업무 통합 리스트뷰)
+ * - 상단 요약바 / 필터바 / 정렬기능 포함
+ * - 프로젝트 및 업무 트리형 구조를 렌더링
+ */
 export default function TaskListTable({
   // 데이터
   filteredTasks,
   stats,
   assigneeOptions,
 
-  // 입력/상태
+  // 상태값
   filterStatus,
   filterAssignee,
   searchKeyword,
@@ -25,7 +29,7 @@ export default function TaskListTable({
   editForm,
   collapsedTasks,
 
-  // 콜백
+  // 콜백 핸들러
   onTaskClick,
   setSearchKeyword,
   setFilterAssignee,
@@ -44,11 +48,12 @@ export default function TaskListTable({
 
   return (
     <>
-      {/* --------------------------- */}
-      {/* ✅ 상태 요약 바 */}
-      {/* --------------------------- */}
+      {/* ------------------------------------------- */}
+      {/* 📊 상태 요약 바 */}
+      {/* ------------------------------------------- */}
       <div style={summaryBox}>
         <div>📋 전체 {stats.total}건</div>
+
         {Object.keys(STATUS_LABELS).map(key => (
           <div
             key={key}
@@ -65,15 +70,16 @@ export default function TaskListTable({
             {STATUS_LABELS[key]} {stats[key]}
           </div>
         ))}
+
         <div style={{ marginLeft: "auto", fontWeight: 600 }}>✅ 완료율 {stats.doneRatio}%</div>
         <div style={progressOuter}>
           <div style={{ ...progressInner, width: `${stats.doneRatio}%` }} />
         </div>
       </div>
 
-      {/* --------------------------- */}
-      {/* ✅ 필터 바 */}
-      {/* --------------------------- */}
+      {/* ------------------------------------------- */}
+      {/* 🔍 필터 바 */}
+      {/* ------------------------------------------- */}
       <div style={filterBar}>
         <select
           value={filterAssignee}
@@ -99,9 +105,9 @@ export default function TaskListTable({
         </Button>
       </div>
 
-      {/* --------------------------- */}
-      {/* ✅ 업무 리스트 테이블 */}
-      {/* --------------------------- */}
+      {/* ------------------------------------------- */}
+      {/* 📋 업무 리스트 테이블 */}
+      {/* ------------------------------------------- */}
       <table style={table}>
         <colgroup>
           <col style={{ width: "38%" }} />
@@ -133,24 +139,37 @@ export default function TaskListTable({
 
         <tbody>
           {filteredTasks.length > 0 ? (
-            filteredTasks.map(t => (
-              <TaskListRow
-                key={`${t.project_id || "proj"}-${t.task_id}`}
-                task={t}
-                depth={0}
-                editingId={editingId}
-                editForm={editForm}
-                setEditForm={setEditForm}
-                onTaskClick={onTaskClick}
-                onEditStart={startEdit}
-                onEditCancel={cancelEdit}
-                onEditSave={saveEdit}
-                onDelete={handleDelete}
-                onStatusChange={handleStatusChange}
-                collapsedTasks={collapsedTasks}
-                toggleCollapse={toggleCollapse}
-              />
-            ))
+            filteredTasks.map(t => {
+              const isProject = t.isProject || t.type === "PROJECT";
+              const safeProjectId = String(t.project_id ?? `p_${t.task_id ?? Math.random()}`);
+
+              return (
+                <TaskListRow
+                  key={isProject ? `project-${safeProjectId}` : `${safeProjectId}-${t.task_id}`}
+                  task={t}
+                  depth={0}
+                  editingId={editingId}
+                  editForm={editForm}
+                  setEditForm={setEditForm}
+                  onTaskClick={task => {
+                    // ✅ 클릭 시 프로젝트/업무 모두 TaskDetailPanel 호출 가능하도록 구조 통일
+                    onTaskClick({
+                      ...task,
+                      isProject,
+                      project_id: t.project_id ?? t.projectId,
+                      task_id: isProject ? null : t.task_id,
+                    });
+                  }}
+                  onEditStart={startEdit}
+                  onEditCancel={cancelEdit}
+                  onEditSave={saveEdit}
+                  onDelete={handleDelete}
+                  onStatusChange={handleStatusChange}
+                  collapsedTasks={collapsedTasks}
+                  toggleCollapse={toggleCollapse}
+                />
+              );
+            })
           ) : (
             <tr>
               <td colSpan={5} style={noDataCell}>
@@ -164,9 +183,9 @@ export default function TaskListTable({
   );
 }
 
-/* --------------------------- */
-/* ✅ 스타일 (기존 inline 유지) */
-/* --------------------------- */
+/* ------------------------------------------- */
+/* ✅ 스타일 (inline 유지) */
+/* ------------------------------------------- */
 const summaryBox = {
   display: "flex",
   alignItems: "center",

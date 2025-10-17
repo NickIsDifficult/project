@@ -34,11 +34,14 @@ export default function TaskListRow({
   collapsedTasks,
   toggleCollapse,
 }) {
-  const paddingLeft = depth * 20;
+  // ---------------------------------------------
+  // ✅ 고유 ID 계산 (프로젝트 / 업무 모두 지원)
+  // ---------------------------------------------
+  const effectiveId = task.isProject ? `proj-${task.project_id}` : `task-${task.task_id}`;
+  const isProject = !!task.isProject;
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
-  const isCollapsed = collapsedTasks.has(task.task_id);
-  const isProject = task.isProject;
-  const effectiveId = task.task_id || task.project_id; // ✅ 통합 ID
+  const isCollapsed = collapsedTasks.has(effectiveId);
+  const paddingLeft = depth * 20;
 
   return (
     <>
@@ -94,7 +97,7 @@ export default function TaskListRow({
         </td>
 
         {/* ---------------------------- */}
-        {/* ✅ 상태 / 담당자 / 기간 / 액션버튼 */}
+        {/* ✅ 상태 */}
         {/* ---------------------------- */}
         <td style={td}>
           <select
@@ -113,6 +116,9 @@ export default function TaskListRow({
           </select>
         </td>
 
+        {/* ---------------------------- */}
+        {/* ✅ 담당자 */}
+        {/* ---------------------------- */}
         <td style={td}>
           {task.assignee_name ? (
             <span>{task.assignee_name}</span>
@@ -121,6 +127,9 @@ export default function TaskListRow({
           )}
         </td>
 
+        {/* ---------------------------- */}
+        {/* ✅ 기간 */}
+        {/* ---------------------------- */}
         <td style={td}>
           {task.start_date && task.due_date ? (
             `${task.start_date} ~ ${task.due_date}`
@@ -129,6 +138,9 @@ export default function TaskListRow({
           )}
         </td>
 
+        {/* ---------------------------- */}
+        {/* ✅ 액션버튼 */}
+        {/* ---------------------------- */}
         <td style={{ ...td, textAlign: "center", whiteSpace: "nowrap" }}>
           {editingId === effectiveId ? (
             <>
@@ -146,8 +158,9 @@ export default function TaskListRow({
                 onClick={() =>
                   onTaskClick({
                     ...task,
-                    task_id: effectiveId,
-                    isProject: !!task.isProject,
+                    isProject,
+                    project_id: task.project_id,
+                    task_id: isProject ? null : task.task_id,
                   })
                 }
               >
@@ -159,7 +172,7 @@ export default function TaskListRow({
                   onEditStart({
                     ...task,
                     task_id: effectiveId,
-                    isProject: !!task.isProject,
+                    isProject,
                   })
                 }
               >

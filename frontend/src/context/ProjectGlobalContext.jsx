@@ -1,4 +1,3 @@
-// src/context/ProjectGlobalContext.jsx
 import { createContext, useContext, useEffect, useState } from "react";
 import API from "../services/api/http";
 
@@ -7,60 +6,69 @@ const ProjectGlobalContext = createContext();
 /**
  * 🌐 ProjectGlobalProvider
  * - 전체 프로젝트 / 업무 트리 / 선택 상태를 전역으로 관리
- * - ProjectDetailPage, TaskDetailPanel, Kanban/List/Calendar에서 공통 사용
+ * - ProjectDetailPage, TaskDetailPanel, Kanban/List/Calendar 등 공통 사용
  */
 export function ProjectGlobalProvider({ children }) {
   const [projects, setProjects] = useState([]); // 전체 프로젝트 목록
   const [tasksByProject, setTasksByProject] = useState({}); // 프로젝트별 업무 트리
-  const [selectedProjectId, setSelectedProjectId] = useState(null); // 현재 선택된 프로젝트
-  const [selectedTask, setSelectedTask] = useState(null); // 현재 선택된 업무(상세 패널)
+  const [selectedProjectId, setSelectedProjectId] = useState(null); // 선택된 프로젝트
+  const [selectedTask, setSelectedTask] = useState(null); // 선택된 업무 (상세 패널용)
   const [viewType, setViewType] = useState(() => localStorage.getItem("viewType_global") || "list");
-  const [loading, setLoading] = useState(false); // 전역 로딩 상태
+  const [loading, setLoading] = useState(false);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [parentTaskId, setParentTaskId] = useState(null);
 
-  // ✅ viewType 변경 시 localStorage 자동 저장
+  /* ----------------------------------------
+   * ✅ viewType 로컬 스토리지 자동 저장
+   * ---------------------------------------- */
   useEffect(() => {
     localStorage.setItem("viewType_global", viewType);
   }, [viewType]);
 
-  /** ✅ 프로젝트 목록 불러오기 */
+  /* ----------------------------------------
+   * ✅ 프로젝트 목록 불러오기
+   * ---------------------------------------- */
   async function fetchAllProjects() {
     try {
       setLoading(true);
       const { data } = await API.get("/projects");
-      setProjects(data || []);
+      if (Array.isArray(data)) setProjects(data);
+      else setProjects([]);
     } catch (err) {
       console.error("❌ 프로젝트 목록 불러오기 실패:", err);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
   }
 
-  /** ✅ 특정 프로젝트 업무 트리 불러오기 */
+  /* ----------------------------------------
+   * ✅ 특정 프로젝트의 업무 트리 불러오기
+   * ---------------------------------------- */
   async function fetchTasksByProject(projectId) {
-    if (!projectId) return;
+    const pid = Number(projectId);
+    if (!pid) return;
     try {
-      const { data } = await API.get(`/projects/${projectId}/tasks/tree`);
+      const { data } = await API.get(`/projects/${pid}/tasks/tree`);
       setTasksByProject(prev => ({
         ...prev,
-        [projectId]: data || [],
+        [pid]: Array.isArray(data) ? data : [],
       }));
     } catch (err) {
-      console.error(`❌ 프로젝트(${projectId}) 업무 불러오기 실패:`, err);
+      console.error(`❌ 프로젝트(${pid}) 업무 불러오기 실패:`, err);
     }
   }
 
-  /** ✅ 로컬 상태에서 특정 업무 즉시 업데이트 (서버 반영 전 Optimistic Update용)
-   *  - 트리형 데이터에서도 하위 업무까지 안전하게 갱신됨
-   */
+  /* ----------------------------------------
+   * ✅ 특정 업무 로컬 업데이트 (Optimistic Update)
+   * - 트리형 데이터 구조에서도 하위까지 안전하게 갱신
+   * ---------------------------------------- */
   function updateTaskLocal(taskId, updatedTask) {
     if (!taskId || !updatedTask) return;
 
-    // 내부 재귀 업데이트 함수
     const updateRecursive = tasks =>
       tasks.map(t => {
-        if (t.task_id === taskId) return updatedTask;
+        if (t.task_id === taskId) return { ...t, ...updatedTask };
         if (t.subtasks?.length) {
           return { ...t, subtasks: updateRecursive(t.subtasks) };
         }
@@ -70,35 +78,51 @@ export function ProjectGlobalProvider({ children }) {
     setTasksByProject(prev => {
       const newState = { ...prev };
       Object.keys(newState).forEach(pid => {
-        newState[pid] = updateRecursive(newState[pid]);
+        newState[pid] = updateRecursive(newState[pid] || []);
       });
       return newState;
     });
   }
 
-  /** ✅ 초기 전체 프로젝트 로드 */
+  /* ----------------------------------------
+   * ✅ 전체 프로젝트 초기 로드
+   * ---------------------------------------- */
   useEffect(() => {
     fetchAllProjects();
   }, []);
 
-  /** ✅ projects 변경 시 캐싱되지 않은 프로젝트의 업무 트리 자동 로드 */
+  /* ----------------------------------------
+   * ✅ 신규 프로젝트의 업무 트리 자동 로드
+   * ---------------------------------------- */
   useEffect(() => {
     if (projects.length > 0) {
       const uncached = projects.filter(p => !tasksByProject[p.project_id]);
       if (uncached.length > 0) {
-        Promise.all(uncached.map(p => fetchTasksByProject(p.project_id)));
+        // ⚙️ 하나 실패해도 나머지는 유지
+        Promise.allSettled(uncached.map(p => fetchTasksByProject(p.project_id)));
       }
     }
   }, [projects]);
 
-  /** ✅ 선택된 프로젝트 변경 시 자동 데이터 로드 */
+  /* ----------------------------------------
+   * ✅ 선택된 프로젝트 변경 시 자동 로드
+   * ---------------------------------------- */
   useEffect(() => {
     if (selectedProjectId && !tasksByProject[selectedProjectId]) {
       fetchTasksByProject(selectedProjectId);
     }
   }, [selectedProjectId]);
 
-  /** 🌐 전역 값 제공 */
+  /* ----------------------------------------
+   * ✅ 선택된 Task 감지 → Drawer 자동 오픈
+   * ---------------------------------------- */
+  useEffect(() => {
+    if (selectedTask) setOpenDrawer(true);
+  }, [selectedTask]);
+
+  /* ----------------------------------------
+   * 🌐 Context 값 제공
+   * ---------------------------------------- */
   const value = {
     projects,
     tasksByProject,
@@ -121,7 +145,9 @@ export function ProjectGlobalProvider({ children }) {
   return <ProjectGlobalContext.Provider value={value}>{children}</ProjectGlobalContext.Provider>;
 }
 
-/** ✅ 전역 훅 */
+/**
+ * ✅ 전역 훅
+ */
 export function useProjectGlobal() {
   const ctx = useContext(ProjectGlobalContext);
   if (!ctx) throw new Error("useProjectGlobal must be used within ProjectGlobalProvider");

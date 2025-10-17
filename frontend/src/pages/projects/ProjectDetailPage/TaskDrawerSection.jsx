@@ -18,9 +18,9 @@ export default function TaskDrawerSection() {
     setParentTaskId(null);
   };
 
-  const handleAfterSubmit = async () => {
-    if (selectedProjectId) {
-      await fetchTasksByProject(selectedProjectId);
+  const handleAfterSubmit = async projectId => {
+    if (projectId) {
+      await fetchTasksByProject(projectId);
     }
     handleClose();
   };

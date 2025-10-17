@@ -16,7 +16,7 @@ export default function TaskListView() {
   const projectNodes = useMemo(() => {
     if (!projects?.length) return [];
     return projects.map(project => ({
-      task_id: `project-${project.project_id}`,
+      task_id: project.project_id,
       title: project.project_name,
       isProject: true,
       subtasks: tasksByProject[project.project_id] || [],

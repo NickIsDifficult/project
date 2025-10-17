@@ -1,34 +1,33 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
-import { createTask } from "../../services/api/task"; // ✅ 기존 API 구조 가정
+import { createTask } from "../../services/api/task";
 
-export default function TaskRegistration({ onClose }) {
-  const { selectedProjectId, parentTaskId, fetchTasksByProject } = useProjectGlobal();
+export default function TaskRegistration({ projectId, parentTaskId, onClose }) {
+  const { projects, fetchTasksByProject } = useProjectGlobal();
 
+  const [selectedProject, setSelectedProject] = useState(projectId || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
 
-  // ESC 키로 닫기
+  // ESC로 닫기
   useEffect(() => {
     const onKey = e => e.key === "Escape" && onClose?.();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // ✅ 업무 등록
+  // ✅ 등록 처리
   const handleSubmit = async () => {
-    if (!title.trim()) {
-      toast.error("업무 제목을 입력해주세요.");
-      return;
-    }
+    if (!title.trim()) return toast.error("업무 제목을 입력해주세요.");
+    if (!selectedProject) return toast.error("프로젝트를 선택해주세요.");
 
     try {
       const payload = {
-        project_id: selectedProjectId,
+        project_id: Number(selectedProject),
         title,
         description,
         assignee_emp_id: assigneeId ? Number(assigneeId) : null,
@@ -38,9 +37,9 @@ export default function TaskRegistration({ onClose }) {
       };
 
       await createTask(payload);
-      toast.success(parentTaskId ? "하위 업무가 등록되었습니다." : "업무가 등록되었습니다.");
-      await fetchTasksByProject(selectedProjectId);
-      onClose?.();
+      toast.success(parentTaskId ? "하위 업무 등록 완료" : "업무 등록 완료");
+      await fetchTasksByProject(Number(selectedProject));
+      onClose?.(Number(selectedProject));
     } catch (err) {
       console.error("❌ 업무 등록 실패:", err);
       toast.error("업무 등록 실패");
@@ -48,19 +47,27 @@ export default function TaskRegistration({ onClose }) {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        padding: 16,
-        height: "100%",
-        overflowY: "auto",
-      }}
-    >
+    <div style={container}>
       <h2 style={{ fontSize: 18, fontWeight: 600 }}>
         {parentTaskId ? "📎 하위 업무 등록" : "📝 새 업무 등록"}
       </h2>
+
+      {/* ✅ 프로젝트 선택 */}
+      <div>
+        <label>프로젝트 선택</label>
+        <select
+          value={selectedProject}
+          onChange={e => setSelectedProject(e.target.value)}
+          style={inputStyle}
+        >
+          <option value="">프로젝트를 선택하세요</option>
+          {projects.map(p => (
+            <option key={p.project_id} value={p.project_id}>
+              {p.project_name}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* 제목 */}
       <div>
@@ -133,8 +140,17 @@ export default function TaskRegistration({ onClose }) {
 }
 
 /* ----------------------------- */
-/* ✅ 스타일 (inline 유지) */
+/* ✅ 스타일 */
 /* ----------------------------- */
+const container = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+  padding: 16,
+  height: "100%",
+  overflowY: "auto",
+};
+
 const inputStyle = {
   width: "100%",
   border: "1px solid #ccc",

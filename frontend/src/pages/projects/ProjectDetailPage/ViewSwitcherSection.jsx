@@ -3,7 +3,7 @@ import Button from "../../../components/common/Button";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 
 export default function ViewSwitcherSection() {
-  const { viewType, setViewType, setOpenDrawer } = useProjectGlobal();
+  const { viewType, setViewType, setOpenDrawer, setParentTaskId } = useProjectGlobal();
 
   const buttons = [
     { key: "list", label: "📋 리스트 뷰" },
@@ -12,6 +12,7 @@ export default function ViewSwitcherSection() {
   ];
 
   const handleAddTask = () => {
+    setParentTaskId(null);
     setOpenDrawer(true);
   };
 

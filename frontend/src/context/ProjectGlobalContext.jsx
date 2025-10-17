@@ -14,10 +14,15 @@ export function ProjectGlobalProvider({ children }) {
   const [tasksByProject, setTasksByProject] = useState({}); // 프로젝트별 업무 트리
   const [selectedProjectId, setSelectedProjectId] = useState(null); // 현재 선택된 프로젝트
   const [selectedTask, setSelectedTask] = useState(null); // 현재 선택된 업무(상세 패널)
-  const [viewType, setViewType] = useState("list"); // 현재 뷰 타입
+  const [viewType, setViewType] = useState(() => localStorage.getItem("viewType_global") || "list");
   const [loading, setLoading] = useState(false); // 전역 로딩 상태
   const [openDrawer, setOpenDrawer] = useState(false);
   const [parentTaskId, setParentTaskId] = useState(null);
+
+  // ✅ viewType 변경 시 localStorage 자동 저장
+  useEffect(() => {
+    localStorage.setItem("viewType_global", viewType);
+  }, [viewType]);
 
   /** ✅ 프로젝트 목록 불러오기 */
   async function fetchAllProjects() {

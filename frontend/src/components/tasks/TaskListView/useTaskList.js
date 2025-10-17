@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
+import { deleteProject, updateProject } from "../../../services/api/project";
 import { deleteTask, updateTask, updateTaskStatus } from "../../../services/api/task";
 
+/**
+ * ✅ useTaskList (프로젝트/업무 통합형)
+ * - 프로젝트도 업무와 동일하게 상태 변경, 수정, 삭제, 상세 보기 가능
+ */
 export function useTaskList({ allTasks = [] }) {
   const { fetchTasksByProject, updateTaskLocal, setSelectedTask } = useProjectGlobal();
 
@@ -95,51 +100,88 @@ export function useTaskList({ allTasks = [] }) {
   /* ------------------------------
    * ✅ 상태 변경 / 수정 / 삭제
    * ------------------------------ */
-  const handleStatusChange = async (taskId, newStatus, projectId) => {
-    if (!projectId || String(taskId).startsWith("project-")) return; // 🧩 프로젝트는 제외
+
+  // ✅ 상태 변경 (프로젝트도 허용)
+  const handleStatusChange = async (task, newStatus) => {
+    if (!task) return;
+    const taskId = task.task_id;
+    const projectId = task.project_id || task.projectId || taskId;
+
     try {
-      await updateTaskStatus(projectId, taskId, newStatus);
-      fetchTasksByProject(projectId);
-      // ✅ 로컬 즉시 반영
-      setTasks(prev => prev.map(t => (t.task_id === taskId ? { ...t, status: newStatus } : t)));
-      updateTaskLocal(taskId, { status: newStatus });
-      toast.success(`상태가 변경되었습니다.`);
-    } catch {
+      // ✅ 프로젝트인 경우
+      if (task.isProject) {
+        await updateProject(Number(projectId), { status: newStatus });
+        toast.success("프로젝트 상태가 변경되었습니다.");
+      }
+      // ✅ 일반 업무인 경우
+      else {
+        await updateTaskStatus(Number(projectId), Number(taskId), newStatus);
+        updateTaskLocal(taskId, { ...task, status: newStatus });
+        toast.success("업무 상태가 변경되었습니다.");
+      }
+
+      await fetchTasksByProject(Number(projectId));
+    } catch (err) {
+      console.error("❌ 상태 변경 실패:", err);
       toast.error("상태 변경 실패");
     }
   };
 
+  // ✅ 삭제 (프로젝트/업무 모두 지원)
   const handleDelete = async (taskId, projectId) => {
-    if (!projectId || String(taskId).startsWith("project-")) return;
+    const id = taskId || projectId;
+    if (!id) return;
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
+
     try {
-      await deleteTask(projectId, taskId);
-      toast.success("업무가 삭제되었습니다.");
-      fetchTasksByProject(projectId);
-    } catch {
+      if (String(taskId).startsWith("project-") || !taskId) {
+        await deleteProject(projectId);
+        toast.success("프로젝트가 삭제되었습니다.");
+      } else {
+        await deleteTask(projectId, taskId);
+        toast.success("업무가 삭제되었습니다.");
+      }
+      await fetchTasksByProject(projectId);
+    } catch (err) {
+      console.error("❌ 삭제 실패:", err);
       toast.error("삭제 실패");
     }
   };
 
+  // ✅ 수정
   const startEdit = task => {
-    setEditingId(task.task_id);
-    setEditForm({ title: task.title, description: task.description || "" });
+    const id = task.task_id || task.project_id;
+    setEditingId(id);
+    setEditForm({
+      title: task.title,
+      description: task.description || "",
+    });
   };
+
   const cancelEdit = () => setEditingId(null);
 
   const saveEdit = async (taskId, projectId) => {
+    const id = taskId || projectId;
     if (!editForm.title.trim()) return toast.error("제목을 입력하세요.");
-    if (!projectId || String(taskId).startsWith("project-")) return;
+
     try {
-      const updated = await updateTask(projectId, taskId, editForm);
-      updateTaskLocal(taskId, updated);
-      toast.success("업무가 수정되었습니다.");
+      if (String(taskId).startsWith("project-") || !taskId) {
+        await updateProject(projectId, editForm);
+        toast.success("프로젝트가 수정되었습니다.");
+      } else {
+        const updated = await updateTask(projectId, taskId, editForm);
+        updateTaskLocal(taskId, updated);
+        toast.success("업무가 수정되었습니다.");
+      }
       setEditingId(null);
-    } catch {
-      toast.error("업무 수정 실패");
+      await fetchTasksByProject(projectId);
+    } catch (err) {
+      console.error("❌ 수정 실패:", err);
+      toast.error("수정 실패");
     }
   };
 
+  // ✅ 트리 접기 / 펼치기
   const toggleCollapse = taskId => {
     setCollapsedTasks(prev => {
       const next = new Set(prev);
@@ -149,10 +191,12 @@ export function useTaskList({ allTasks = [] }) {
   };
 
   /* ------------------------------
-   * ✅ 상세 보기 (디테일 패널)
+   * ✅ 상세 보기
    * ------------------------------ */
   const onTaskClick = task => {
-    if (!task.isProject) setSelectedTask(task);
+    const id = task.task_id || task.project_id;
+    if (!id) return;
+    setSelectedTask(task);
   };
 
   /* ------------------------------

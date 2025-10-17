@@ -1,6 +1,8 @@
 // src/pages/projects/ProjectDetailPage/index.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Toaster } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import Button from "../../../components/common/Button";
 import { Loader } from "../../../components/common/Loader";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import AppShell from "../../../layout/AppShell";
@@ -13,28 +15,27 @@ import TaskDrawerSection from "./TaskDrawerSection";
 import ViewSwitcherSection from "./ViewSwitcherSection";
 
 export default function ProjectDetailPage() {
-  const { projects, tasksByProject, fetchTasksByProject, loading, selectedTask, setSelectedTask } =
-    useProjectGlobal();
+  const {
+    projects,
+    tasksByProject,
+    fetchTasksByProject,
+    loading,
+    selectedTask,
+    setSelectedTask,
+    viewType,
+    openDrawer,
+    setOpenDrawer,
+    parentTaskId,
+    setParentTaskId,
+    selectedProjectId,
+    setSelectedProjectId,
+  } = useProjectGlobal();
 
-  const [viewType, setViewType] = useState(() => localStorage.getItem("viewType_global") || "list");
-  const [openDrawer, setOpenDrawer] = useState(false);
-  const [parentTaskId, setParentTaskId] = useState(null);
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    localStorage.setItem("viewType_global", viewType);
-  }, [viewType]);
-
-  useEffect(() => {
-    if (projects?.length) {
-      projects.forEach(p => {
-        if (!tasksByProject[p.project_id]) fetchTasksByProject(p.project_id);
-      });
-    }
-  }, [projects]);
-
-  // ✅ 전체 프로젝트의 업무를 하나의 배열로 통합
+  /** ✅ 모든 프로젝트의 업무를 하나의 배열로 병합 */
   const allTasks = useMemo(() => {
+    if (!projects?.length) return [];
     const merged = [];
     projects.forEach(project => {
       const tasks = tasksByProject[project.project_id] || [];
@@ -56,20 +57,26 @@ export default function ProjectDetailPage() {
     <AppShell>
       <div className="p-6">
         <Toaster position="top-right" />
-        <h1 style={{ fontSize: 26, fontWeight: "bold", marginBottom: 20 }}>
-          📊 전체 프로젝트 업무 관리
-        </h1>
 
-        <ViewSwitcherSection
-          viewType={viewType}
-          setViewType={setViewType}
-          onAddTask={() => setOpenDrawer(true)}
-        />
+        {/* ✅ 상단 네비게이션 버튼 */}
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+          <h1 style={{ fontSize: 26, fontWeight: "bold", margin: 0 }}>
+            📊 전체 프로젝트 업무 관리
+          </h1>
+          <Button variant="secondary" onClick={() => navigate("/main")}>
+            ← 메인 페이지
+          </Button>
+        </div>
 
+        {/* ✅ 뷰 전환 및 새 업무 버튼 */}
+        <ViewSwitcherSection onAddTask={() => setOpenDrawer(true)} />
+
+        {/* ✅ 뷰 타입별 업무 표시 */}
         {viewType === "list" && <TaskListView tasks={allTasks} />}
         {viewType === "kanban" && <TaskKanbanView tasks={allTasks} />}
         {viewType === "calendar" && <TaskCalendarView tasks={allTasks} />}
 
+        {/* ✅ 업무 등록 Drawer */}
         {selectedProjectId && (
           <TaskDrawerSection
             openDrawer={openDrawer}
@@ -85,7 +92,7 @@ export default function ProjectDetailPage() {
           <TaskDetailPanel
             projectId={selectedTask.project_id}
             taskId={selectedTask.task_id}
-            onClose={() => setSelectedTask(null)} // 닫기
+            onClose={() => setSelectedTask(null)}
             onAddSubtask={taskId => {
               setParentTaskId(taskId);
               setOpenDrawer(true);

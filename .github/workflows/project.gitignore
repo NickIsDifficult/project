@@ -1,0 +1,6 @@
+# 캐시/불필요한 파일만 무시
+__pycache__/
+*.db
+
+# FastAPI project 폴더는 무시하지 않음
+!back/FastAPI/project/

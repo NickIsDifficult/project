@@ -1,7 +1,6 @@
 // src/layout/TopStage.jsx
-import React from "react";
 import { Link } from "react-router-dom";
-import "../screens/style.css"; // 이미 있는 메인 CSS 재사용
+import "../pages/screens/style.css"; // 이미 있는 메인 CSS 재사용
 
 export default function TopStage() {
   return (

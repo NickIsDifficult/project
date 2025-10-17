@@ -1,14 +1,14 @@
 // src/layout/AppShell.jsx
-import React, { useState } from "react";
-import TopStage from "./TopStage";
+import { useState } from "react";
+import "../pages/screens/style.css"; // 네가 준 CSS 그대로 재사용
+import "./appshell.css"; // 중앙 컨텐츠 위치/스크롤만 보조
 import Sidebar from "./Sidebar";
-import "../screens/style.css"; // 네가 준 CSS 그대로 재사용
-import "./appshell.css";      // 중앙 컨텐츠 위치/스크롤만 보조
+import TopStage from "./TopStage";
 
 // ✅ 다크모드/설정 팝업 연동
-import useTheme from "../theme/useTheme";
-import PersonalInfoModal from "../screens/Setting/PersonalInfoModal";
 import { useNavigate } from "react-router-dom";
+import PersonalInfoModal from "../pages/screens/Setting/PersonalInfoModal";
+import useTheme from "../theme/useTheme";
 
 export default function AppShell({ children }) {
   const { theme, toggleTheme } = useTheme();
@@ -44,9 +44,10 @@ export default function AppShell({ children }) {
         {/* 설정 */}
         <div
           className="nav-item settings-item"
-          role="button" tabIndex={0}
+          role="button"
+          tabIndex={0}
           onClick={() => setOpenSettings(true)}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpenSettings(true)}
+          onKeyDown={e => (e.key === "Enter" || e.key === " ") && setOpenSettings(true)}
         >
           <div className="rectangle-4" />
           <div className="text-wrapper">설정</div>
@@ -56,9 +57,10 @@ export default function AppShell({ children }) {
         {/* 직원관리 */}
         <div
           className="nav-item employees-item"
-          role="button" tabIndex={0}
+          role="button"
+          tabIndex={0}
           onClick={() => nav("/employees")}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && nav("/employees")}
+          onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/employees")}
         >
           <div className="rectangle-4" />
           <div className="text-wrapper">직원관리</div>
@@ -71,16 +73,14 @@ export default function AppShell({ children }) {
         open={openSettings}
         initial={{ status: "WORKING", name: "홍길동", email: "test@example.com" }}
         onClose={() => setOpenSettings(false)}
-        onSave={(payload) => {
+        onSave={payload => {
           console.log("settings save:", payload); // TODO: 백엔드 연동
           setOpenSettings(false);
         }}
       />
 
       {/* 중앙 컨텐츠(.div 영역 위에 겹침) */}
-      <main className="appstage-content">
-        {children}
-      </main>
+      <main className="appstage-content">{children}</main>
     </div>
   );
 }

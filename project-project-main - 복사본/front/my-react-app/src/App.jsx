@@ -1,32 +1,46 @@
-// ✅ 수정 완료된 src/App.jsx
-import React, { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import ProjectsPage from "./project/pages/projects/ProjectsPage";
-import ProjectDetailPage from "./project/pages/projects/ProjectDetailPage";
+// src/App.jsx
+import React, { Suspense } from "react";
+import { BrowserRouter as Router } from "react-router-dom";
+import { Loader } from "./components/common/Loader";
+import AppRoutes from "./routes/AppRoutes";
 
-const Screen = lazy(() => import("./screens/Screen.jsx"));
-const Projects = lazy(() => import("./project/pages/projects/ProjectsPage.jsx"));
-const Calendar = lazy(() => import("./calendar/CalendarView.jsx"));
-const NoticeBoard = lazy(() => import("./notices/NoticeBoard.jsx"));
-const TrashBin = lazy(() => import("./components/TrashBin.jsx"));
-
+// ------------------------------
+// ErrorBoundary (공용 예외처리)
+// ------------------------------
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null };
   }
+
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
+
   componentDidCatch(error, info) {
-    console.error("ErrorBoundary", error, info);
+    console.error("🧨 ErrorBoundary:", error, info);
   }
+
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 16, color: "#b00020", whiteSpace: "pre-wrap" }}>
-          <h2>🔴 화면 렌더링 중 에러</h2>
-          {String(this.state.error)}
+        <div style={{ padding: 32, textAlign: "center", color: "#b00020" }}>
+          <h2>🔴 화면 렌더링 중 오류가 발생했습니다</h2>
+          <pre style={{ whiteSpace: "pre-wrap" }}>{String(this.state.error)}</pre>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 16,
+              padding: "8px 16px",
+              background: "#6200ee",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+          >
+            🔄 새로고침
+          </button>
         </div>
       );
     }
@@ -34,37 +48,16 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-export default function App() {
+function App() {
   return (
     <ErrorBoundary>
-      <Suspense fallback={<div style={{ padding: 16 }}>⏳ 모듈 불러오는 중…</div>}>
-        <Routes>
-          {/* 기본 진입 → /Main으로 */}
-          <Route path="/" element={<Navigate to="/Main" replace />} />
-
-          {/* Public Routes */}
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
-
-          {/* 메인 화면 */}
-          <Route path="/Main" element={<Screen />} />
-
-          {/* 태스크 매니저 */}
-          <Route path="/Projects" element={<Projects />} />
-
-          {/* 캘린더 */}
-          <Route path="/Calendar" element={<Calendar />} />
-
-          {/* 공지사항 */}
-          <Route path="/NoticeBoard" element={<NoticeBoard />} />
-
-          {/* 휴지통 */}
-          <Route path="/TrashBin" element={<TrashBin />} />
-
-          {/* 그 외 → /Main */}
-          <Route path="*" element={<Navigate to="/Main" replace />} />
-        </Routes>
+      <Suspense fallback={<Loader message="⏳ 모듈 불러오는 중..." />}>
+        <Router>
+          <AppRoutes />
+        </Router>
       </Suspense>
     </ErrorBoundary>
   );
 }
+
+export default App;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "../layout/AppShell";
 
 export default function TrashBin() {
@@ -64,91 +64,87 @@ export default function TrashBin() {
 
   return (
     <AppShell>
-    <div style={{ padding: "20px" }}>
-      <h2>휴지통</h2>
+      <div style={{ padding: "20px" }}>
+        <h2>휴지통</h2>
 
-      {/* ✅ 파일 업로드 UI */}
-      <div style={{ marginBottom: "15px" }}>
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
-          style={{ marginRight: "10px" }}
-        />
-        <button
-          onClick={uploadFile}
-          style={{
-            background: "blue",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            padding: "6px 12px",
-            cursor: "pointer",
-          }}
-        >
-          업로드 후 휴지통 이동
-        </button>
-      </div>
+        {/* ✅ 파일 업로드 UI */}
+        <div style={{ marginBottom: "15px" }}>
+          <input
+            type="file"
+            onChange={e => setFile(e.target.files[0])}
+            style={{ marginRight: "10px" }}
+          />
+          <button
+            onClick={uploadFile}
+            style={{
+              background: "blue",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              padding: "6px 12px",
+              cursor: "pointer",
+            }}
+          >
+            업로드 후 휴지통 이동
+          </button>
+        </div>
 
-      {items.length === 0 ? (
-        <p>휴지통이 비어있습니다.</p>
-      ) : (
-        <ul>
-          {items.map((item) => (
-            <li
-              key={item.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                padding: "10px",
-                marginBottom: "8px",
-              }}
-            >
-              <div>
-                <strong>{item.title || "제목 없음"}</strong>
-                <div style={{ fontSize: "12px", color: "gray" }}>
-                  {item.table_name} #{item.record_id} | 삭제일:{" "}
-                  {new Date(item.deleted_at).toLocaleString()} | 사유:{" "}
-                  {item.delete_reason || "없음"}
+        {items.length === 0 ? (
+          <p>휴지통이 비어있습니다.</p>
+        ) : (
+          <ul>
+            {items.map(item => (
+              <li
+                key={item.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  border: "1px solid #ccc",
+                  borderRadius: "8px",
+                  padding: "10px",
+                  marginBottom: "8px",
+                }}
+              >
+                <div>
+                  <strong>{item.title || "제목 없음"}</strong>
+                  <div style={{ fontSize: "12px", color: "gray" }}>
+                    {item.table_name} #{item.record_id} | 삭제일:{" "}
+                    {new Date(item.deleted_at).toLocaleString()} | 사유:{" "}
+                    {item.delete_reason || "없음"}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <button
-                  onClick={() =>
-                    restoreItem(item.id, item.title || "제목 없음")
-                  }
-                  style={{
-                    marginRight: "8px",
-                    background: "green",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "5px 10px",
-                  }}
-                >
-                  복원
-                </button>
-                <button
-                  onClick={() =>
-                    purgeItem(item.id, item.title || "제목 없음")
-                  }
-                  style={{
-                    background: "red",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "5px 10px",
-                  }}
-                >
-                  완전삭제
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+                <div>
+                  <button
+                    onClick={() => restoreItem(item.id, item.title || "제목 없음")}
+                    style={{
+                      marginRight: "8px",
+                      background: "green",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "5px 10px",
+                    }}
+                  >
+                    복원
+                  </button>
+                  <button
+                    onClick={() => purgeItem(item.id, item.title || "제목 없음")}
+                    style={{
+                      background: "red",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "5px 10px",
+                    }}
+                  >
+                    완전삭제
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </AppShell>
   );
 }

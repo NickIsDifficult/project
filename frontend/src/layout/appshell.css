@@ -1,0 +1,43 @@
+/* 중앙 컨텐츠: 기존 .div 사각형(좌:290px, 상:154px, 폭:1631px, 높이:947px)과 동일 위치/크기 */
+.appstage-content {
+  position: absolute;
+  left: 290px;
+  top: 154px;
+  width: 1631px;
+  height: 947px;
+  overflow: auto;
+  /* 배경은 .div가 깔려 있으니 투명 유지. 필요하면 padding만 */
+  padding: 16px;
+  box-sizing: border-box;
+  z-index: 2;
+  /* 사이드바(.group) 위, 모달 등과 레이어 충돌 시 조정 가능 */
+}
+
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin: 16px;
+  color: var(--text-color);
+}
+
+.profile-avatar {
+  font-size: 1.8rem;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-name {
+  font-weight: 600;
+}
+
+.profile-email {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}

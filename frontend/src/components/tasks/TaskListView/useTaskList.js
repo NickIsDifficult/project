@@ -1,45 +1,130 @@
+// src/components/tasks/TaskListView/useTaskList.js
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { deleteProject, updateProject } from "../../../services/api/project";
 import { deleteTask, updateTask, updateTaskStatus } from "../../../services/api/task";
 
-/**
- * ✅ useTaskList (프로젝트/업무 통합형)
- * - 프로젝트와 업무 모두 동일 인터페이스로 관리
- * - 필터, 정렬, 상태변경, 수정, 삭제, 상세보기 등 포함
- */
+/* ----------------------------------------
+ * 🔁 정렬 헬퍼 (함수 선언식으로 호이스팅 안전)
+ * ---------------------------------------- */
+function sortCompare(a, b, key, order) {
+  const valA = a[key] ?? "";
+  const valB = b[key] ?? "";
+
+  if (key.includes("date")) {
+    const dateA = valA ? new Date(valA) : new Date(0);
+    const dateB = valB ? new Date(valB) : new Date(0);
+    return order === "asc" ? dateA - dateB : dateB - dateA;
+  }
+
+  return order === "asc"
+    ? String(valA).localeCompare(String(valB))
+    : String(valB).localeCompare(String(valA));
+}
+
+/* ----------------------------------------
+ * 📦 메인 훅
+ * ---------------------------------------- */
 export function useTaskList({ allTasks = [] }) {
   const { fetchTasksByProject, updateTaskLocal, setSelectedTask } = useProjectGlobal();
 
-  const [tasks, setTasks] = useState([...allTasks]);
+  // 상태 정의
+  const [tasks, setTasks] = useState(allTasks);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ title: "", description: "" });
   const [collapsedTasks, setCollapsedTasks] = useState(new Set());
 
-  /* -------------------------------------------
-   * 🧩 데이터 동기화
-   * ------------------------------------------- */
-  useEffect(() => {
-    setTasks([...allTasks]);
-  }, [allTasks]);
-
-  /* -------------------------------------------
-   * 🔍 필터 / 정렬 / 검색
-   * ------------------------------------------- */
+  // 필터 상태
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterAssignee, setFilterAssignee] = useState("ALL");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [sortBy, setSortBy] = useState("start_date");
   const [sortOrder, setSortOrder] = useState("asc");
 
+  /* ----------------------------------------
+   * 🧩 데이터 동기화
+   * ---------------------------------------- */
+  useEffect(() => {
+    setTasks([...allTasks]);
+  }, [allTasks]);
+
+  /* ----------------------------------------
+   * 🧩 트리 평탄화 유틸
+   * ---------------------------------------- */
+  function flattenTasks(nodes = []) {
+    const result = [];
+    for (const n of nodes) {
+      result.push(n);
+      if (n.subtasks?.length) result.push(...flattenTasks(n.subtasks));
+    }
+    return result;
+  }
+
+  /* ----------------------------------------
+   * 🔍 담당자 목록
+   * ---------------------------------------- */
   const assigneeOptions = useMemo(() => {
     const set = new Set();
-    tasks.forEach(t => t.assignee_name && set.add(t.assignee_name));
+    flattenTasks(tasks).forEach(t => set.add(t.assignee_name || "미지정"));
     return ["ALL", ...Array.from(set)];
   }, [tasks]);
 
+  /* ----------------------------------------
+   * 🔍 필터 + 정렬 + 검색 (트리 구조 유지)
+   * ---------------------------------------- */
+  const filteredTasks = useMemo(() => {
+    const filterNode = node => {
+      const status = node.status?.trim()?.toUpperCase?.() || "TODO";
+      const statusOk = filterStatus === "ALL" || status === filterStatus;
+      const assigneeOk = filterAssignee === "ALL" || node.assignee_name === filterAssignee;
+      const keywordOk =
+        !searchKeyword || node.title?.toLowerCase().includes(searchKeyword.toLowerCase());
+
+      const matchSelf = statusOk && assigneeOk && keywordOk;
+
+      const children =
+        node.subtasks
+          ?.map(sub => filterNode(sub))
+          .filter(Boolean)
+          .sort((a, b) => sortCompare(a, b, sortBy, sortOrder)) ?? [];
+
+      // ✅ 하위가 있거나 자신이 매치되면 유지
+      if (matchSelf || children.length > 0) {
+        return { ...node, subtasks: children };
+      }
+      return null;
+    };
+
+    return (
+      tasks
+        ?.map(task => filterNode(task))
+        .filter(Boolean)
+        .sort((a, b) => sortCompare(a, b, sortBy, sortOrder)) ?? []
+    );
+  }, [tasks, filterStatus, filterAssignee, searchKeyword, sortBy, sortOrder]);
+
+  /* ----------------------------------------
+   * 📊 통계 계산 (filteredTasks 기반)
+   * ---------------------------------------- */
+  const stats = useMemo(() => {
+    const flat = flattenTasks(filteredTasks ?? []);
+    const total = flat.length;
+    const counts = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
+
+    flat.forEach(t => {
+      const key = t.status || "TODO";
+      counts[key] = (counts[key] || 0) + 1;
+    });
+
+    const doneRatio = total ? ((counts.DONE / total) * 100).toFixed(1) : 0;
+    return { total, ...counts, doneRatio };
+  }, [filteredTasks]);
+
+  /* ----------------------------------------
+   * ⚙️ 필터 / 정렬 제어 함수
+   * ---------------------------------------- */
   const handleSort = key => {
     if (sortBy === key) setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
     else {
@@ -48,49 +133,7 @@ export function useTaskList({ allTasks = [] }) {
     }
   };
 
-  const filteredTasks = useMemo(() => {
-    const match = t => {
-      const status = t.status?.trim()?.toUpperCase?.() || "TODO";
-      const statusOk = filterStatus === "ALL" || status === filterStatus;
-      const assigneeOk = filterAssignee === "ALL" || t.assignee_name === filterAssignee;
-      const keywordOk =
-        !searchKeyword || t.title.toLowerCase().includes(searchKeyword.toLowerCase());
-      return statusOk && assigneeOk && keywordOk;
-    };
-
-    const filtered = tasks.filter(match);
-
-    const sorted = filtered.sort((a, b) => {
-      const valA = a[sortBy] ?? "";
-      const valB = b[sortBy] ?? "";
-
-      if (sortBy.includes("date")) {
-        const dateA = valA ? new Date(valA) : new Date(0);
-        const dateB = valB ? new Date(valB) : new Date(0);
-        return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
-      } else {
-        return sortOrder === "asc"
-          ? String(valA).localeCompare(String(valB))
-          : String(valB).localeCompare(String(valA));
-      }
-    });
-
-    return sorted;
-  }, [tasks, filterStatus, filterAssignee, searchKeyword, sortBy, sortOrder]);
-
-  /* -------------------------------------------
-   * 📊 상태 요약
-   * ------------------------------------------- */
-  const stats = useMemo(() => {
-    const total = tasks.length;
-    const counts = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
-    tasks.forEach(t => {
-      const key = t.status || "TODO";
-      counts[key] = (counts[key] || 0) + 1;
-    });
-    const doneRatio = total ? ((counts.DONE / total) * 100).toFixed(1) : 0;
-    return { total, ...counts, doneRatio };
-  }, [tasks]);
+  const handleStatusFilter = key => setFilterStatus(prev => (prev === key ? "ALL" : key));
 
   const resetFilters = () => {
     setFilterStatus("ALL");
@@ -100,21 +143,17 @@ export function useTaskList({ allTasks = [] }) {
     setSortOrder("asc");
   };
 
-  const handleStatusFilter = key => setFilterStatus(prev => (prev === key ? "ALL" : key));
-
-  /* -------------------------------------------
-   * 🧭 상태 변경 / 수정 / 삭제
-   * ------------------------------------------- */
-
-  // ✅ 상태 변경
+  /* ----------------------------------------
+   * 📋 상태 변경 / 수정 / 삭제 / 클릭
+   * ---------------------------------------- */
   const handleStatusChange = async (task, newStatus) => {
     if (!task) return;
-
     const projectId = Number(task.project_id);
     const taskId = Number(task.task_id);
     const isProject = !!task.isProject;
 
     try {
+      setLoading(true);
       if (isProject) {
         await updateProject(projectId, { status: newStatus });
         toast.success("프로젝트 상태가 변경되었습니다.");
@@ -127,34 +166,31 @@ export function useTaskList({ allTasks = [] }) {
     } catch (err) {
       console.error("❌ 상태 변경 실패:", err);
       toast.error("상태 변경 실패");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ✅ 삭제
   const handleDelete = async (taskId, projectId) => {
-    if (!projectId && !taskId) return;
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
-
-    const numericPid = Number(projectId);
-    const numericTid = Number(taskId);
+    const pid = Number(projectId);
+    const tid = Number(taskId);
+    const isProject = !tid || String(taskId).startsWith("proj");
 
     try {
-      // 프로젝트
-      if (!numericTid || String(taskId).startsWith("proj")) {
-        await deleteProject(numericPid);
-        toast.success("프로젝트가 삭제되었습니다.");
-      } else {
-        await deleteTask(numericPid, numericTid);
-        toast.success("업무가 삭제되었습니다.");
-      }
-      await fetchTasksByProject(numericPid);
+      setLoading(true);
+      if (isProject) await deleteProject(pid);
+      else await deleteTask(pid, tid);
+      toast.success(isProject ? "프로젝트 삭제 완료" : "업무 삭제 완료");
+      await fetchTasksByProject(pid);
     } catch (err) {
       console.error("❌ 삭제 실패:", err);
       toast.error("삭제 실패");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ✅ 수정 시작
   const startEdit = task => {
     setEditingId(task.task_id || task.project_id);
     setEditForm({
@@ -163,32 +199,37 @@ export function useTaskList({ allTasks = [] }) {
     });
   };
 
-  const cancelEdit = () => setEditingId(null);
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm({ title: "", description: "" });
+  };
 
-  // ✅ 수정 저장
   const saveEdit = async (taskId, projectId) => {
     if (!editForm.title.trim()) return toast.error("제목을 입력하세요.");
     const isProject = !taskId || String(taskId).startsWith("proj");
+    const pid = Number(projectId);
+    const tid = Number(taskId);
 
     try {
+      setLoading(true);
       if (isProject) {
-        await updateProject(Number(projectId), editForm);
-        toast.success("프로젝트가 수정되었습니다.");
+        await updateProject(pid, editForm);
       } else {
-        const updated = await updateTask(Number(projectId), Number(taskId), editForm);
-        updateTaskLocal(taskId, updated);
-        toast.success("업무가 수정되었습니다.");
+        const updated = await updateTask(pid, tid, editForm);
+        updateTaskLocal(tid, updated);
       }
-
+      toast.success(isProject ? "프로젝트 수정 완료" : "업무 수정 완료");
       setEditingId(null);
-      await fetchTasksByProject(Number(projectId));
+      setEditForm({ title: "", description: "" }); // ✅ form 초기화 추가
+      await fetchTasksByProject(pid);
     } catch (err) {
       console.error("❌ 수정 실패:", err);
       toast.error("수정 실패");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ✅ 트리 접기/펼치기
   const toggleCollapse = id => {
     setCollapsedTasks(prev => {
       const next = new Set(prev);
@@ -197,17 +238,11 @@ export function useTaskList({ allTasks = [] }) {
     });
   };
 
-  /* -------------------------------------------
-   * 📋 상세 보기 (프로젝트/업무)
-   * ------------------------------------------- */
-  const onTaskClick = task => {
-    if (!task) return;
-    setSelectedTask(task);
-  };
+  const onTaskClick = task => setSelectedTask(task);
 
-  /* -------------------------------------------
+  /* ----------------------------------------
    * 📤 반환
-   * ------------------------------------------- */
+   * ---------------------------------------- */
   return {
     loading,
     filteredTasks,

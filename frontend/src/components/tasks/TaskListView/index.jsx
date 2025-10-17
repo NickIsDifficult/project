@@ -1,3 +1,4 @@
+// src/components/tasks/TaskListView/index.jsx
 import { useMemo } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { Loader } from "../../common/Loader";
@@ -22,7 +23,11 @@ export default function TaskListView() {
       task_id: null, // ✅ 프로젝트는 task_id 없음
       title: project.project_name,
       isProject: true,
-      subtasks: tasksByProject?.[project.project_id] ?? [], // ✅ 안전하게 처리
+      status: project.status ?? "TODO", // 기본값 보정
+      assignee_name: project.manager_name ?? "미지정",
+      start_date: project.start_date ?? null,
+      due_date: project.due_date ?? null,
+      subtasks: tasksByProject?.[project.project_id] ?? [],
     }));
   }, [projects, tasksByProject]);
 
@@ -35,8 +40,8 @@ export default function TaskListView() {
    * ⚙️ 상세 클릭 시 Drawer 자동 닫기 보강
    * ---------------------------------------- */
   const handleTaskClick = task => {
-    setOpenDrawer(false); // ✅ Drawer 항상 닫기
-    hook.onTaskClick(task); // ✅ 기존 상세 열기 로직 유지
+    setOpenDrawer(false);
+    hook.onTaskClick(task);
   };
 
   /* ----------------------------------------
@@ -52,7 +57,6 @@ export default function TaskListView() {
    * ---------------------------------------- */
   return (
     <div className="p-4">
-      {/* ✅ handleTaskClick 을 onTaskClick 으로 전달 */}
       <TaskListTable {...hook} onTaskClick={handleTaskClick} />
     </div>
   );

@@ -38,6 +38,7 @@ export default function TaskListRow({
   // ✅ 고유 ID 계산 (프로젝트 / 업무 모두 지원)
   // ---------------------------------------------
   const effectiveId = task.isProject ? `proj-${task.project_id}` : `task-${task.task_id}`;
+  const numericId = task.isProject ? task.project_id : task.task_id;
   const isProject = !!task.isProject;
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
   const isCollapsed = collapsedTasks.has(effectiveId);
@@ -144,7 +145,7 @@ export default function TaskListRow({
         <td style={{ ...td, textAlign: "center", whiteSpace: "nowrap" }}>
           {editingId === effectiveId ? (
             <>
-              <Button variant="success" onClick={() => onEditSave(effectiveId, task.project_id)}>
+              <Button variant="success" onClick={() => onEditSave(numericId, task.project_id)}>
                 저장
               </Button>
               <Button variant="secondary" onClick={onEditCancel}>

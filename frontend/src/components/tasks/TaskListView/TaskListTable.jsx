@@ -1,3 +1,4 @@
+// src/components/tasks/TaskListView/TaskListTable.jsx
 import Button from "../../common/Button";
 import TaskListRow from "./TaskListRow";
 
@@ -14,12 +15,9 @@ const STATUS_LABELS = {
  * - 프로젝트 및 업무 트리형 구조를 렌더링
  */
 export default function TaskListTable({
-  // 데이터
   filteredTasks,
   stats,
   assigneeOptions,
-
-  // 상태값
   filterStatus,
   filterAssignee,
   searchKeyword,
@@ -28,8 +26,6 @@ export default function TaskListTable({
   editingId,
   editForm,
   collapsedTasks,
-
-  // 콜백 핸들러
   onTaskClick,
   setSearchKeyword,
   setFilterAssignee,
@@ -64,7 +60,6 @@ export default function TaskListTable({
               borderRadius: 6,
               background: filterStatus === key ? "#dbeafe" : "transparent",
               border: filterStatus === key ? "1px solid #60a5fa" : "1px solid transparent",
-              transition: "background 0.2s ease, border 0.2s ease",
             }}
           >
             {STATUS_LABELS[key]} {stats[key]}
@@ -139,37 +134,24 @@ export default function TaskListTable({
 
         <tbody>
           {filteredTasks.length > 0 ? (
-            filteredTasks.map(t => {
-              const isProject = t.isProject || t.type === "PROJECT";
-              const safeProjectId = String(t.project_id ?? `p_${t.task_id ?? Math.random()}`);
-
-              return (
-                <TaskListRow
-                  key={isProject ? `project-${safeProjectId}` : `${safeProjectId}-${t.task_id}`}
-                  task={t}
-                  depth={0}
-                  editingId={editingId}
-                  editForm={editForm}
-                  setEditForm={setEditForm}
-                  onTaskClick={task => {
-                    // ✅ 클릭 시 프로젝트/업무 모두 TaskDetailPanel 호출 가능하도록 구조 통일
-                    onTaskClick({
-                      ...task,
-                      isProject,
-                      project_id: t.project_id ?? t.projectId,
-                      task_id: isProject ? null : t.task_id,
-                    });
-                  }}
-                  onEditStart={startEdit}
-                  onEditCancel={cancelEdit}
-                  onEditSave={saveEdit}
-                  onDelete={handleDelete}
-                  onStatusChange={handleStatusChange}
-                  collapsedTasks={collapsedTasks}
-                  toggleCollapse={toggleCollapse}
-                />
-              );
-            })
+            filteredTasks.map(t => (
+              <TaskListRow
+                key={`${t.isProject ? "project" : "task"}-${t.project_id}-${t.task_id ?? "root"}`}
+                task={t}
+                depth={0}
+                editingId={editingId}
+                editForm={editForm}
+                setEditForm={setEditForm}
+                onTaskClick={onTaskClick}
+                onEditStart={startEdit}
+                onEditCancel={cancelEdit}
+                onEditSave={saveEdit}
+                onDelete={handleDelete}
+                onStatusChange={handleStatusChange}
+                collapsedTasks={collapsedTasks}
+                toggleCollapse={toggleCollapse}
+              />
+            ))
           ) : (
             <tr>
               <td colSpan={5} style={noDataCell}>

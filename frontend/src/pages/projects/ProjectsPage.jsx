@@ -1,116 +1,156 @@
-// src/pages/projects/ProjectDetailPage/index.jsx
-import { useEffect, useState } from "react";
-import { Toaster } from "react-hot-toast";
+// src/pages/projects/ProjectsPage.jsx
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import ProjectList from "../../components/projects/ProjectList";
+import ProjectRegistration from "../../components/projects/ProjectRegistration";
+import AppShell from "../../layout/AppShell";
+import { getProjects } from "../../services/api/project";
 
-import { Loader } from "../../../components/common/Loader";
-import { useProjectGlobal } from "../../../context/ProjectGlobalContext"; // ✅ 전역 Context
-import AppShell from "../../../layout/AppShell";
+export default function ProjectsPage() {
+  const [projects, setProjects] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-import TaskCalendarView from "../../../components/tasks/TaskCalendarView";
-import TaskKanbanView from "../../../components/tasks/TaskKanbanView";
-import TaskListView from "../../../components/tasks/TaskListView";
-import TaskDrawerSection from "./TaskDrawerSection";
-import ViewSwitcherSection from "./ViewSwitcherSection";
+  // ✅ Drawer 관련 ref
+  const drawerRef = useRef(null);
+  const openBtnRef = useRef(null);
 
-/* ---------------------------
- * ✅ 전체 프로젝트 통합 관리 페이지
- * --------------------------- */
-export default function ProjectDetailPage() {
-  const { projects, tasksByProject, fetchTasksByProject, loading } = useProjectGlobal();
-
-  const [viewType, setViewType] = useState(() => localStorage.getItem("viewType_global") || "list");
-  const [openDrawer, setOpenDrawer] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [parentTaskId, setParentTaskId] = useState(null);
-
-  // ✅ 뷰 타입 저장
-  useEffect(() => {
-    localStorage.setItem("viewType_global", viewType);
-  }, [viewType]);
-
-  // ✅ 프로젝트별 업무 로딩
-  useEffect(() => {
-    if (projects.length > 0) {
-      projects.forEach(p => {
-        if (!tasksByProject[p.project_id]) {
-          fetchTasksByProject(p.project_id);
-        }
-      });
+  // ✅ 프로젝트 불러오기
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      const data = await getProjects();
+      setProjects(data);
+    } catch (err) {
+      console.error("프로젝트 불러오기 실패:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [projects]);
+  };
 
-  // ✅ 로딩 상태
-  if (loading) return <Loader text="프로젝트 불러오는 중..." />;
-  if (!projects.length) return <div className="p-6">❌ 등록된 프로젝트가 없습니다.</div>;
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  // ✅ Drawer 제어 (배경 스크롤 잠금 + ESC 닫기 + 포커스 관리)
+  useEffect(() => {
+    if (!open) return;
+
+    // 1️⃣ 스크롤 잠금
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // 2️⃣ Drawer 내부 첫 번째 focusable 요소로 포커스 이동
+    requestAnimationFrame(() => {
+      drawerRef.current?.querySelector("button, input, textarea, select, [tabindex]")?.focus?.();
+    });
+
+    // 3️⃣ ESC 키로 Drawer 닫기
+    const onKeyDown = e => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKeyDown);
+
+    // 4️⃣ Cleanup — 닫힐 때 원복
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      openBtnRef.current?.focus?.(); // 등록 버튼에 포커스 복귀
+    };
+  }, [open]);
+
+  if (loading) return <div>로딩 중...</div>;
 
   return (
     <AppShell>
-      <div className="p-6">
-        <Toaster position="top-right" />
-        <h1 style={{ fontSize: 26, fontWeight: "bold", marginBottom: 20 }}>
-          📊 전체 프로젝트 관리
-        </h1>
+      <div style={{ padding: 24 }}>
+        <h1 style={{ fontSize: 28, fontWeight: "bold", marginBottom: 16 }}>프로젝트 대시보드</h1>
 
-        {/* ---------- 전역 뷰 전환 ---------- */}
-        <ViewSwitcherSection
-          viewType={viewType}
-          setViewType={setViewType}
-          onAddTask={() => setOpenDrawer(true)}
+        {/* ➕ 프로젝트 등록 버튼 */}
+        <button
+          ref={openBtnRef} // ✅ ref 연결 (닫힐 때 포커스 복귀용)
+          onClick={() => setOpen(true)}
+          style={{
+            background: "#007bff",
+            color: "#fff",
+            border: "none",
+            padding: "10px 20px",
+            borderRadius: "6px",
+            cursor: "pointer",
+            marginBottom: "20px",
+          }}
+        >
+          프로젝트 등록
+        </button>
+
+        {/* 📋 프로젝트 목록 */}
+        <ProjectList
+          projects={projects}
+          onSelectProject={p => navigate(`/projects/${p.project_id}`)}
         />
 
-        {/* ---------- 전체 프로젝트 목록 ---------- */}
-        {projects.map(project => (
-          <div key={project.project_id} className="border rounded-xl p-4 mb-6 bg-white shadow-sm">
-            <div className="flex justify-between items-center mb-3">
-              <div>
-                <h2 style={{ fontSize: 20, fontWeight: 600 }}>{project.project_name}</h2>
-                <p style={{ color: "#777", marginTop: 4 }}>{project.description || "설명 없음"}</p>
-                <p style={{ color: "#aaa", fontSize: 13 }}>
-                  📅 {project.start_date} ~ {project.end_date || "미정"}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setSelectedProjectId(project.project_id);
-                  setOpenDrawer(true);
+        {/* ➕ Drawer (등록 폼) */}
+        {open && (
+          <>
+            {/* 반투명 배경 */}
+            <div
+              onClick={() => setOpen(false)}
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                background: "rgba(0,0,0,0.3)",
+                zIndex: 999,
+              }}
+            />
+            {/* Drawer 본체 */}
+            <aside
+              ref={drawerRef} // ✅ ref 연결 (포커스 이동용)
+              style={{
+                position: "fixed",
+                top: 0,
+                right: open ? 0 : "-50vw",
+                width: "50vw",
+                height: "100%",
+                background: "#fff",
+                boxShadow: "-2px 0 8px rgba(0,0,0,0.1)",
+                transition: "right 0.3s ease-in-out",
+                zIndex: 1000,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div
+                style={{
+                  padding: "10px 16px",
+                  borderBottom: "1px solid #ddd",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
-                className="text-blue-600 underline"
               >
-                ➕ 새 업무
-              </button>
-            </div>
-
-            {/* ---------- 각 프로젝트별 뷰 ---------- */}
-            {viewType === "list" && (
-              <TaskListView
-                tasks={tasksByProject[project.project_id] || []}
-                onTaskClick={() => {}}
+                <h2 style={{ margin: 0 }}>프로젝트 등록</h2>
+                <button
+                  onClick={() => setOpen(false)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    fontSize: "18px",
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <ProjectRegistration
+                onClose={() => {
+                  setOpen(false);
+                  fetchProjects();
+                }}
               />
-            )}
-            {viewType === "kanban" && (
-              <TaskKanbanView
-                tasks={tasksByProject[project.project_id] || []}
-                onTaskClick={() => {}}
-              />
-            )}
-            {viewType === "calendar" && (
-              <TaskCalendarView
-                tasks={tasksByProject[project.project_id] || []}
-                onTaskClick={() => {}}
-              />
-            )}
-          </div>
-        ))}
-
-        {/* ---------- 업무 등록 Drawer ---------- */}
-        {selectedProjectId && (
-          <TaskDrawerSection
-            openDrawer={openDrawer}
-            setOpenDrawer={setOpenDrawer}
-            parentTaskId={parentTaskId}
-            setParentTaskId={setParentTaskId}
-            projectId={selectedProjectId}
-          />
+            </aside>
+          </>
         )}
       </div>
     </AppShell>

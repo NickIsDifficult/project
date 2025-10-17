@@ -11,7 +11,7 @@ import TaskCalendarView from "../../../components/tasks/TaskCalendarView";
 import TaskDetailPanel from "../../../components/tasks/TaskDetailPanel";
 import TaskKanbanView from "../../../components/tasks/TaskKanbanView";
 import TaskListView from "../../../components/tasks/TaskListView";
-import TaskDrawerSection from "./TaskDrawerSection";
+import ProjectDrawerSection from "./ProjectDrawerSection";
 import ViewSwitcherSection from "./ViewSwitcherSection";
 
 export default function ProjectDetailPage() {
@@ -77,15 +77,13 @@ export default function ProjectDetailPage() {
         {viewType === "calendar" && <TaskCalendarView tasks={allTasks} />}
 
         {/* ✅ 업무 등록 Drawer */}
-        {selectedProjectId && (
-          <TaskDrawerSection
-            openDrawer={openDrawer}
-            setOpenDrawer={setOpenDrawer}
-            parentTaskId={parentTaskId}
-            setParentTaskId={setParentTaskId}
-            projectId={selectedProjectId}
-          />
-        )}
+        <ProjectDrawerSection
+          openDrawer={openDrawer}
+          setOpenDrawer={setOpenDrawer}
+          parentTaskId={parentTaskId}
+          setParentTaskId={setParentTaskId}
+          projectId={selectedProjectId}
+        />
 
         {/* ✅ 오른쪽 슬라이드 상세 패널 */}
         {selectedTask && (

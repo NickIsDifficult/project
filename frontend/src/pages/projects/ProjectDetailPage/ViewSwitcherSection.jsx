@@ -1,9 +1,9 @@
-// src/pages/projects/ProjectDetailPage/ViewSwitcherSection.jsx
+// ✅ src/pages/projects/ProjectDetailPage/ViewSwitcherSection.jsx
 import Button from "../../../components/common/Button";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 
 export default function ViewSwitcherSection() {
-  const { viewType, setViewType, setOpenDrawer, setParentTaskId } = useProjectGlobal();
+  const { viewType, setViewType, setOpenDrawer } = useProjectGlobal();
 
   const buttons = [
     { key: "list", label: "📋 리스트 뷰" },
@@ -11,13 +11,14 @@ export default function ViewSwitcherSection() {
     { key: "calendar", label: "🗓️ 캘린더 뷰" },
   ];
 
-  const handleAddTask = () => {
-    setParentTaskId(null);
+  // ✅ 새 프로젝트 등록 버튼 클릭 핸들러
+  const handleAddProject = () => {
     setOpenDrawer(true);
   };
 
   return (
     <div style={container}>
+      {/* 뷰 전환 버튼 */}
       {buttons.map(b => (
         <Button
           key={b.key}
@@ -27,8 +28,10 @@ export default function ViewSwitcherSection() {
           {b.label}
         </Button>
       ))}
-      <Button variant="success" style={{ marginLeft: "auto" }} onClick={handleAddTask}>
-        ➕ 새 업무
+
+      {/* ✅ 새 프로젝트 등록 버튼 */}
+      <Button variant="success" style={{ marginLeft: "auto" }} onClick={handleAddProject}>
+        ➕ 새 프로젝트
       </Button>
     </div>
   );

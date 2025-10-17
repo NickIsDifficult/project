@@ -1,11 +1,5 @@
-// src/components/tasks/TaskCalendarView/UndatedTaskList.jsx
-import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
-
-export default function UndatedTaskList({ tasks: propTasks = null, onTaskClick }) {
-  const { tasks: contextTasks } = useProjectDetailContext();
-  const tasks = propTasks || contextTasks.filter(t => !t.start_date && !t.due_date);
-
-  if (!tasks || tasks.length === 0) {
+export default function UndatedTaskList({ tasks = [], onTaskClick }) {
+  if (!tasks.length) {
     return <div style={{ fontSize: 13, color: "#888" }}>모든 업무가 날짜를 가지고 있습니다 🎉</div>;
   }
 
@@ -39,7 +33,7 @@ export default function UndatedTaskList({ tasks: propTasks = null, onTaskClick }
               marginLeft: 6,
             }}
           >
-            ⏳ 날짜 미지정
+            ⏳ {t.project_name}
           </span>
         </li>
       ))}

@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { debounce } from "lodash";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import API from "../services/api/http";
 
 const ProjectGlobalContext = createContext();
@@ -6,13 +7,12 @@ const ProjectGlobalContext = createContext();
 /**
  * 🌐 ProjectGlobalProvider
  * - 전체 프로젝트 / 업무 트리 / 선택 상태를 전역으로 관리
- * - ProjectDetailPage, TaskDetailPanel, Kanban/List/Calendar 등 공통 사용
  */
 export function ProjectGlobalProvider({ children }) {
-  const [projects, setProjects] = useState([]); // 전체 프로젝트 목록
-  const [tasksByProject, setTasksByProject] = useState({}); // 프로젝트별 업무 트리
-  const [selectedProjectId, setSelectedProjectId] = useState(null); // 선택된 프로젝트
-  const [selectedTask, setSelectedTask] = useState(null); // 선택된 업무 (상세 패널용)
+  const [projects, setProjects] = useState([]);
+  const [tasksByProject, setTasksByProject] = useState({});
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [viewType, setViewType] = useState(() => localStorage.getItem("viewType_global") || "list");
   const [loading, setLoading] = useState(false);
   const [openDrawer, setOpenDrawer] = useState(false);
@@ -28,68 +28,71 @@ export function ProjectGlobalProvider({ children }) {
   /* ----------------------------------------
    * ✅ 프로젝트 목록 불러오기
    * ---------------------------------------- */
-  async function fetchAllProjects() {
+  const fetchAllProjects = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await API.get("/projects");
-      if (Array.isArray(data)) setProjects(data);
-      else setProjects([]);
+      setProjects(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("❌ 프로젝트 목록 불러오기 실패:", err);
       setProjects([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   /* ----------------------------------------
    * ✅ 특정 프로젝트의 업무 트리 불러오기
    * ---------------------------------------- */
-  async function fetchTasksByProject(projectId) {
-    const pid = Number(projectId);
-    if (!pid) return;
+  const _fetchTasksDirect = useCallback(async projectId => {
+    if (!projectId) return;
     try {
-      const { data } = await API.get(`/projects/${pid}/tasks/tree`);
-      setTasksByProject(prev => ({
-        ...prev,
-        [pid]: Array.isArray(data) ? data : [],
-      }));
+      const { data } = await API.get(`/projects/${projectId}/tasks/tree`);
+      setTasksByProject(prev => ({ ...prev, [projectId]: data }));
     } catch (err) {
-      console.error(`❌ 프로젝트(${pid}) 업무 불러오기 실패:`, err);
+      console.error(`❌ 업무 로드 실패 (projectId=${projectId}):`, err);
     }
-  }
+  }, []);
+
+  // ✅ lodash.debounce 적용 (250ms 내 중복 호출 병합)
+  const fetchTasksByProject = useCallback(
+    debounce(projectId => {
+      _fetchTasksDirect(projectId);
+    }, 250),
+    [_fetchTasksDirect],
+  );
 
   /* ----------------------------------------
-   * ✅ 특정 업무 로컬 업데이트 (Optimistic Update)
-   * - 트리형 데이터 구조에서도 하위까지 안전하게 갱신
+   * ✅ 특정 업무 로컬 업데이트 (부분 업데이트 최적화)
    * ---------------------------------------- */
-  function updateTaskLocal(taskId, updatedTask) {
-    if (!taskId || !updatedTask) return;
-
-    const updateRecursive = tasks =>
-      tasks.map(t => {
-        if (t.task_id === taskId) return { ...t, ...updatedTask };
-        if (t.subtasks?.length) {
-          return { ...t, subtasks: updateRecursive(t.subtasks) };
-        }
-        return t;
-      });
+  const updateTaskLocal = useCallback((taskId, updatedFields) => {
+    if (!taskId || !updatedFields) return;
 
     setTasksByProject(prev => {
-      const newState = { ...prev };
-      Object.keys(newState).forEach(pid => {
-        newState[pid] = updateRecursive(newState[pid] || []);
-      });
-      return newState;
+      const updated = { ...prev }; // ✅ shallow copy로 빠른 처리
+
+      for (const [pid, taskList] of Object.entries(updated)) {
+        const idx = taskList.findIndex(t => String(t.task_id) === String(taskId));
+        if (idx !== -1) {
+          updated[pid] = [
+            ...taskList.slice(0, idx),
+            { ...taskList[idx], ...updatedFields },
+            ...taskList.slice(idx + 1),
+          ];
+          break;
+        }
+      }
+
+      return updated;
     });
-  }
+  }, []);
 
   /* ----------------------------------------
    * ✅ 전체 프로젝트 초기 로드
    * ---------------------------------------- */
   useEffect(() => {
     fetchAllProjects();
-  }, []);
+  }, [fetchAllProjects]);
 
   /* ----------------------------------------
    * ✅ 신규 프로젝트의 업무 트리 자동 로드
@@ -98,11 +101,12 @@ export function ProjectGlobalProvider({ children }) {
     if (projects.length > 0) {
       const uncached = projects.filter(p => !tasksByProject[p.project_id]);
       if (uncached.length > 0) {
-        // ⚙️ 하나 실패해도 나머지는 유지
-        Promise.allSettled(uncached.map(p => fetchTasksByProject(p.project_id)));
+        Promise.all(uncached.map(p => fetchTasksByProject(p.project_id))).catch(err =>
+          console.warn("⚠️ 일부 프로젝트 로드 실패:", err),
+        );
       }
     }
-  }, [projects]);
+  }, [projects, tasksByProject, fetchTasksByProject]);
 
   /* ----------------------------------------
    * ✅ 선택된 프로젝트 변경 시 자동 로드
@@ -111,10 +115,10 @@ export function ProjectGlobalProvider({ children }) {
     if (selectedProjectId && !tasksByProject[selectedProjectId]) {
       fetchTasksByProject(selectedProjectId);
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, tasksByProject, fetchTasksByProject]);
 
   /* ----------------------------------------
-   * ✅ 선택된 Task 감지 → Drawer 자동 오픈
+   * ✅ 선택된 Task → Drawer 자동 오픈
    * ---------------------------------------- */
   useEffect(() => {
     if (selectedTask) setOpenDrawer(true);
@@ -145,9 +149,9 @@ export function ProjectGlobalProvider({ children }) {
   return <ProjectGlobalContext.Provider value={value}>{children}</ProjectGlobalContext.Provider>;
 }
 
-/**
+/* ----------------------------------------
  * ✅ 전역 훅
- */
+ * ---------------------------------------- */
 export function useProjectGlobal() {
   const ctx = useContext(ProjectGlobalContext);
   if (!ctx) throw new Error("useProjectGlobal must be used within ProjectGlobalProvider");

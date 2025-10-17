@@ -5,6 +5,24 @@ import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { deleteProject, updateProject } from "../../../services/api/project";
 import { deleteTask, updateTask, updateTaskStatus } from "../../../services/api/task";
 
+// 상태 변환 매핑
+const normalizeProjectStatus = status => {
+  switch (status) {
+    case "DONE":
+    case "REVIEW":
+      return "COMPLETED";
+    case "TODO":
+    case "PLANNED":
+      return "PLANNED";
+    case "IN_PROGRESS":
+      return "IN_PROGRESS";
+    case "ON_HOLD":
+      return "ON_HOLD";
+    default:
+      return "PLANNED"; // 기본값
+  }
+};
+
 /* ----------------------------------------
  * 🔁 정렬 헬퍼 (함수 선언식으로 호이스팅 안전)
  * ---------------------------------------- */
@@ -155,7 +173,7 @@ export function useTaskList({ allTasks = [] }) {
     try {
       setLoading(true);
       if (isProject) {
-        await updateProject(projectId, { status: newStatus });
+        await updateProject(projectId, { status: normalizeProjectStatus(newStatus) });
         toast.success("프로젝트 상태가 변경되었습니다.");
       } else {
         await updateTaskStatus(projectId, taskId, newStatus);

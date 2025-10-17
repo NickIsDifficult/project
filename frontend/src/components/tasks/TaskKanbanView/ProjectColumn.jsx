@@ -1,32 +1,23 @@
-import TaskCard from "./TaskCard";
+import ProjectCard from "./ProjectCard";
 
-/**
- * ✅ Kanban Column (상태별 업무 그룹)
- * - props:
- *   - label: 컬럼 이름 (예: "진행 중 🚧")
- *   - tasks: 해당 상태의 업무 배열
- *   - onTaskClick: 업무 클릭 시 호출되는 콜백
- */
-export default function TaskColumn({ label, tasks, onTaskClick }) {
+export default function ProjectColumn({ label, tasks, onTaskClick }) {
   return (
     <div style={colWrapper}>
-      {/* 헤더 */}
       <div style={colHeader}>
         <span>{label}</span>
         <span style={countBadge}>{tasks.length}</span>
       </div>
 
-      {/* 카드 리스트 */}
       <div style={colBody}>
         {tasks.length === 0 ? (
-          <p style={emptyText}>업무 없음</p>
+          <p style={emptyText}>프로젝트 없음</p>
         ) : (
-          tasks.map((task, index) => (
-            <TaskCard
-              key={task.task_id}
-              task={task}
+          tasks.map((proj, index) => (
+            <ProjectCard
+              key={`proj-${proj.project_id ?? index}`} // ✅ 안전한 고유 key
+              task={proj}
               index={index}
-              onClick={() => onTaskClick?.(task)}
+              onClick={() => onTaskClick?.(proj)}
             />
           ))
         )}
@@ -35,9 +26,7 @@ export default function TaskColumn({ label, tasks, onTaskClick }) {
   );
 }
 
-/* ---------------------------
- * 🎨 스타일 정의
- * --------------------------- */
+/* ---------------- 스타일 ---------------- */
 const colWrapper = {
   minWidth: 260,
   background: "#f8f9fa",
@@ -73,7 +62,7 @@ const colBody = {
   display: "flex",
   flexDirection: "column",
   gap: 8,
-  overflowY: "auto", // ✅ 컬럼 단위 스크롤
+  overflowY: "auto",
   paddingRight: 4,
 };
 

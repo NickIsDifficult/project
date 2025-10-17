@@ -1,10 +1,9 @@
-// src/components/tasks/TaskKanbanView/index.jsx
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { Loader } from "../../common/Loader";
-import TaskColumn from "./TaskColumn";
+import ProjectColumn from "./ProjectColumn";
 import { useKanbanData } from "./useKanbanData";
 
-export default function TaskKanbanView({ onTaskClick }) {
+export default function ProjectKanbanView({ onProjectClick }) {
   const { columns, handleDragEnd } = useKanbanData();
 
   if (!columns?.length) return <Loader text="칸반 데이터를 불러오는 중..." />;
@@ -13,11 +12,11 @@ export default function TaskKanbanView({ onTaskClick }) {
     <div style={boardWrapper}>
       <DragDropContext onDragEnd={handleDragEnd}>
         <div style={boardContainer}>
-          {columns.map(col => (
+          {columns.filter(Boolean).map(col => (
             <Droppable key={col.key} droppableId={col.key} direction="vertical">
               {provided => (
                 <div ref={provided.innerRef} {...provided.droppableProps} style={colStyle}>
-                  <TaskColumn label={col.label} tasks={col.tasks} onTaskClick={onTaskClick} />
+                  <ProjectColumn label={col.label} tasks={col.tasks} onTaskClick={onProjectClick} />
                   {provided.placeholder}
                 </div>
               )}
@@ -29,9 +28,7 @@ export default function TaskKanbanView({ onTaskClick }) {
   );
 }
 
-/* ---------------------------
- * 🎨 스타일 정의
- * --------------------------- */
+/* 🎨 스타일 정의 */
 const boardWrapper = {
   width: "100%",
   overflowX: "auto",

@@ -27,8 +27,15 @@ const ensureInt = (value, name = "ID") => {
 const normalizeTaskPayload = (data = {}) => {
   const safe = { ...data };
 
+  // ✅ 단일 담당자 → 다중 담당자 구조 반영
+  // 기존 assignee_emp_id 제거됨
+  // assignee_ids는 배열 형태 유지
+  if (!Array.isArray(safe.assignee_ids)) {
+    safe.assignee_ids = safe.assignee_ids ? [safe.assignee_ids] : [];
+  }
+
   // 숫자형 필드 캐스팅
-  const intFields = ["assignee_emp_id", "parent_task_id", "progress"];
+  const intFields = ["parent_task_id", "progress"];
   const floatFields = ["estimate_hours"];
 
   for (const key of intFields) {

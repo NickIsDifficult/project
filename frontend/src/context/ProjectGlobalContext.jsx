@@ -17,6 +17,9 @@ export function ProjectGlobalProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [parentTaskId, setParentTaskId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterAssignee, setFilterAssignee] = useState(null);
 
   /* ----------------------------------------
    * ✅ viewType 로컬 스토리지 자동 저장
@@ -144,6 +147,12 @@ export function ProjectGlobalProvider({ children }) {
     setOpenDrawer,
     parentTaskId,
     setParentTaskId,
+    searchTerm,
+    setSearchTerm,
+    filterStatus,
+    setFilterStatus,
+    filterAssignee,
+    setFilterAssignee,
   };
 
   return <ProjectGlobalContext.Provider value={value}>{children}</ProjectGlobalContext.Provider>;

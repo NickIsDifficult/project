@@ -80,29 +80,34 @@ CREATE TABLE `project` (
 
 -- 4) project/employee를 참조 (self FK 포함)
 CREATE TABLE `task` (
-  `task_id` int NOT NULL AUTO_INCREMENT,
-  `project_id` int NOT NULL,
-  `title` varchar(300) NOT NULL,
-  `description` text,
-  `assignee_emp_id` int DEFAULT NULL,
-  `priority` enum('LOW','MEDIUM','HIGH','URGENT') DEFAULT 'MEDIUM',
-  `status` enum('TODO','IN_PROGRESS','REVIEW','DONE') DEFAULT 'TODO',
-  `parent_task_id` int DEFAULT NULL,
-  `start_date` date DEFAULT NULL,
-  `due_date` date DEFAULT NULL,
-  `estimate_hours` decimal(6,2) DEFAULT '0.00',
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`task_id`),
-  KEY `project_id` (`project_id`),
-  KEY `assignee_emp_id` (`assignee_emp_id`),
-  KEY `parent_task_id` (`parent_task_id`),
-  CONSTRAINT `task_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `project` (`project_id`),
-  CONSTRAINT `task_ibfk_2` FOREIGN KEY (`assignee_emp_id`) REFERENCES `employee` (`emp_id`),
-  CONSTRAINT `task_ibfk_3` FOREIGN KEY (`parent_task_id`) REFERENCES `task` (`task_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+   `task_id` int NOT NULL AUTO_INCREMENT,
+   `project_id` int NOT NULL,
+   `title` varchar(300) NOT NULL,
+   `description` text,
+   `priority` enum('LOW','MEDIUM','HIGH','URGENT') DEFAULT 'MEDIUM',
+   `status` enum('TODO','IN_PROGRESS','REVIEW','DONE') DEFAULT 'TODO',
+   `parent_task_id` int DEFAULT NULL,
+   `start_date` date DEFAULT NULL,
+   `due_date` date DEFAULT NULL,
+   `estimate_hours` decimal(6,2) DEFAULT '0.00',
+   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+   `progress` int DEFAULT '0',
+   PRIMARY KEY (`task_id`),
+   KEY `project_id` (`project_id`),
+   KEY `parent_task_id` (`parent_task_id`),
+   CONSTRAINT `task_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `project` (`project_id`),
+   CONSTRAINT `task_ibfk_3` FOREIGN KEY (`parent_task_id`) REFERENCES `task` (`task_id`)
+ ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-ALTER TABLE task ADD COLUMN progress INT DEFAULT 0; -- 0~100%
+CREATE TABLE task_assignee (
+  task_id INT NOT NULL,
+  emp_id INT NOT NULL,
+  assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (task_id, emp_id),
+  FOREIGN KEY (task_id) REFERENCES task(task_id) ON DELETE CASCADE,
+  FOREIGN KEY (emp_id) REFERENCES employee(emp_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- 5) project를 참조
 CREATE TABLE `milestone` (

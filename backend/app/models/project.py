@@ -85,7 +85,7 @@ class ProjectMember(Base):
 
 
 # ---------------------------------
-# 태스크
+# 업무(Task)
 # ---------------------------------
 class Task(Base):
     __tablename__ = "task"
@@ -96,9 +96,6 @@ class Task(Base):
     )
     title = Column(String(300), nullable=False)
     description = Column(Text)
-    assignee_emp_id = Column(
-        Integer, ForeignKey("employee.emp_id", ondelete="SET NULL")
-    )
     priority = Column(
         Enum(TaskPriority, native_enum=False), default=TaskPriority.MEDIUM
     )
@@ -115,16 +112,27 @@ class Task(Base):
 
     # ✅ 관계
     project = relationship("Project", back_populates="tasks")
-    assignee = relationship(
-        "Employee", back_populates="tasks", foreign_keys=[assignee_emp_id]
+
+    # 🔗 다중 담당자 관계
+    task_assignees = relationship(
+        "TaskAssignee",
+        back_populates="task",
+        cascade="all, delete-orphan",
     )
+
+    # 읽기 편의용 (Employee 리스트)
+    assignees = relationship(
+        "Employee",
+        secondary="task_assignee",
+        viewonly=True,
+    )
+
     comments = relationship(
         "TaskComment", back_populates="task", cascade="all, delete-orphan"
     )
     histories = relationship(
         "TaskHistory", back_populates="task", cascade="all, delete-orphan"
     )
-
     parent = relationship("Task", remote_side=[task_id], back_populates="subtasks")
     subtasks = relationship(
         "Task", back_populates="parent", cascade="all, delete-orphan"
@@ -133,9 +141,24 @@ class Task(Base):
         "Attachment", back_populates="task", cascade="all, delete-orphan"
     )
 
-    @hybrid_property
-    def assignee_name(self):
-        return self.assignee.name if self.assignee else None
+
+# ---------------------------------
+# 업무 담당자 연결 테이블
+# ---------------------------------
+class TaskAssignee(Base):
+    __tablename__ = "task_assignee"
+
+    task_id = Column(
+        Integer, ForeignKey("task.task_id", ondelete="CASCADE"), primary_key=True
+    )
+    emp_id = Column(
+        Integer, ForeignKey("employee.emp_id", ondelete="CASCADE"), primary_key=True
+    )
+    assigned_at = Column(DateTime, server_default=func.now())
+
+    # 관계
+    task = relationship("Task", back_populates="task_assignees")
+    employee = relationship("Employee", back_populates="employee_tasks")
 
 
 # ---------------------------------
@@ -156,11 +179,9 @@ class TaskComment(Base):
     )
 
     content = Column(Text, nullable=False)
-
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    # ✅ 관계
     project = relationship("Project", back_populates="comments")
     task = relationship("Task", back_populates="comments")
     employee = relationship("Employee", back_populates="comments")

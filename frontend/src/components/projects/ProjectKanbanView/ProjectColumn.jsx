@@ -1,6 +1,6 @@
 import ProjectCard from "./ProjectCard";
 
-export default function ProjectColumn({ label, tasks, onTaskClick }) {
+export default function ProjectColumn({ label, tasks = [], onTaskClick, columnKey }) {
   return (
     <div style={colWrapper}>
       <div style={colHeader}>
@@ -14,9 +14,9 @@ export default function ProjectColumn({ label, tasks, onTaskClick }) {
         ) : (
           tasks.map((proj, index) => (
             <ProjectCard
-              key={`proj-${proj.project_id ?? index}`} // ✅ 안전한 고유 key
+              key={`col-${columnKey}-proj-${proj.project_id ?? index}`}
               task={proj}
-              index={index}
+              index={parseInt(index, 10)}
               onClick={() => onTaskClick?.(proj)}
             />
           ))

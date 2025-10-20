@@ -1,16 +1,22 @@
 import { Draggable } from "@hello-pangea/dnd";
 
+/* 🎨 상태별 배경색 */
+const colorByStatus = {
+  PLANNED: "#E5E7EB",
+  IN_PROGRESS: "#BFDBFE",
+  REVIEW: "#C7D2FE",
+  ON_HOLD: "#FDE68A",
+  DONE: "#BBF7D0",
+};
+
 export default function ProjectCard({ task: project, index, onClick }) {
-  const colorByStatus = {
-    PLANNED: "#E5E7EB",
-    IN_PROGRESS: "#BFDBFE",
-    ON_HOLD: "#FDE68A",
-    DONE: "#BBF7D0",
-  };
   const bg = colorByStatus[project.status?.toUpperCase()] ?? "#F3F4F6";
 
   return (
-    <Draggable draggableId={String(project.project_id)} index={index}>
+    <Draggable
+      draggableId={String(project.project_id ?? `temp-${index}`)} // ✅ 항상 문자열
+      index={parseInt(index ?? 0, 10)} // ✅ 항상 정수
+    >
       {provided => (
         <div
           ref={provided.innerRef}
@@ -24,6 +30,7 @@ export default function ProjectCard({ task: project, index, onClick }) {
             marginBottom: "8px",
             boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
             cursor: "pointer",
+            userSelect: "none",
             ...provided.draggableProps.style,
           }}
         >

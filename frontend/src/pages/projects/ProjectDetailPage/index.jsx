@@ -7,9 +7,9 @@ import { Loader } from "../../../components/common/Loader";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import AppShell from "../../../layout/AppShell";
 
+import ProjectKanbanView from "../../../components/projects/ProjectKanbanView";
 import TaskCalendarView from "../../../components/tasks/TaskCalendarView";
 import TaskDetailPanel from "../../../components/tasks/TaskDetailPanel";
-import TaskKanbanView from "../../../components/tasks/TaskKanbanView";
 import TaskListView from "../../../components/tasks/TaskListView";
 import ProjectDrawerSection from "./ProjectDrawerSection";
 import ViewSwitcherSection from "./ViewSwitcherSection";
@@ -18,7 +18,7 @@ export default function ProjectDetailPage() {
   const {
     projects,
     tasksByProject,
-    fetchTasksByProject,
+    fetchAllProjects,
     loading,
     selectedTask,
     setSelectedTask,
@@ -27,8 +27,6 @@ export default function ProjectDetailPage() {
     setOpenDrawer,
     parentTaskId,
     setParentTaskId,
-    selectedProjectId,
-    setSelectedProjectId,
   } = useProjectGlobal();
 
   const navigate = useNavigate();
@@ -61,41 +59,47 @@ export default function ProjectDetailPage() {
         {/* ✅ 상단 네비게이션 */}
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
           <h1 style={{ fontSize: 26, fontWeight: "bold", margin: 0 }}>
-            📊 전체 프로젝트 업무 관리
+            📊 프로젝트 & 업무 통합 관리
           </h1>
           <Button variant="secondary" onClick={() => navigate("/main")}>
             ← 메인 페이지
           </Button>
         </div>
 
-        {/* ✅ 뷰 전환 / 새 업무 버튼 */}
+        {/* ✅ 뷰 전환 / 새 등록 버튼 */}
         <ViewSwitcherSection onAddTask={() => setOpenDrawer(true)} />
 
-        {/* ✅ 뷰 전환 (리스트/칸반/캘린더) */}
+        {/* ✅ 뷰 전환 */}
+        {viewType === "kanban" && (
+          <ProjectKanbanView
+            onProjectClick={proj =>
+              setSelectedTask({
+                ...proj,
+                isProject: true, // ✅ 프로젝트 상세 구분용
+              })
+            }
+          />
+        )}
         {viewType === "list" && <TaskListView tasks={allTasks} />}
-        {viewType === "kanban" && <TaskKanbanView tasks={allTasks} />}
         {viewType === "calendar" && <TaskCalendarView tasks={allTasks} />}
 
-        {/* ✅ 업무 등록 Drawer */}
+        {/* ✅ Drawer (새 프로젝트 등록) */}
         {openDrawer && (
           <ProjectDrawerSection
             openDrawer={openDrawer}
             setOpenDrawer={setOpenDrawer}
-            parentTaskId={parentTaskId}
-            setParentTaskId={setParentTaskId}
-            projectId={selectedProjectId}
+            onSuccess={() => fetchAllProjects()}
           />
         )}
 
-        {/* ✅ 업무/프로젝트 상세 패널 */}
+        {/* ✅ 우측 상세 패널 */}
         {selectedTask && (
           <TaskDetailPanel
-            projectId={selectedTask.project_id || selectedTask.task_id}
+            projectId={selectedTask.project_id}
             taskId={selectedTask.isProject ? undefined : selectedTask.task_id}
             isProject={selectedTask.isProject}
             onClose={() => setSelectedTask(null)}
             onAddSubtask={taskId => {
-              // ✅ 하위 업무 추가 시 패널 닫고 드로어 열기
               setParentTaskId(taskId);
               setSelectedTask(null);
               setOpenDrawer(true);

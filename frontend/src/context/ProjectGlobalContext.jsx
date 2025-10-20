@@ -21,6 +21,15 @@ export function ProjectGlobalProvider({ children }) {
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterAssignee, setFilterAssignee] = useState([]);
 
+  // 언마운트 보호용
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
+
   /* ----------------------------------------
    * ✅ viewType 로컬 스토리지 자동 저장
    * ---------------------------------------- */
@@ -35,12 +44,12 @@ export function ProjectGlobalProvider({ children }) {
     try {
       setLoading(true);
       const { data } = await API.get("/projects");
-      setProjects(Array.isArray(data) ? data : []);
+      if (mountedRef.current) setProjects(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("❌ 프로젝트 목록 불러오기 실패:", err);
-      setProjects([]);
+      if (mountedRef.current) setProjects([]);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 
@@ -51,19 +60,23 @@ export function ProjectGlobalProvider({ children }) {
     if (!projectId) return;
     try {
       const { data } = await API.get(`/projects/${projectId}/tasks/tree`);
-      setTasksByProject(prev => ({ ...prev, [projectId]: data }));
+      if (mountedRef.current) {
+        setTasksByProject(prev => ({ ...prev, [projectId]: data }));
+      }
     } catch (err) {
       console.error(`❌ 업무 로드 실패 (projectId=${projectId}):`, err);
     }
   }, []);
 
-  // ✅ lodash.debounce 적용 (250ms 내 중복 호출 병합)
+  // ✅ 외부(컴포넌트)에서 쓰는 "부드러운" 호출
   const fetchTasksByProject = useCallback(
     debounce(projectId => {
       _fetchTasksDirect(projectId);
     }, 250),
     [_fetchTasksDirect],
   );
+  // ✅ 내부 배치/초기 로드용 즉시 호출
+  const fetchTasksByProjectNow = _fetchTasksDirect;
 
   /* ----------------------------------------
    * ✅ 특정 업무 로컬 업데이트 (부분 업데이트 최적화)
@@ -95,7 +108,13 @@ export function ProjectGlobalProvider({ children }) {
    * ---------------------------------------- */
   useEffect(() => {
     fetchAllProjects();
-  }, [fetchAllProjects]);
+    return () => {
+      // ✅ debounce 정리
+      try {
+        fetchTasksByProject.cancel?.();
+      } catch {}
+    };
+  }, [fetchAllProjects, fetchTasksByProject]);
 
   /* ----------------------------------------
    * ✅ 신규 프로젝트의 업무 트리 자동 로드
@@ -104,34 +123,30 @@ export function ProjectGlobalProvider({ children }) {
     if (projects.length > 0) {
       const uncached = projects.filter(p => !tasksByProject[p.project_id]);
       if (uncached.length > 0) {
-        Promise.all(uncached.map(p => fetchTasksByProject(p.project_id))).catch(err =>
+        // ✅ 실제로 Promise를 기다릴 수 있게 즉시 호출 사용
+        Promise.all(uncached.map(p => fetchTasksByProjectNow(p.project_id))).catch(err =>
           console.warn("⚠️ 일부 프로젝트 로드 실패:", err),
         );
       }
     }
-  }, [projects, tasksByProject, fetchTasksByProject]);
+  }, [projects, tasksByProject, fetchTasksByProjectNow]);
 
   /* ----------------------------------------
    * ✅ 선택된 프로젝트 변경 시 자동 로드
    * ---------------------------------------- */
   useEffect(() => {
     if (selectedProjectId && !tasksByProject[selectedProjectId]) {
-      fetchTasksByProject(selectedProjectId);
+      // ✅ 선택 전환 시도 정확히 로드 보장
+      fetchTasksByProjectNow(selectedProjectId);
     }
-  }, [selectedProjectId, tasksByProject, fetchTasksByProject]);
-
-  /* ----------------------------------------
-   * ✅ 선택된 Task → Drawer 자동 오픈
-   * ---------------------------------------- */
-  useEffect(() => {
-    if (selectedTask) setOpenDrawer(true);
-  }, [selectedTask]);
+  }, [selectedProjectId, tasksByProject, fetchTasksByProjectNow]);
 
   /* ----------------------------------------
    * 🌐 Context 값 제공
    * ---------------------------------------- */
   const value = {
     projects,
+    setProjects,
     tasksByProject,
     loading,
     selectedProjectId,
@@ -142,6 +157,7 @@ export function ProjectGlobalProvider({ children }) {
     setViewType,
     fetchAllProjects,
     fetchTasksByProject,
+    fetchTasksByProjectNow,
     updateTaskLocal,
     openDrawer,
     setOpenDrawer,

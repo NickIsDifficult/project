@@ -14,9 +14,22 @@ export default function ProjectKanbanView({ onProjectClick }) {
         <div style={boardContainer}>
           {columns.filter(Boolean).map(col => (
             <Droppable key={col.key} droppableId={col.key} direction="vertical">
-              {provided => (
-                <div ref={provided.innerRef} {...provided.droppableProps} style={colStyle}>
-                  <ProjectColumn label={col.label} tasks={col.tasks} onTaskClick={onProjectClick} />
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  style={{
+                    ...colStyle,
+                    background: snapshot.isDraggingOver ? "#E3F2FD" : "#F8F9FA",
+                    transition: "background 0.25s ease",
+                  }}
+                >
+                  <ProjectColumn
+                    label={col.label}
+                    tasks={col.tasks}
+                    onTaskClick={onProjectClick}
+                    columnKey={col.key}
+                  />
                   {provided.placeholder}
                 </div>
               )}
@@ -45,4 +58,5 @@ const boardContainer = {
 
 const colStyle = {
   minWidth: 280,
+  borderRadius: 8,
 };

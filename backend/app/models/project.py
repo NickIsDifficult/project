@@ -62,6 +62,20 @@ class Project(Base):
     attachments = relationship(
         "Attachment", back_populates="project", cascade="all, delete-orphan"
     )
+    activity_logs = relationship(
+    "ActivityLog",
+    back_populates="project",
+    cascade="all, delete-orphan",
+    passive_deletes=True
+    )
+
+    notifications = relationship(
+    "Notification",
+    back_populates="project",
+    cascade="all, delete-orphan",
+    passive_deletes=True
+    )
+
 
 
 # ---------------------------------
@@ -140,6 +154,20 @@ class Task(Base):
     attachments = relationship(
         "Attachment", back_populates="task", cascade="all, delete-orphan"
     )
+    activity_logs = relationship(
+    "ActivityLog",
+    back_populates="task",
+    cascade="all, delete-orphan",
+    passive_deletes=True,
+    )
+
+    notifications = relationship(
+        "Notification",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
 
 
 # ---------------------------------

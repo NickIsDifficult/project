@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Index, Integer, Text
+from sqlalchemy.orm import relationship
 
 from app.database import Base
 from app.models.enums import ActivityAction  # ✅ enums.py에서 가져오기
@@ -31,10 +32,15 @@ class ActivityLog(Base):
         index=True,
     )
 
+
     # ✅ enums.py의 ActivityAction 사용
     action = Column(Enum(ActivityAction, native_enum=False), nullable=False)
     detail = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+    project = relationship("Project", back_populates="activity_logs")
+    task = relationship("Task", back_populates="activity_logs")
 
     __table_args__ = (
         Index("idx_activity_emp", "emp_id"),

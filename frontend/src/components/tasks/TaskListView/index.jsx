@@ -24,7 +24,9 @@ export default function TaskListView() {
       title: project.project_name,
       isProject: true,
       status: project.status ?? "TODO", // 기본값 보정
-      assignee_name: project.manager_name ?? "미지정",
+      assignees: project.manager_name
+        ? [{ emp_id: project.owner_emp_id ?? 0, name: project.manager_name }]
+        : [],
       start_date: project.start_date ?? null,
       due_date: project.due_date ?? null,
       subtasks: tasksByProject?.[project.project_id] ?? [],

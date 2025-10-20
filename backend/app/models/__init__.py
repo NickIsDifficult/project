@@ -20,6 +20,7 @@ from app.models.project import (
     Project,
     ProjectMember,
     Task,
+    TaskAssignee,
     TaskComment,
     TaskHistory,
 )

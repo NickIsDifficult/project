@@ -121,8 +121,8 @@ export default function TaskListRow({
         {/* ✅ 담당자 */}
         {/* ---------------------------- */}
         <td style={td}>
-          {task.assignee_name ? (
-            <span>{task.assignee_name}</span>
+          {task.assignees?.length ? (
+            <span>{task.assignees.map(a => a.name).join(", ")}</span>
           ) : (
             <span style={{ color: "#999" }}>— 미지정 —</span>
           )}

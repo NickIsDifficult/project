@@ -27,6 +27,12 @@ const normalizeProjectStatus = status => {
  * 🔁 정렬 헬퍼 (함수 선언식으로 호이스팅 안전)
  * ---------------------------------------- */
 function sortCompare(a, b, key, order) {
+  // ✅ 다중 담당자 정렬 지원
+  if (key === "assignee_name") {
+    const nameA = a.assignees?.map(x => x.name).join(", ") || "";
+    const nameB = b.assignees?.map(x => x.name).join(", ") || "";
+    return order === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+  }
   const valA = a[key] ?? "";
   const valB = b[key] ?? "";
 
@@ -85,7 +91,13 @@ export function useTaskList({ allTasks = [] }) {
    * ---------------------------------------- */
   const assigneeOptions = useMemo(() => {
     const set = new Set();
-    flattenTasks(tasks).forEach(t => set.add(t.assignee_name || "미지정"));
+    flattenTasks(tasks).forEach(t => {
+      if (t.assignees?.length) {
+        t.assignees.forEach(a => set.add(a.name));
+      } else {
+        set.add("미지정");
+      }
+    });
     return ["ALL", ...Array.from(set)];
   }, [tasks]);
 
@@ -96,7 +108,8 @@ export function useTaskList({ allTasks = [] }) {
     const filterNode = node => {
       const status = node.status?.trim()?.toUpperCase?.() || "TODO";
       const statusOk = filterStatus === "ALL" || status === filterStatus;
-      const assigneeOk = filterAssignee === "ALL" || node.assignee_name === filterAssignee;
+      const assigneeOk =
+        filterAssignee === "ALL" || (node.assignees?.some(a => a.name === filterAssignee) ?? false);
       const keywordOk =
         !searchKeyword || node.title?.toLowerCase().includes(searchKeyword.toLowerCase());
 

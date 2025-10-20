@@ -19,7 +19,7 @@ export function ProjectGlobalProvider({ children }) {
   const [parentTaskId, setParentTaskId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
-  const [filterAssignee, setFilterAssignee] = useState(null);
+  const [filterAssignee, setFilterAssignee] = useState([]);
 
   /* ----------------------------------------
    * ✅ viewType 로컬 스토리지 자동 저장

@@ -68,7 +68,7 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    project_id: int
+    project_id: Optional[int] = None
     parent_task_id: Optional[int] = None
 
     @field_validator("priority", mode="before")
@@ -168,6 +168,15 @@ class ProjectMember(ProjectMemberBase):
     model_config = {"from_attributes": True}
 
 
+class ProjectMemberOut(BaseModel):
+    emp_id: int
+    name: str
+    email: str
+    role: str
+
+    model_config = {"from_attributes": True}
+
+
 # ----------------------------
 # Project
 # ----------------------------
@@ -210,3 +219,10 @@ class Project(ProjectBase):
     milestones: List[Milestone] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
+
+
+# ----------------------------
+# Project + Task 동시 생성
+# ----------------------------
+class ProjectWithTasksCreate(ProjectCreate):
+    tasks: list[TaskCreate] = []

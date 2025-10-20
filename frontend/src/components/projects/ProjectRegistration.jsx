@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { useProjectGlobal } from "../../context/ProjectGlobalContext";
+import { useProjectMembers } from "../../hooks/useProjectMembers";
+import api from "../../services/api/http";
 
 // =========================================
 // ✅ 담당자 선택 컴포넌트
@@ -80,6 +84,7 @@ function AssigneeSelector({ employees, selected, setSelected }) {
               }}
             >
               {emp.name}
+              <span style={{ color: "#888", fontSize: 12, marginLeft: 6 }}>({emp.role})</span>
             </div>
           ))}
         </div>
@@ -252,16 +257,14 @@ export default function TaskRegistration({ onClose }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [tasks, setTasks] = useState([]);
+  const { selectedProjectId } = useProjectGlobal();
+  const { members, loading } = useProjectMembers(selectedProjectId);
 
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    setEmployees([
-      { emp_id: 1, name: "홍길동" },
-      { emp_id: 2, name: "김철수" },
-      { emp_id: 3, name: "이영희" },
-    ]);
-  }, []);
+    if (!loading) setEmployees(members);
+  }, [members, loading]);
 
   // 파일 업로드
   const handleFileChange = e => {
@@ -290,19 +293,41 @@ export default function TaskRegistration({ onClose }) {
     setTasks(newTasks);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const payload = {
       project_name: projectName,
       description,
-      attachments: attachments.map(f => f.name),
-      priority,
-      startDate,
-      endDate,
-      main_assignees: mainAssignees,
-      tasks,
+      start_date: startDate || null,
+      end_date: endDate || null,
+      status: "PLANNED",
+      tasks: tasks.map(t => ({
+        title: t.title,
+        description: t.description || "",
+        start_date: t.startDate || null,
+        due_date: t.endDate || null,
+        priority: "MEDIUM",
+        progress: 0,
+        assignee_ids: t.assignees,
+        subtasks: (t.children || []).map(st => ({
+          title: st.title,
+          start_date: st.startDate || null,
+          due_date: st.endDate || null,
+          priority: "MEDIUM",
+          progress: 0,
+          assignee_ids: st.assignees,
+          subtasks: st.children || [],
+        })),
+      })),
     };
-    console.log("📤 전송 데이터:", JSON.stringify(payload, null, 2));
-    alert("✅ 저장 완료 (콘솔 확인)");
+
+    try {
+      await api.post("/projects/full-create", payload);
+      toast.success("✅ 프로젝트와 업무가 함께 등록되었습니다!");
+      onClose?.();
+    } catch (err) {
+      console.error("❌ 등록 실패:", err);
+      toast.error("등록 중 오류 발생");
+    }
   };
 
   return (

@@ -1,7 +1,8 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from sqlalchemy.orm import Session, joinedload
+from datetime import datetime
 
 from app import models, schemas
 from app.core.exceptions import not_found
@@ -260,6 +261,45 @@ def delete_task(
     db.delete(task)
     db.commit()
     return {"success": True, "message": f"태스크 {task_id} 삭제 완료"}
+
+# =====================================================
+# 🔄 태스크 상태 변경 (경량 PATCH)
+# =====================================================
+@router.patch("/{project_id}/tasks/{task_id}/status")
+def update_task_status(
+    project_id: int,
+    task_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: models.Employee = Depends(get_current_user),
+):
+    """
+    🧩 태스크 상태만 변경 (예: TO_DO → IN_PROGRESS)
+    - 칸반보드/리스트뷰 드롭다운 등 빠른 상태 변경용
+    """
+    task = (
+        db.query(models.Task)
+        .filter(models.Task.project_id == project_id, models.Task.task_id == task_id)
+        .first()
+    )
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    new_status = payload.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="Status is required")
+
+    task.status = new_status
+    task.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(task)
+
+    return {
+        "message": "Task status updated successfully",
+        "task_id": task.task_id,
+        "project_id": project_id,
+        "status": task.status,
+    }
 
 
 # =====================================================

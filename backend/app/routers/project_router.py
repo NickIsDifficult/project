@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.core.exceptions import conflict, forbidden, not_found
+from app.core.exceptions import forbidden, not_found
 from app.database import get_db
 from app.services import project_service
 from app.utils.token import get_current_user
@@ -40,10 +40,9 @@ def create_project(
     current_user: models.Employee = Depends(get_current_user),
 ):
     """현재 로그인한 직원이 프로젝트 생성"""
-    new_project = project_service.create_project(
+    return project_service.create_project(
         db=db, request=request, owner_emp_id=current_user.emp_id
     )
-    return new_project
 
 
 # -------------------------------
@@ -87,6 +86,41 @@ def delete_project(
 
 
 # -------------------------------
+# 프로젝트 + 업무 등록
+# -------------------------------
+@router.post("/full-create", response_model=schemas.project.Project)
+def create_project_with_tasks(
+    request: schemas.project.ProjectWithTasksCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Employee = Depends(get_current_user),
+):
+    """프로젝트 + 업무 동시 생성"""
+    return project_service.create_project_with_tasks(
+        db=db, request=request, owner_emp_id=current_user.emp_id
+    )
+
+
+# -------------------------------
+# 프로젝트 멤버 목록 조회
+# -------------------------------
+@router.get("/{project_id}/members", response_model=list[schemas.project.ProjectMemberOut])
+def get_members(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.Employee = Depends(get_current_user),
+):
+    """특정 프로젝트의 모든 멤버 조회"""
+    project = project_service.get_project_by_id(db, project_id)
+    if not project:
+        not_found("프로젝트를 찾을 수 없습니다.")
+
+    if not project_service.is_project_member(db, project_id, current_user.emp_id):
+        forbidden("프로젝트 멤버만 접근할 수 있습니다.")
+
+    return project_service.get_members(db, project_id)
+
+
+# -------------------------------
 # 프로젝트 멤버 추가
 # -------------------------------
 @router.post("/{project_id}/members", response_model=schemas.project.ProjectMember)
@@ -98,6 +132,7 @@ def add_member(
 ):
     if not project_service.is_project_owner(db, project_id, current_user.emp_id):
         forbidden("프로젝트 소유자만 멤버를 추가할 수 있습니다.")
+
     return project_service.add_member(db, project_id, member)
 
 
@@ -115,7 +150,4 @@ def remove_member(
         forbidden("프로젝트 소유자만 멤버를 제거할 수 있습니다.")
 
     project_service.remove_member(db, project_id, emp_id)
-    return {
-        "success": True,
-        "message": f"직원 {emp_id} 프로젝트 {project_id}에서 제거됨",
-    }
+    return {"success": True, "message": f"직원 {emp_id} 프로젝트 {project_id}에서 제거됨"}

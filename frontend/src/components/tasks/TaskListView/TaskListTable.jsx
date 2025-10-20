@@ -1,5 +1,4 @@
 // src/components/tasks/TaskListView/TaskListTable.jsx
-import Button from "../../common/Button";
 import TaskListRow from "./TaskListRow";
 
 const STATUS_LABELS = {
@@ -44,62 +43,6 @@ export default function TaskListTable({
 
   return (
     <>
-      {/* ------------------------------------------- */}
-      {/* 📊 상태 요약 바 */}
-      {/* ------------------------------------------- */}
-      <div style={summaryBox}>
-        <div>📋 전체 {stats.total}건</div>
-
-        {Object.keys(STATUS_LABELS).map(key => (
-          <div
-            key={key}
-            onClick={() => handleStatusFilter(key)}
-            style={{
-              cursor: "pointer",
-              padding: "4px 8px",
-              borderRadius: 6,
-              background: filterStatus === key ? "#dbeafe" : "transparent",
-              border: filterStatus === key ? "1px solid #60a5fa" : "1px solid transparent",
-            }}
-          >
-            {STATUS_LABELS[key]} {stats[key]}
-          </div>
-        ))}
-
-        <div style={{ marginLeft: "auto", fontWeight: 600 }}>✅ 완료율 {stats.doneRatio}%</div>
-        <div style={progressOuter}>
-          <div style={{ ...progressInner, width: `${stats.doneRatio}%` }} />
-        </div>
-      </div>
-
-      {/* ------------------------------------------- */}
-      {/* 🔍 필터 바 */}
-      {/* ------------------------------------------- */}
-      <div style={filterBar}>
-        <select
-          value={filterAssignee}
-          onChange={e => setFilterAssignee(e.target.value)}
-          style={filterSelect}
-        >
-          {assigneeOptions.map(a => (
-            <option key={a} value={a}>
-              {a === "ALL" ? "전체 담당자" : a}
-            </option>
-          ))}
-        </select>
-
-        <input
-          placeholder="업무 제목 검색..."
-          value={searchKeyword}
-          onChange={e => setSearchKeyword(e.target.value)}
-          style={filterInput}
-        />
-
-        <Button variant="outline" onClick={resetFilters}>
-          🔄 초기화
-        </Button>
-      </div>
-
       {/* ------------------------------------------- */}
       {/* 📋 업무 리스트 테이블 */}
       {/* ------------------------------------------- */}

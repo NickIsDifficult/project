@@ -1,45 +1,46 @@
+// src/context/ProjectGlobalContext.jsx
 import { debounce } from "lodash";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import API from "../services/api/http";
 
 const ProjectGlobalContext = createContext();
 
-/**
- * 🌐 ProjectGlobalProvider
- * - 전체 프로젝트 / 업무 트리 / 선택 상태를 전역으로 관리
- */
 export function ProjectGlobalProvider({ children }) {
+  // 📁 데이터 상태
   const [projects, setProjects] = useState([]);
   const [tasksByProject, setTasksByProject] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  // 📌 선택 상태
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
+
+  // ⚙️ 뷰 관련
   const [viewType, setViewType] = useState(() => localStorage.getItem("viewType_global") || "list");
-  const [loading, setLoading] = useState(false);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [parentTaskId, setParentTaskId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [isAllExpanded, setIsAllExpanded] = useState(true);
+
+  // 🔍 필터 / 검색 상태
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
-  const [filterAssignee, setFilterAssignee] = useState([]);
+  const [filterAssignee, setFilterAssignee] = useState("ALL");
 
-  // 언마운트 보호용
+  // ✅ 언마운트 보호
   const mountedRef = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
-  /* ----------------------------------------
-   * ✅ viewType 로컬 스토리지 자동 저장
-   * ---------------------------------------- */
+  // ✅ viewType → localStorage 저장
   useEffect(() => {
     localStorage.setItem("viewType_global", viewType);
   }, [viewType]);
 
-  /* ----------------------------------------
-   * ✅ 프로젝트 목록 불러오기
-   * ---------------------------------------- */
+  // ✅ 프로젝트 전체 로드
   const fetchAllProjects = useCallback(async () => {
     try {
       setLoading(true);
@@ -53,130 +54,114 @@ export function ProjectGlobalProvider({ children }) {
     }
   }, []);
 
-  /* ----------------------------------------
-   * ✅ 특정 프로젝트의 업무 트리 불러오기
-   * ---------------------------------------- */
-  const _fetchTasksDirect = useCallback(async projectId => {
+  // ✅ 프로젝트별 업무 로드
+  const fetchTasksByProjectNow = useCallback(async projectId => {
     if (!projectId) return;
     try {
       const { data } = await API.get(`/projects/${projectId}/tasks/tree`);
       if (mountedRef.current) {
-        setTasksByProject(prev => ({ ...prev, [projectId]: data }));
+        setTasksByProject(prev => ({
+          ...prev,
+          [projectId]: Array.isArray(data) ? data : [],
+        }));
       }
     } catch (err) {
       console.error(`❌ 업무 로드 실패 (projectId=${projectId}):`, err);
     }
   }, []);
 
-  // ✅ 외부(컴포넌트)에서 쓰는 "부드러운" 호출
-  const fetchTasksByProject = useCallback(
-    debounce(projectId => {
-      _fetchTasksDirect(projectId);
-    }, 250),
-    [_fetchTasksDirect],
-  );
-  // ✅ 내부 배치/초기 로드용 즉시 호출
-  const fetchTasksByProjectNow = _fetchTasksDirect;
+  const fetchTasksByProject = useRef(debounce(pid => fetchTasksByProjectNow(pid), 250)).current;
 
-  /* ----------------------------------------
-   * ✅ 특정 업무 로컬 업데이트 (부분 업데이트 최적화)
-   * ---------------------------------------- */
+  // ✅ Optimistic UI 업데이트
   const updateTaskLocal = useCallback((taskId, updatedFields) => {
     if (!taskId || !updatedFields) return;
 
     setTasksByProject(prev => {
-      const updated = { ...prev }; // ✅ shallow copy로 빠른 처리
-
-      for (const [pid, taskList] of Object.entries(updated)) {
-        const idx = taskList.findIndex(t => String(t.task_id) === String(taskId));
+      const updated = { ...prev };
+      for (const [pid, list] of Object.entries(updated)) {
+        const idx = list.findIndex(t => String(t.task_id) === String(taskId));
         if (idx !== -1) {
           updated[pid] = [
-            ...taskList.slice(0, idx),
-            { ...taskList[idx], ...updatedFields },
-            ...taskList.slice(idx + 1),
+            ...list.slice(0, idx),
+            { ...list[idx], ...updatedFields },
+            ...list.slice(idx + 1),
           ];
           break;
         }
       }
-
       return updated;
     });
   }, []);
 
-  /* ----------------------------------------
-   * ✅ 전체 프로젝트 초기 로드
-   * ---------------------------------------- */
+  // ✅ 마운트 시 전체 프로젝트 로드
   useEffect(() => {
     fetchAllProjects();
     return () => {
-      // ✅ debounce 정리
       try {
         fetchTasksByProject.cancel?.();
-      } catch {}
+      } catch (err) {
+        console.warn("⚠️ debounce cleanup 실패:", err);
+      }
     };
   }, [fetchAllProjects, fetchTasksByProject]);
 
-  /* ----------------------------------------
-   * ✅ 신규 프로젝트의 업무 트리 자동 로드
-   * ---------------------------------------- */
+  // ✅ 신규 프로젝트 자동 로드
   useEffect(() => {
-    if (projects.length > 0) {
-      const uncached = projects.filter(p => !tasksByProject[p.project_id]);
-      if (uncached.length > 0) {
-        // ✅ 실제로 Promise를 기다릴 수 있게 즉시 호출 사용
+    const uncached = projects.filter(p => !tasksByProject[p.project_id]);
+    if (uncached.length > 0) {
+      // 🔹 약간의 지연 추가 (렌더 이후 fetch)
+      setTimeout(() => {
         Promise.all(uncached.map(p => fetchTasksByProjectNow(p.project_id))).catch(err =>
           console.warn("⚠️ 일부 프로젝트 로드 실패:", err),
         );
-      }
+      }, 200);
     }
   }, [projects, tasksByProject, fetchTasksByProjectNow]);
 
-  /* ----------------------------------------
-   * ✅ 선택된 프로젝트 변경 시 자동 로드
-   * ---------------------------------------- */
+  // ✅ 프로젝트 선택 변경 시 자동 로드
   useEffect(() => {
     if (selectedProjectId && !tasksByProject[selectedProjectId]) {
-      // ✅ 선택 전환 시도 정확히 로드 보장
       fetchTasksByProjectNow(selectedProjectId);
     }
   }, [selectedProjectId, tasksByProject, fetchTasksByProjectNow]);
 
-  /* ----------------------------------------
-   * 🌐 Context 값 제공
-   * ---------------------------------------- */
+  // 🌐 제공 값
   const value = {
     projects,
     setProjects,
     tasksByProject,
-    loading,
-    selectedProjectId,
-    setSelectedProjectId,
-    selectedTask,
-    setSelectedTask,
-    viewType,
-    setViewType,
     fetchAllProjects,
     fetchTasksByProject,
     fetchTasksByProjectNow,
     updateTaskLocal,
+
+    selectedProjectId,
+    setSelectedProjectId,
+    selectedTask,
+    setSelectedTask,
+
+    viewType,
+    setViewType,
     openDrawer,
     setOpenDrawer,
     parentTaskId,
     setParentTaskId,
-    searchTerm,
-    setSearchTerm,
+
+    searchKeyword,
+    setSearchKeyword,
     filterStatus,
     setFilterStatus,
     filterAssignee,
     setFilterAssignee,
+    isAllExpanded,
+    setIsAllExpanded,
+
+    loading,
   };
 
   return <ProjectGlobalContext.Provider value={value}>{children}</ProjectGlobalContext.Provider>;
 }
 
-/* ----------------------------------------
- * ✅ 전역 훅
- * ---------------------------------------- */
 export function useProjectGlobal() {
   const ctx = useContext(ProjectGlobalContext);
   if (!ctx) throw new Error("useProjectGlobal must be used within ProjectGlobalProvider");

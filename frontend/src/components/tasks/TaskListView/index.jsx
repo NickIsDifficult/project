@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { Loader } from "../../common/Loader";
+import ViewHeaderSection from "../../projects/ViewHeaderSection";
 import TaskListTable from "./TaskListTable";
 import { useTaskList } from "./useTaskList";
 
@@ -59,6 +60,20 @@ export default function TaskListView() {
    * ---------------------------------------- */
   return (
     <div className="p-4">
+      {/* ✅ 공용 상단 헤더 (ViewHeaderSection) */}
+      <ViewHeaderSection
+        stats={hook.stats}
+        assigneeOptions={hook.assigneeOptions}
+        filterStatus={hook.filterStatus}
+        filterAssignee={hook.filterAssignee}
+        searchKeyword={hook.searchKeyword}
+        setSearchKeyword={hook.setSearchKeyword}
+        setFilterAssignee={hook.setFilterAssignee}
+        handleStatusFilter={hook.handleStatusFilter}
+        resetFilters={hook.resetFilters}
+      />
+
+      {/* ✅ 리스트 테이블 본문 */}
       <TaskListTable {...hook} onTaskClick={handleTaskClick} />
     </div>
   );

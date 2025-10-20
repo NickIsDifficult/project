@@ -165,6 +165,12 @@
         padding: 16px;
     }
 }
+
 /* 모달이 항상 최상단 */
-.pmodal-overlay { z-index: 9999; }
-.pmodal-card { z-index: 10000; }
+.pmodal-overlay {
+    z-index: 9999;
+}
+
+.pmodal-card {
+    z-index: 10000;
+}

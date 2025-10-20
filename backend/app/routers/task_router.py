@@ -39,7 +39,7 @@ def get_task_tree(
     )
 
     if not roots:
-        not_found("등록된 상위 업무가 없습니다.")
+        return []  # ✅ 빈 리스트 반환으로 UX 개선
 
     def build_tree(task):
         subtasks = (

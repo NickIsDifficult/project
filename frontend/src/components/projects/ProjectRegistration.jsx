@@ -256,11 +256,17 @@ export default function TaskRegistration({ onClose }) {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    setEmployees([
-      { emp_id: 1, name: "홍길동" },
-      { emp_id: 2, name: "김철수" },
-      { emp_id: 3, name: "이영희" },
-    ]);
+    const loadEmployees = async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/employees");
+        if (!response.ok) throw new Error("서버 응답 오류");
+        const data = await response.json();
+        setEmployees(data);
+      } catch (err) {
+        console.error("❌ 직원 목록 불러오기 실패:", err);
+      }
+    };
+    loadEmployees();
   }, []);
 
   // 파일 업로드
@@ -290,20 +296,40 @@ export default function TaskRegistration({ onClose }) {
     setTasks(newTasks);
   };
 
-  const handleSubmit = () => {
-    const payload = {
-      project_name: projectName,
-      description,
-      attachments: attachments.map(f => f.name),
-      priority,
-      startDate,
-      endDate,
-      main_assignees: mainAssignees,
-      tasks,
-    };
-    console.log("📤 전송 데이터:", JSON.stringify(payload, null, 2));
-    alert("✅ 저장 완료 (콘솔 확인)");
+  const handleSubmit = async () => {
+  const payload = {
+    project_name: projectName,
+    description,
+    start_date: startDate || null,
+    end_date: endDate || null,
+    status: "PLANNED",
+    owner_emp_id: 1, // ✅ 로그인 유저의 emp_id (백엔드에서 get_current_user로 대체 가능)
   };
+
+  try {
+    const response = await fetch("http://127.0.0.1:8000/projects", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`서버 응답 오류: ${errText}`);
+    }
+
+    const result = await response.json();
+    console.log("✅ 프로젝트 등록 성공:", result);
+    alert("프로젝트가 성공적으로 등록되었습니다!");
+    onClose?.();
+  } catch (err) {
+    console.error("❌ 프로젝트 등록 실패:", err);
+    alert("프로젝트 등록 중 오류 발생");
+  }
+};
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>

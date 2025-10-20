@@ -1,4 +1,3 @@
-// frontend/src/pages/Login/Login.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../../components/common/Button";
@@ -13,11 +12,21 @@ export default function Login() {
   const onSubmit = async e => {
     e.preventDefault();
     setError("");
+
     try {
-      const res = await login({ login_id: loginId, password });
-      localStorage.setItem("access_token", res.access_token);
+      // ✅ 로그인 요청 (FastAPI /auth/login)
+      const data = await login({ login_id: loginId, password });
+
+      // ✅ 로그인 성공 시 토큰과 사용자 정보 저장
+      localStorage.setItem("accessToken", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.member));
+
+      console.log("✅ 로그인 성공:", data.member);
+
+      // ✅ 메인 페이지로 이동
       nav("/main");
     } catch (err) {
+      console.error("🚨 로그인 실패:", err);
       const msg = err?.response?.data?.detail || "로그인 실패";
       setError(msg);
     }

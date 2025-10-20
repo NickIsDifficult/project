@@ -44,22 +44,19 @@ def create_access_token(data: dict, expires_minutes: int = ACCESS_TOKEN_EXPIRE_M
 def get_current_user(Authorization: str = Header(None), db=Depends(get_db)):
     """JWT 토큰에서 현재 사용자 추출"""
     if Authorization is None or not Authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="인증 헤더가 누락되었습니다.",
-        )
-
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="인증 헤더가 누락되었습니다.")
     token = Authorization.split(" ")[1]
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        login_id = payload.get("login_id")  # ✅ login_id 기반으로 변경
-        if not login_id:
+        member_id = payload.get("member_id")  # ✅ member_id 사용
+        if not member_id:
             raise HTTPException(status_code=401, detail="토큰에 사용자 정보가 없습니다.")
     except JWTError:
         raise HTTPException(status_code=401, detail="토큰이 유효하지 않습니다.")
 
-    user = db.query(Member).filter(Member.login_id == login_id).first()
+    user = db.query(Member).filter(Member.member_id == member_id).first()  # ✅ member_id로 조회
     if not user:
         raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
     return user

@@ -44,10 +44,49 @@ const Screen = () => {
   const nav = useNavigate();
   const [openSettings, setOpenSettings] = useState(false);
 
+   // ✅ 프로필 데이터 상태 선언
+  const [profile, setProfile] = useState({
+    name: "",
+    role_name: "",
+    current_state: "WORKING",
+  });
+
+  // ✅ 로그인 사용자 정보 가져오기
+  useEffect(() => {
+        // ✅ 로그인한 사용자 정보(localStorage에서 가져오기)
+    const storedUser = localStorage.getItem("user");
+    const token = localStorage.getItem("accessToken");
+
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      setProfile({
+        name: userData.name || "이름 없음",
+        role_name: userData.role_name || `직급 ID: ${userData.role_id ?? "?"}`,
+        current_state: "WORKING",
+      });
+    }
+
+    // ✅ DB 기준 최신 상태도 반영 (토큰이 있으면 /me 호출)
+    if (token) {
+      (async () => {
+        try {
+          const res = await fetch("http://localhost:8000/api/member/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error("데이터 요청 실패");
+          const data = await res.json();
+          console.log("📥 로그인 사용자 정보:", data);
+          setProfile(prev => ({ ...prev, current_state: data.current_state }));
+        } catch (err) {
+          console.error("프로필 불러오기 실패:", err);
+        }
+      })();
+    }
+  }, []);
   // 모달 타입 → 임시 라우트 매핑
   const modalToPath = {
     ann: "/notices",
-    proj: "/dashboard",
+    proj: "/projects",
     noti: "/alerts",
     cal: "/calendar",
   };
@@ -155,8 +194,8 @@ const Screen = () => {
             className="view-5"
             role="button"
             tabIndex={0}
-            onClick={() => nav("/NoticeBoard")}
-            onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/NoticeBoard")}
+            onClick={() => nav("/notices")}
+            onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/notices")}
           >
             <div className="rectangle-4" />
             <div className="text-wrapper">공지사항</div>
@@ -240,8 +279,8 @@ const Screen = () => {
               className="view-10"
               role="button"
               tabIndex={0}
-              onClick={() => nav("/Projects")}
-              onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/my-tasks")}
+              onClick={() => nav("/projects")}
+              onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/projects")}
             >
               <div className="rectangle-4" />
               <div className="text-wrapper">내 업무</div>
@@ -375,8 +414,41 @@ const Screen = () => {
 
       {/* 프로필 카드 */}
       <div className="view-16">
-        <div className="ellipse" />
-        <div className="ellipse-2" />
+        {/* 큰 원 (프로필 이미지) */}
+        <div className="ellipse">
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/847/847969.png"
+            alt="프로필"
+            className="profile-img"
+          />
+        </div>
+
+        {/* 작은 원 (상태 표시) */}
+        <div
+          className="ellipse-2"
+          style={{
+            backgroundColor: {
+              WORKING: "#2ecc71", // 초록
+              AWAY: "#f1c40f",    // 노랑
+              FIELD: "#e74c3c",   // 빨강
+              OFF: "#9e9e9e",     // 회색
+            }[profile.current_state],
+          }}
+          title={
+            {
+              WORKING: "업무중",
+              AWAY: "자리비움",
+              FIELD: "외근",
+              OFF: "퇴근",
+            }[profile.current_state]
+          }
+        />
+
+        {/* 이름 / 직급 텍스트 */}
+        <div className="profile-info">
+          <div className="profile-name">{profile.name || "이름 없음"}</div>
+          <div className="profile-role">{profile.role_name || "직급 없음"}</div>
+        </div>
       </div>
 
       {/* 좌하단 고정: 설정 / 직원관리 */}

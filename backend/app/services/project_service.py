@@ -63,20 +63,17 @@ def create_project(
 # -------------------------------
 # ✅ 프로젝트 수정
 # -------------------------------
-def update_project(
-    db: Session, project: models.Project, request: schemas.project.ProjectUpdate
-):
-    """기존 프로젝트 수정"""
-    try:
-        update_data = request.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(project, key, value)
-        db.commit()
-        db.refresh(project)
-        return project
-    except Exception as e:
-        db.rollback()
-        bad_request(f"프로젝트 수정 중 오류: {str(e)}")
+def update_project(db: Session, project: models.Project, request: schemas.project.ProjectUpdate):
+    """프로젝트 정보 업데이트"""
+    update_data = request.dict(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(project, key, value)
+
+    db.commit()
+    db.refresh(project)
+    return project
+
 
 
 # -------------------------------

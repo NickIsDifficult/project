@@ -1,0 +1,67 @@
+{
+  // -----------------------------
+  // 🌐 공통 설정
+  // -----------------------------
+  "editor.formatOnSave": true,
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  // -----------------------------
+  // 🧩 프론트엔드 (React / Vite)
+  // -----------------------------
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // ✅ 저장 시 ESLint + import 정렬 + Prettier 자동 적용
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.alwaysShowStatus": true,
+  "eslint.format.enable": true,
+
+  // -----------------------------
+  // 🐍 백엔드 (FastAPI / Python)
+  // -----------------------------
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  },
+
+  // ✅ Black + isort 통합
+  "isort.args": ["--profile", "black"],
+
+  // -----------------------------
+  // 🧠 Python 분석 옵션 (권장)
+  // -----------------------------
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.typeCheckingMode": "basic",
+
+  // -----------------------------
+  // ⚙️ 기타 (타임아웃 / API 키 / 편의)
+  // -----------------------------
+  "editor.codeActionsOnSaveTimeout": 2000,
+  "window.zoomLevel": 0,
+  "workbench.iconTheme": "material-icon-theme",
+
+  // ✅ CodeGPT / ChatGPT 연동 (선택)
+  "CodeGPT.apiKey": "CodeGPT Plus Beta"
+}

@@ -1,0 +1,170 @@
+/* overlay: 배경 */
+.pmodal-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    /* 중앙 초기 배치는 JS에서 좌표 계산 */
+    align-items: center;
+    justify-content: center;
+    background: rgba(12, 18, 26, 0.55);
+    z-index: 1000;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* card: 드래그 가능하도록 fixed + 좌표제어 */
+.pmodal-card {
+    position: fixed;
+    /* 중요: 드래그 좌표 적용 */
+    width: 420px;
+    max-width: calc(100% - 40px);
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    padding: 20px 20px 18px;
+    box-sizing: border-box;
+    font-family: "Noto Sans KR", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* 닫기 버튼 */
+.pmodal-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 6px;
+}
+
+/* 헤더: 드래그 핸들 */
+.pmodal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    cursor: move;
+    /* 드래그 커서 */
+    user-select: none;
+    /* 텍스트 선택 방지 */
+}
+
+.pmodal-avatar-frame {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #e6eefc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 48px;
+}
+
+.pmodal-avatar {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    display: block;
+}
+
+.pmodal-title {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 600;
+    color: #0b3a7a;
+}
+
+/* 폼 */
+.pmodal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.pmodal-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: #24303f;
+}
+
+.pmodal-input {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #d7dee9;
+    font-size: 14px;
+    outline: none;
+    transition: box-shadow .12s, border-color .12s;
+}
+
+.pmodal-input:focus {
+    border-color: #6fa0ff;
+    box-shadow: 0 0 0 4px rgba(79, 130, 255, 0.08);
+}
+
+.pmodal-input--error {
+    border-color: #ef4444;
+}
+
+.pmodal-error {
+    color: #dc2626;
+    font-size: 12px;
+}
+
+/* 비밀번호 그룹 */
+.pmodal-fieldset {
+    border: 1px solid #e6e9ef;
+    border-radius: 10px;
+    padding: 12px;
+    margin: 4px 0 2px;
+}
+
+.pmodal-legend {
+    font-size: 12px;
+    color: #4b5563;
+    padding: 0 6px;
+}
+
+/* 액션 */
+.pmodal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.pmodal-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.pmodal-btn--ghost {
+    background: #fff;
+    color: #374151;
+    border-color: #e6e9ef;
+}
+
+.pmodal-btn--primary {
+    background: #3071ea;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 8px;
+}
+
+@media (max-width: 480px) {
+    .pmodal-card {
+        width: 100%;
+        padding: 16px;
+    }
+}
+/* 모달이 항상 최상단 */
+.pmodal-overlay { z-index: 9999; }
+.pmodal-card { z-index: 10000; }

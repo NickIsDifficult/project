@@ -1,0 +1,20 @@
+/* 상태별 색상 */
+.status-TODO .bar {
+    fill: #e0e0e0 !important;
+  }
+  .status-IN_PROGRESS .bar {
+    fill: #90caf9 !important;
+  }
+  .status-REVIEW .bar {
+    fill: #ffcc80 !important;
+  }
+  .status-DONE .bar {
+    fill: #81c784 !important;
+  }
+  
+  /* 오늘 날짜 기준 수직선 강조 */
+  .gantt .current-highlight {
+    stroke: #ff5252 !important;
+    stroke-width: 2px;
+  }
+  

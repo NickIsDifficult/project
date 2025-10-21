@@ -4,9 +4,10 @@ import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 import { useProjectMembers } from "../../hooks/useProjectMembers";
 import api from "../../services/api/http";
 
-/* ------------------------------
- * 담당자 선택
- * ------------------------------ */
+// =========================================
+// ✅ 담당자 선택 컴포넌트
+// =========================================
+
 function AssigneeSelector({ employees, selected, setSelected }) {
   const [query, setQuery] = useState("");
   const filtered = employees.filter(
@@ -33,7 +34,11 @@ function AssigneeSelector({ employees, selected, setSelected }) {
             >
               {emp?.name}
               <button
-                style={{ border: "none", background: "transparent", cursor: "pointer" }}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                }}
                 onClick={() => setSelected(selected.filter(sid => sid !== id))}
               >
                 ✕
@@ -69,7 +74,11 @@ function AssigneeSelector({ employees, selected, setSelected }) {
           {filtered.map(emp => (
             <div
               key={emp.emp_id}
-              style={{ padding: 8, cursor: "pointer", borderBottom: "1px solid #eee" }}
+              style={{
+                padding: 8,
+                cursor: "pointer",
+                borderBottom: "1px solid #eee",
+              }}
               onClick={() => {
                 setSelected([...selected, emp.emp_id]);
                 setQuery("");
@@ -85,11 +94,11 @@ function AssigneeSelector({ employees, selected, setSelected }) {
   );
 }
 
-/* ------------------------------
- * 재귀 업무 노드
- * ------------------------------ */
+// =========================================
+// ✅ 재귀형 업무 노드 (같은레벨 & 하위업무)
+// =========================================
 function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetails, setShowDetails] = useState(false); // ✅ 상세입력 기본 닫힘
 
   const handleAddChild = () => {
     const newChild = {
@@ -129,13 +138,19 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
         marginTop: 10,
       }}
     >
+      {/* 제목줄 */}
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <input
           placeholder="업무 제목"
           value={task.title}
           onChange={e => onUpdate({ ...task, title: e.target.value })}
           onKeyDown={handleKeyDown}
-          style={{ flex: 1, padding: "4px 8px", borderRadius: 6, border: "1px solid #ccc" }}
+          style={{
+            flex: 1,
+            padding: "4px 8px",
+            borderRadius: 6,
+            border: "1px solid #ccc",
+          }}
         />
         <button
           onClick={() => setShowDetails(!showDetails)}
@@ -152,13 +167,28 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
         </button>
         <button onClick={handleAddSibling}>➕ 업무 추가</button>
         <button onClick={handleAddChild}>↳ 하위업무 추가</button>
-        <button style={{ color: "crimson", border: "none", background: "transparent" }} onClick={handleDelete}>
+        <button
+          onClick={handleDelete}
+          style={{
+            color: "crimson",
+            border: "none",
+            background: "transparent",
+          }}
+        >
           ✕
         </button>
       </div>
 
+      {/* 상세입력 (토글) */}
       {showDetails && (
-        <div style={{ background: "#f9f9f9", borderRadius: 8, padding: 8, marginTop: 8 }}>
+        <div
+          style={{
+            background: "#f9f9f9",
+            borderRadius: 8,
+            padding: 8,
+            marginTop: 8,
+          }}
+        >
           <div style={{ marginBottom: 6 }}>
             <label>시작일</label>
             <input
@@ -187,6 +217,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
         </div>
       )}
 
+      {/* 하위 업무 (재귀) */}
       {task.children.map((child, index) => (
         <TaskNode
           key={child.id}
@@ -213,10 +244,10 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
   );
 }
 
-/* ------------------------------
- * 메인 등록 컴포넌트
- * ------------------------------ */
-export default function ProjectRegistration({ onClose }) {
+// =========================================
+// ✅ 메인 등록 컴포넌트
+// =========================================
+export default function TaskRegistration({ onClose }) {
   const [projectName, setProjectName] = useState("");
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState([]);
@@ -235,18 +266,26 @@ export default function ProjectRegistration({ onClose }) {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
+        // 프로젝트 선택이 안 되어 있으면 전체 직원 불러오기
         if (!selectedProjectId) {
           const res = await api.get("/employees");
+          console.log("✅ 전체 직원 목록 로드:", res.data);
           setEmployees(res.data);
         } else {
-          if (!loading) setEmployees(members);
+          // 선택된 프로젝트가 있을 때는 기존 로직 유지
+          if (!loading) {
+            console.log("🧩 members from hook:", members);
+            setEmployees(members);
+          }
         }
       } catch (err) {
         console.error("❌ 직원 목록 불러오기 실패:", err);
       }
     };
+
     fetchEmployees();
   }, [selectedProjectId, members, loading]);
+  // 파일 업로드
 
   const handleFileChange = e => {
     const file = e.target.files?.[0];
@@ -254,8 +293,16 @@ export default function ProjectRegistration({ onClose }) {
   };
   const handleFileDelete = index => setAttachments(prev => prev.filter((_, i) => i !== index));
 
+  // 최상위 업무 추가
   const handleAddRootTask = () => {
-    const newTask = { id: Date.now(), title: "", startDate: "", endDate: "", assignees: [], children: [] };
+    const newTask = {
+      id: Date.now(),
+      title: "",
+      startDate: "",
+      endDate: "",
+      assignees: [],
+      children: [],
+    };
     setTasks([...tasks, newTask]);
   };
 
@@ -294,10 +341,12 @@ export default function ProjectRegistration({ onClose }) {
       })),
     };
 
+    console.log("📤 전송 payload:", payload);
+
     try {
-      // 🔥 반드시 full-create 호출
-      await api.post("/projects/full-create", payload);
-      toast.success("✅ 프로젝트와 업무가 함께 등록되었습니다!");
+      // ✅ 기존 full-create → projects 로 교체
+      await api.post("/projects", payload);
+      toast.success("✅ 프로젝트가 등록되었습니다!");
       onClose?.();
     } catch (err) {
       console.error("❌ 등록 실패:", err);
@@ -309,9 +358,15 @@ export default function ProjectRegistration({ onClose }) {
     <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
       <h2>📌 프로젝트 등록</h2>
 
+      {/* 기본정보 */}
       <label>프로젝트 이름</label>
-      <input value={projectName} onChange={e => setProjectName(e.target.value)} style={{ width: "100%", marginBottom: 12 }} />
+      <input
+        value={projectName}
+        onChange={e => setProjectName(e.target.value)}
+        style={{ width: "100%", marginBottom: 12 }}
+      />
 
+      {/* 상세입력 */}
       <button
         onClick={() => setShowDetails(!showDetails)}
         style={{
@@ -330,11 +385,25 @@ export default function ProjectRegistration({ onClose }) {
       {showDetails && (
         <div style={{ background: "#f9f9f9", padding: 12, borderRadius: 8 }}>
           <label>시작일</label>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+          <input
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            style={{ width: "100%", marginBottom: 8 }}
+          />
           <label>종료일</label>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+          <input
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+            style={{ width: "100%", marginBottom: 8 }}
+          />
           <label>우선순위</label>
-          <select value={priority} onChange={e => setPriority(e.target.value)} style={{ width: "100%" }}>
+          <select
+            value={priority}
+            onChange={e => setPriority(e.target.value)}
+            style={{ width: "100%" }}
+          >
             <option value="LOW">낮음</option>
             <option value="MEDIUM">보통</option>
             <option value="HIGH">높음</option>
@@ -343,25 +412,50 @@ export default function ProjectRegistration({ onClose }) {
 
           <div style={{ marginTop: 12 }}>
             <strong>상위업무 담당자:</strong>
-            <AssigneeSelector employees={employees} selected={mainAssignees} setSelected={setMainAssignees} />
+            <AssigneeSelector
+              employees={employees}
+              selected={mainAssignees}
+              setSelected={setMainAssignees}
+            />
           </div>
         </div>
       )}
 
+      {/* 설명 */}
       <label style={{ marginTop: 12 }}>프로젝트 설명</label>
       <textarea
         placeholder="프로젝트 설명을 입력하세요..."
         value={description}
         onChange={e => setDescription(e.target.value)}
-        style={{ width: "100%", minHeight: 80, padding: 8, borderRadius: 6, border: "1px solid #ccc", resize: "none" }}
+        style={{
+          width: "100%",
+          minHeight: 80,
+          padding: 8,
+          borderRadius: 6,
+          border: "1px solid #ccc",
+          resize: "none",
+        }}
       />
 
+      {/* 첨부파일 */}
       <div style={{ marginTop: 20 }}>
         <h3>📎 첨부파일</h3>
-        <input type="file" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
         <button
           onClick={() => fileInputRef.current?.click()}
-          style={{ background: "#1976d2", color: "white", border: "none", borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}
+          style={{
+            background: "#1976d2",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 12px",
+            cursor: "pointer",
+          }}
         >
           📤 첨부파일 추가
         </button>
@@ -370,12 +464,25 @@ export default function ProjectRegistration({ onClose }) {
             {attachments.map((file, index) => (
               <li
                 key={index}
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #eee", padding: "4px 0" }}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderBottom: "1px solid #eee",
+                  padding: "4px 0",
+                }}
               >
                 <span>{file.name}</span>
                 <button
                   onClick={() => handleFileDelete(index)}
-                  style={{ background: "crimson", color: "white", border: "none", borderRadius: 4, padding: "4px 8px", cursor: "pointer" }}
+                  style={{
+                    background: "crimson",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 4,
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                  }}
                 >
                   삭제
                 </button>
@@ -385,6 +492,7 @@ export default function ProjectRegistration({ onClose }) {
         )}
       </div>
 
+      {/* 업무 구조 */}
       <div style={{ marginTop: 20 }}>
         <h3>📋 하위 업무</h3>
         {tasks.map((task, index) => (
@@ -396,23 +504,40 @@ export default function ProjectRegistration({ onClose }) {
             depth={0}
             onAddSibling={() => {
               const newTasks = [...tasks];
-              const newTask = { id: Date.now(), title: "", startDate: "", endDate: "", assignees: [], children: [] };
+              const newTask = {
+                id: Date.now(),
+                title: "",
+                startDate: "",
+                endDate: "",
+                assignees: [],
+                children: [],
+              };
               newTasks.splice(index + 1, 0, newTask);
               setTasks(newTasks);
             }}
           />
         ))}
 
+        {/* ✅ 최상위 업무 추가 버튼 (없을 때만 표시) */}
         {tasks.length === 0 && (
           <button
             onClick={handleAddRootTask}
-            style={{ marginTop: 10, background: "#1976d2", color: "white", border: "none", borderRadius: 6, padding: "8px 12px", cursor: "pointer" }}
+            style={{
+              marginTop: 10,
+              background: "#1976d2",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 12px",
+              cursor: "pointer",
+            }}
           >
             ➕ 업무 추가
           </button>
         )}
       </div>
 
+      {/* 하단 버튼 */}
       <div
         style={{
           paddingTop: 12,

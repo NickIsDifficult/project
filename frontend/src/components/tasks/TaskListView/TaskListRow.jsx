@@ -121,12 +121,12 @@ export default function TaskListRow({
         {/* ✅ 담당자 */}
         {/* ---------------------------- */}
         <td style={td}>
-          {task.assignees?.length ? (
-            <span>{task.assignees.map(a => a.name).join(", ")}</span>
-          ) : (
-            <span style={{ color: "#999" }}>— 미지정 —</span>
-          )}
-        </td>
+  {task.assignees?.length ? (
+    <span>{task.assignees.map(a => a.name).join(", ")}</span>
+  ) : (
+    <span style={{ color: "#999" }}>— 미지정 —</span>
+  )}
+</td>
 
         {/* ---------------------------- */}
         {/* ✅ 기간 */}

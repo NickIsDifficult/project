@@ -7,6 +7,7 @@ import api from "../../services/api/http";
 // =========================================
 // ✅ 담당자 선택 컴포넌트
 // =========================================
+
 function AssigneeSelector({ employees, selected, setSelected }) {
   const [query, setQuery] = useState("");
   const filtered = employees.filter(
@@ -263,10 +264,29 @@ export default function TaskRegistration({ onClose }) {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (!loading) setEmployees(members);
-  }, [members, loading]);
+    const fetchEmployees = async () => {
+      try {
+        // 프로젝트 선택이 안 되어 있으면 전체 직원 불러오기
+        if (!selectedProjectId) {
+          const res = await api.get("/employees");
+          console.log("✅ 전체 직원 목록 로드:", res.data);
+          setEmployees(res.data);
+        } else {
+          // 선택된 프로젝트가 있을 때는 기존 로직 유지
+          if (!loading) {
+            console.log("🧩 members from hook:", members);
+            setEmployees(members);
+          }
+        }
+      } catch (err) {
+        console.error("❌ 직원 목록 불러오기 실패:", err);
+      }
+    };
 
+    fetchEmployees();
+  }, [selectedProjectId, members, loading]);
   // 파일 업로드
+
   const handleFileChange = e => {
     const file = e.target.files?.[0];
     if (file) setAttachments(prev => [...prev, file]);
@@ -300,6 +320,7 @@ export default function TaskRegistration({ onClose }) {
       start_date: startDate || null,
       end_date: endDate || null,
       status: "PLANNED",
+      main_assignees: mainAssignees,
       tasks: tasks.map(t => ({
         title: t.title,
         description: t.description || "",
@@ -320,9 +341,12 @@ export default function TaskRegistration({ onClose }) {
       })),
     };
 
+    console.log("📤 전송 payload:", payload);
+
     try {
-      await api.post("/projects/full-create", payload);
-      toast.success("✅ 프로젝트와 업무가 함께 등록되었습니다!");
+      // ✅ 기존 full-create → projects 로 교체
+      await api.post("/projects", payload);
+      toast.success("✅ 프로젝트가 등록되었습니다!");
       onClose?.();
     } catch (err) {
       console.error("❌ 등록 실패:", err);

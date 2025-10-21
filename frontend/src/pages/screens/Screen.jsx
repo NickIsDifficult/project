@@ -45,44 +45,105 @@ const Screen = () => {
   const [openSettings, setOpenSettings] = useState(false);
 
    // ✅ 프로필 데이터 상태 선언
-  const [profile, setProfile] = useState({
-    name: "",
-    role_name: "",
-    current_state: "WORKING",
-  });
+ const [profile, setProfile] = useState({
+  name: "",
+  role_name: "",
+  email: "",
+  current_state: "WORKING",
+});
 
   // ✅ 로그인 사용자 정보 가져오기
   useEffect(() => {
-        // ✅ 로그인한 사용자 정보(localStorage에서 가져오기)
-    const storedUser = localStorage.getItem("user");
-    const token = localStorage.getItem("accessToken");
+  const storedUser = localStorage.getItem("user");
+  const token = localStorage.getItem("accessToken");
 
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setProfile({
-        name: userData.name || "이름 없음",
-        role_name: userData.role_name || `직급 ID: ${userData.role_id ?? "?"}`,
-        current_state: "WORKING",
-      });
-    }
+  if (storedUser) {
+    const userData = JSON.parse(storedUser);
+    setProfile({
+    name: userData.name || "이름 없음",
+    role_name: userData.role_name || `직급 ID: ${userData.role_id ?? "?"}`,
+    email: userData.email || "이메일 없음",
+    current_state: userData.current_state || "WORKING", // ✅ localStorage 값 우선
+  });
+  }
 
-    // ✅ DB 기준 최신 상태도 반영 (토큰이 있으면 /me 호출)
-    if (token) {
-      (async () => {
-        try {
-          const res = await fetch("http://localhost:8000/api/member/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!res.ok) throw new Error("데이터 요청 실패");
-          const data = await res.json();
-          console.log("📥 로그인 사용자 정보:", data);
-          setProfile(prev => ({ ...prev, current_state: data.current_state }));
-        } catch (err) {
-          console.error("프로필 불러오기 실패:", err);
+  if (token) {
+    (async () => {
+      try {
+        // ✅ 로그인 사용자 ID 동적 적용
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const memberId = storedUser?.member_id ?? 1;
+
+      const res = await fetch(`http://localhost:8000/api/member/update-info/${memberId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("데이터 요청 실패");
+        const data = await res.json();
+        console.log("📥 로그인 사용자 정보:", data);
+
+        // ✅ localStorage 즉시 저장 및 반영
+        const updated = {
+          name: data.name ?? profile.name,
+          role_name: data.role_name ?? profile.role_name,
+          email: data.email ?? profile.email,
+          current_state: data.current_state ?? profile.current_state,
+        };
+        localStorage.setItem("user", JSON.stringify(updated));
+        // ✅ 전역 동기화 이벤트 (AppShell, Sidebar 등 실시간 반영)
+        window.dispatchEvent(new Event("userDataChanged"));
+
+        // ✅ 상태를 즉시 반영
+        setProfile((prev) => ({
+          name: newData.name ?? prev.name,
+          role_name: newData.role_name ?? prev.role_name,
+          email: newData.email ?? prev.email,
+          current_state:
+            (newData.current_state ?? body.current_state ?? prev.current_state).toUpperCase(),
+        }));
+
+        // ✅ localStorage 재동기화 (최신 상태 보존)
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          parsed.name = newData.name ?? parsed.name;
+          parsed.email = newData.email ?? parsed.email;
+          parsed.role_name = newData.role_name ?? parsed.role_name;
+          parsed.current_state =
+            (newData.current_state ?? body.current_state ?? parsed.current_state).toUpperCase();
+          localStorage.setItem("user", JSON.stringify(parsed));
         }
-      })();
+        setProfile(updated);
+        // ✅ 이메일과 상태 모두 업데이트
+        setProfile(prev => ({
+          ...prev,
+          current_state: data.current_state ?? prev.current_state,
+          email: data.email ?? prev.email,
+          name: data.name ?? prev.name,
+          role_name: data.role_name ?? prev.role_name,
+        }));
+      } catch (err) {
+        console.error("프로필 불러오기 실패:", err);
+      }
+    })();
+  }
+}, []);
++
++// ✅ localStorage 변경 시 자동 동기화
+useEffect(() => {
+  const syncUser = () => {
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      setProfile(prev => ({
+        ...prev,
+        ...parsed,
+        current_state: parsed.current_state || prev.current_state,
+      }));
     }
-  }, []);
+  };
+  window.addEventListener("userDataChanged", syncUser);
+  return () => window.removeEventListener("userDataChanged", syncUser);
+}, []);
   // 모달 타입 → 임시 라우트 매핑
   const modalToPath = {
     ann: "/notices",
@@ -156,8 +217,10 @@ const Screen = () => {
             className="view-3"
             role="button"
             tabIndex={0}
-            onClick={() => nav("/TrashBin")}
-            onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/TrashBin")}
+
+             // ✅ 경로 정합성 (라우터와 일치)
+           onClick={() => nav("/trash-bin")}
+           onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && nav("/trash-bin")}
           >
             <div className="rectangle-4" />
             <div className="text-wrapper">휴지통</div>
@@ -478,15 +541,120 @@ const Screen = () => {
         </div>
       </div>
       {/* ===== 개인정보 수정 팝업 (드래그 가능) ===== */}
-      <PersonalInfoModal
-        open={openSettings}
-        initial={{ status: "WORKING", name: "홍길동", email: "test@example.com" }}
-        onClose={() => setOpenSettings(false)}
-        onSave={payload => {
-          console.log("settings save:", payload); // TODO: 백엔드 연동
-          setOpenSettings(false);
-        }}
-      />
+<PersonalInfoModal
+  open={openSettings}
+  key={profile.current_state}
+  initial={{
+    status: "업무상태변경", // ✅ 기본값
+    name: profile.name,
+    email: profile.email || "이메일 없음",
+  }}
+  onClose={() => setOpenSettings(false)}
+  onSave={async (payload) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        alert("로그인이 필요합니다.");
+        return;
+      }
+
+      // ✅ 상태 Enum 매핑
+      const REVERSE_STATE = {
+        업무중: "WORKING",
+        외근: "FIELD",
+        자리비움: "AWAY",
+        퇴근: "OFF",
+      };
+
+      // ✅ 변경사항 body 구성
+      const body = {
+        name: payload.name,
+        email: payload.email,
+      };
+
+      // ✅ 상태가 ‘업무상태변경’이 아닐 때만 업데이트 반영
+      if (payload.status !== "업무상태변경") {
+        body.current_state = REVERSE_STATE[payload.status] || payload.status;
+      }
+
+      if (payload.password?.current && payload.password?.next) {
+        body.password = {
+          current: payload.password.current,
+          next: payload.password.next,
+        };
+      }
+
+      // ✅ 정보 업데이트 요청
+      const res = await fetch("http://localhost:8000/api/member/update-info/1", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) throw new Error("업데이트 실패");
+      const data = await res.json();
+      console.log("✅ 업데이트 완료:", data);
+
+      // ✅ 즉시 반영
+      setProfile((prev) => ({
+        name: body.name ?? prev.name,
+        role_name: prev.role_name,
+        email: body.email ?? prev.email,
+        current_state:
+          body.current_state
+            ? (body.current_state || "").toUpperCase()
+            : prev.current_state,
+      }));
+
+      // ✅ 최신 정보 다시 불러오기 (상태 보정)
+      const reload = await fetch("http://localhost:8000/api/member/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (reload.ok) {
+        const newData = await reload.json();
+        console.log("📥 갱신된 내 정보:", newData);
+
+        // ✅ localStorage 저장 및 다른 컴포넌트로 이벤트 송출
+        const updated = {
+            ...newData,
+         role_name: newData.role_name ?? stored.role_name ?? prev.role_name, // ✅ 직급 보존
+         current_state: (newData.current_state ?? body.current_state ?? prev.current_state).toUpperCase(),
+        };
+        localStorage.setItem("user", JSON.stringify(updated));
+        window.dispatchEvent(new Event("userDataChanged"));
+
+        setProfile((prev) => ({
+          name: newData.name ?? prev.name,
+          role_name: newData.role_name ?? prev.role_name,
+          email: newData.email ?? prev.email,
+          current_state:
+            (newData.current_state ?? body.current_state ?? prev.current_state).toUpperCase(),
+        }));
+
+        // ✅ localStorage 동기화
+        const stored = localStorage.getItem("user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          parsed.name = newData.name ?? parsed.name;
+          parsed.email = newData.email ?? parsed.email;
+          parsed.role_name = newData.role_name ?? parsed.role_name;
+          parsed.current_state =
+            (newData.current_state ?? body.current_state ?? parsed.current_state).toUpperCase();
+          localStorage.setItem("user", JSON.stringify(parsed));
+        }
+      }
+    } catch (err) {
+      console.error("❌ 설정 업데이트 실패:", err);
+      alert("정보 저장 중 오류가 발생했습니다.");
+    } finally {
+      setOpenSettings(false);
+    }
+  }}
+/>
+
     </div>
   );
 };

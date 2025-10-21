@@ -4,16 +4,17 @@ import "./personal-modal.css";
 import vector from "./vector.svg";
 
 export default function PersonalInfoModal({ open, onClose, onSave, initial = {} }) {
-  const STATUS_OPTIONS = useMemo(
-    () => [
-      { value: "WORKING", label: "업무중" },
-      { value: "FIELD", label: "외근" },
-      { value: "AWAY", label: "자리비움" },
-      { value: "OFF", label: "퇴근" },
-    ],
-    []
-  );
-
+  // ✅ PersonalInfoModal.jsx 내부
+const STATUS_OPTIONS = useMemo(
+  () => [
+    { value: "업무상태변경", label: "업무상태변경" }, // 새 항목
+    { value: "WORKING", label: "업무중" },
+    { value: "FIELD", label: "외근" },
+    { value: "AWAY", label: "자리비움" },
+    { value: "OFF", label: "퇴근" },
+  ],
+  []
+);
   const [status, setStatus] = useState(initial.status || "WORKING");
   const [name, setName] = useState(initial.name || "");
   const [email, setEmail] = useState(initial.email || "");
@@ -108,9 +109,31 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
   const handleSave = (e) => {
     e.preventDefault();
     if (!validate()) return;
+    // ✅ 저장할 payload 구성
     const payload = { status, name: name.trim(), email: email.trim() };
-    if (curPw || nextPw || nextPw2) payload.password = { current: curPw, next: nextPw };
+    if (curPw || nextPw || nextPw2) {
+      payload.password = { current: curPw, next: nextPw };
+    }
+
+    // ✅ 1) 상위 컴포넌트(AppShell/Screen)로 저장 요청
     onSave?.(payload);
+
+    // ✅ 2) localStorage에도 즉시 반영 (화면 갱신 지연 방지)
+    const stored = JSON.parse(localStorage.getItem("user") || "{}");
+    const merged = {
+      ...stored,
+      name: payload.name ?? stored.name,
+      email: payload.email ?? stored.email,
+      current_state: payload.status
+        ? (payload.status === "업무상태변경"
+            ? stored.current_state
+            : (payload.status || stored.current_state).toUpperCase())
+        : stored.current_state,
+    };
+    localStorage.setItem("user", JSON.stringify(merged));
+
+    // ✅ 3) 전역 동기화 이벤트 발행 (AppShell, Screen 즉시 반영)
+    window.dispatchEvent(new Event("userDataChanged"));
   };
 
   return (

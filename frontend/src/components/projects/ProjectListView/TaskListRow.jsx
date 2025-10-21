@@ -1,23 +1,11 @@
+// src/components/projects/ProjectListView/TaskListRow.jsx
 import Button from "../../common/Button";
-
-const STATUS_LABELS = {
-  TODO: "할 일",
-  IN_PROGRESS: "진행 중",
-  REVIEW: "검토 중",
-  DONE: "완료",
-};
-
-const STATUS_COLORS = {
-  TODO: "#eeeeee",
-  IN_PROGRESS: "#bbdefb",
-  REVIEW: "#ffe0b2",
-  DONE: "#c8e6c9",
-};
+import { STATUS_COLORS, STATUS_LABELS } from "../../projects/constants/statusMaps";
 
 /**
  * ✅ TaskListRow (프로젝트/업무 통합 재귀형)
  * - project → main task → subtask → detailtask 구조
- * - project도 트리 구조의 루트 노드로 포함됨
+ * - 프로젝트도 트리 루트로 포함됨
  */
 export default function TaskListRow({
   task,
@@ -34,9 +22,6 @@ export default function TaskListRow({
   collapsedTasks,
   toggleCollapse,
 }) {
-  // ---------------------------------------------
-  // ✅ 고유 ID 계산 (프로젝트 / 업무 모두 지원)
-  // ---------------------------------------------
   const effectiveId = task.isProject ? `proj-${task.project_id}` : `task-${task.task_id}`;
   const numericId = task.isProject ? task.project_id : task.task_id;
   const isProject = !!task.isProject;
@@ -53,9 +38,7 @@ export default function TaskListRow({
           fontWeight: isProject ? 700 : 400,
         }}
       >
-        {/* ---------------------------- */}
         {/* ✅ 업무명 / 프로젝트명 */}
-        {/* ---------------------------- */}
         <td style={{ ...td, paddingLeft }}>
           {editingId === effectiveId ? (
             <>
@@ -97,16 +80,14 @@ export default function TaskListRow({
           )}
         </td>
 
-        {/* ---------------------------- */}
         {/* ✅ 상태 */}
-        {/* ---------------------------- */}
         <td style={td}>
           <select
-            value={task.status || "TODO"}
+            value={task.status || "PLANNED"}
             onChange={e => onStatusChange(task, e.target.value)}
             style={{
               ...selectStyle,
-              background: STATUS_COLORS[task.status || "TODO"],
+              background: STATUS_COLORS[task.status || "PLANNED"],
             }}
           >
             {Object.entries(STATUS_LABELS).map(([key, label]) => (
@@ -117,20 +98,16 @@ export default function TaskListRow({
           </select>
         </td>
 
-        {/* ---------------------------- */}
         {/* ✅ 담당자 */}
-        {/* ---------------------------- */}
         <td style={td}>
-  {task.assignees?.length ? (
-    <span>{task.assignees.map(a => a.name).join(", ")}</span>
-  ) : (
-    <span style={{ color: "#999" }}>— 미지정 —</span>
-  )}
-</td>
+          {task.assignees?.length ? (
+            <span>{task.assignees.map(a => a.name).join(", ")}</span>
+          ) : (
+            <span style={{ color: "#999" }}>— 미지정 —</span>
+          )}
+        </td>
 
-        {/* ---------------------------- */}
         {/* ✅ 기간 */}
-        {/* ---------------------------- */}
         <td style={td}>
           {task.start_date && task.due_date ? (
             `${task.start_date} ~ ${task.due_date}`
@@ -139,9 +116,7 @@ export default function TaskListRow({
           )}
         </td>
 
-        {/* ---------------------------- */}
         {/* ✅ 액션버튼 */}
-        {/* ---------------------------- */}
         <td style={{ ...td, textAlign: "center", whiteSpace: "nowrap" }}>
           {editingId === effectiveId ? (
             <>
@@ -187,9 +162,7 @@ export default function TaskListRow({
         </td>
       </tr>
 
-      {/* ---------------------------- */}
       {/* ✅ 하위 업무 재귀 렌더링 */}
-      {/* ---------------------------- */}
       {hasSubtasks &&
         !isCollapsed &&
         task.subtasks.map(sub => (

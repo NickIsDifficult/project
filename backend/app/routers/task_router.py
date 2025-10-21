@@ -10,7 +10,6 @@ from app.schemas import attachment as attachment_schema
 from app.services import attachment_service, task_service
 from app.utils.token import get_current_user
 
-# ✅ /projects/... 으로 시작
 router = APIRouter(prefix="/projects", tags=["tasks"])
 
 # =====================================================
@@ -33,7 +32,7 @@ def get_task_tree(
     )
 
     if not roots:
-        return []  # ✅ 빈 리스트 반환으로 UX 개선
+        return []
 
     def build_tree(task):
         subtasks = (
@@ -50,8 +49,15 @@ def get_task_tree(
             "priority": task.priority,
             "start_date": task.start_date,
             "due_date": task.due_date,
-            "assignee_emp_id": task.assignee_emp_id,
-            "assignee_name": task.assignee.name if task.assignee else None,
+            "progress": task.progress,
+            # ✅ 다중 담당자 구조 반영
+            "assignees": [
+                {
+                    "emp_id": m.employee.emp_id,
+                    "name": m.employee.name,
+                }
+                for m in task.members
+            ],
             "subtasks": [build_tree(sub) for sub in subtasks],
         }
 
@@ -83,9 +89,14 @@ def get_task(
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
         not_found("해당 프로젝트 내에서 태스크를 찾을 수 없습니다.")
+
     return {
         **task.__dict__,
-        "assignee_name": task.assignee.name if task.assignee else None,
+        # ✅ 다중 담당자 대응
+        "assignees": [
+            {"emp_id": m.employee.emp_id, "name": m.employee.name}
+            for m in task.members
+        ],
     }
 
 
@@ -114,8 +125,13 @@ def update_task(
         not_found("수정할 태스크를 찾을 수 없습니다.")
 
     updated = task_service.update_task(db, task, request, current_user.emp_id)
-    assignee_name = updated.assignee.name if updated.assignee else None
-    return {**updated.__dict__, "assignee_name": assignee_name}
+    return {
+        **updated.__dict__,
+        "assignees": [
+            {"emp_id": m.employee.emp_id, "name": m.employee.name}
+            for m in updated.members
+        ],
+    }
 
 
 @router.patch(
@@ -137,8 +153,13 @@ def update_task_status(
     updated = task_service.change_task_status(
         db, task, request.status, current_user.emp_id
     )
-    assignee_name = updated.assignee.name if updated.assignee else None
-    return {**updated.__dict__, "assignee_name": assignee_name}
+    return {
+        **updated.__dict__,
+        "assignees": [
+            {"emp_id": m.employee.emp_id, "name": m.employee.name}
+            for m in updated.members
+        ],
+    }
 
 
 @router.delete("/{project_id}/tasks/{task_id}")

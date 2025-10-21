@@ -61,6 +61,16 @@ class Project(Base):
     attachments = relationship(
         "Attachment", back_populates="project", cascade="all, delete-orphan"
     )
+    activity_logs = relationship(
+        "ActivityLog",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+    notifications = relationship(
+        "Notification",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
 
 # ---------------------------------
 # 프로젝트 멤버
@@ -105,13 +115,10 @@ class Task(Base):
     )
     title = Column(String(300), nullable=False)
     description = Column(Text)
-    assignee_emp_id = Column(
-        Integer, ForeignKey("employee.emp_id", ondelete="SET NULL")
-    )
     priority = Column(
         Enum(TaskPriority, native_enum=False), default=TaskPriority.MEDIUM
     )
-    status = Column(Enum(TaskStatus, native_enum=False), default=TaskStatus.TODO)
+    status = Column(Enum(TaskStatus, native_enum=False), default=TaskStatus.PLANNED)
     parent_task_id = Column(
         Integer, ForeignKey("task.task_id", ondelete="CASCADE"), nullable=True
     )
@@ -124,9 +131,6 @@ class Task(Base):
 
     # ✅ 관계
     project = relationship("Project", back_populates="tasks")
-    assignee = relationship(
-        "Employee", foreign_keys=[assignee_emp_id]
-    )
     comments = relationship(
         "TaskComment", back_populates="task", cascade="all, delete-orphan"
     )
@@ -140,6 +144,18 @@ class Task(Base):
     attachments = relationship(
         "Attachment", back_populates="task", cascade="all, delete-orphan"
     )
+    activity_logs = relationship(
+    "ActivityLog",
+    back_populates="task",
+    cascade="all, delete-orphan"
+    )
+    notifications = relationship(
+        "Notification",
+        back_populates="task",
+        cascade="all, delete-orphan"
+    )
+    members = relationship("TaskMember", back_populates="task", cascade="all, delete-orphan")
+
 
     # ✅ (신규) 다중 담당자
     members = relationship(

@@ -47,7 +47,7 @@ class TaskComment(TaskCommentBase):
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
-    status: TaskStatus = TaskStatus.TODO
+    status: TaskStatus = TaskStatus.PLANNED
     priority: TaskPriority = TaskPriority.MEDIUM
     assignee_emp_id: Optional[int] = None
     start_date: Optional[date] = None

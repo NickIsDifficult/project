@@ -156,10 +156,8 @@ def update_task(
 # =====================================================
 # ✅ 태스크 상태 변경
 # =====================================================
-def change_task_status(
-    db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int
-):
-    """상태 변경 + 로그 + 이력 + 알림"""
+def change_task_status(db, task: models.Task, new_status: TaskStatus, actor_emp_id: int):
+    """상태 변경 + 로그 + 이력 + 알림 (다중 담당자 구조 대응)"""
     old_status = task.status
     task.status = new_status
 
@@ -176,17 +174,20 @@ def change_task_status(
             changed_by=actor_emp_id,
         )
 
-        # 🔔 담당자에게 알림 (필요시 제거 가능)
-        if task.assignee_emp_id and task.assignee_emp_id != actor_emp_id:
-            create_notifications(
-                db=db,
-                recipients=[task.assignee_emp_id],
-                actor_emp_id=actor_emp_id,
-                project_id=task.project_id,
-                task_id=task.task_id,
-                ntype=NotificationType.status_change,
-                payload={"old_status": old_status, "new_status": new_status},
-            )
+        # 🔔 다중 담당자에게 알림
+        if task.members:  # ✅ task_member 테이블 기반
+            for member in task.members:
+                emp_id = member.emp_id
+                if emp_id != actor_emp_id:  # 자기 자신 제외
+                    create_notifications(
+                        db=db,
+                        recipients=[emp_id],
+                        actor_emp_id=actor_emp_id,
+                        project_id=task.project_id,
+                        task_id=task.task_id,
+                        ntype=NotificationType.status_change,
+                        payload={"old_status": old_status, "new_status": new_status},
+                    )
 
         # 🕓 로그 기록
         log_task_action(

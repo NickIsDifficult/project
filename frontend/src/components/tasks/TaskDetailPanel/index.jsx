@@ -35,7 +35,7 @@ function decodeJwt(token) {
  * - 프로젝트/업무 상세정보 + 첨부파일/댓글만 표시
  */
 export default function TaskDetailPanel({ projectId, taskId, onClose, onAddSubtask }) {
-  const { fetchTasksByProject, setOpenDrawer } = useProjectGlobal();
+  const { fetchTasksByProject, setUiState } = useProjectGlobal();
 
   const {
     task,
@@ -62,8 +62,11 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onAddSubta
 
   // ✅ 드로어 동시 열림 방지
   useEffect(() => {
-    setOpenDrawer(false);
-  }, [setOpenDrawer]);
+    setUiState(prev => ({
+      ...prev,
+      drawer: { ...prev.drawer, task: false, project: false },
+    }));
+  }, [setUiState]);
 
   // ✅ ESC 키 닫기
   useEffect(() => {
@@ -73,7 +76,11 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onAddSubta
   }, []);
 
   const handleClose = () => {
-    setOpenDrawer(false);
+    setUiState(prev => ({
+      ...prev,
+      drawer: { ...prev.drawer, task: false },
+      panel: { selectedTask: null },
+    }));
     onClose?.();
   };
 
@@ -100,11 +107,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onAddSubta
 
   // ✅ 렌더링 (상세보기 전용)
   return (
-    <Drawer
-      open
-      title={isProject ? "프로젝트 상세" : "업무 상세"}
-      onClose={handleClose}
-    >
+    <Drawer open title={isProject ? "프로젝트 상세" : "업무 상세"} onClose={handleClose}>
       <div className="flex flex-col gap-5 pb-6">
         {isProject ? (
           <ProjectInfoView project={task} />

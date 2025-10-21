@@ -26,5 +26,7 @@ class Employee(Base):
     role = relationship("Role")  # Role과 DepartmentPermission은 다른 관계이므로 유지
     attachments = relationship("Attachment", back_populates="uploader")
     project_memberships = relationship("ProjectMember", back_populates="employee")
-    tasks = relationship("Task", back_populates="assignee")
     comments = relationship("TaskComment", back_populates="employee")
+    # ✅ 새로운 관계 (TaskMember를 통한 N:N 매핑)
+    task_members = relationship("TaskMember", back_populates="employee", cascade="all, delete-orphan")
+

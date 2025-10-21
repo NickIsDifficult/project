@@ -289,8 +289,8 @@ CREATE TABLE `task_comment` (
 CREATE TABLE `task_history` (
   `history_id` int NOT NULL AUTO_INCREMENT,
   `task_id` int NOT NULL,
-  `old_status` enum('TODO','IN_PROGRESS','REVIEW','DONE') DEFAULT NULL,
-  `new_status` enum('TODO','IN_PROGRESS','REVIEW','DONE') DEFAULT NULL,
+  `old_status` enum('PLANNED','IN_PROGRESS','REVIEW','ON_HOLD','DONE') DEFAULT NULL,
+  `new_status` enum('PLANNED','IN_PROGRESS','REVIEW','ON_HOLD','DONE') DEFAULT NULL,
   `changed_by` int DEFAULT NULL,
   `changed_at` datetime DEFAULT NULL,
   PRIMARY KEY (`history_id`),

@@ -1,10 +1,8 @@
-// src/pages/projects/ProjectHeaderSection.jsx
+import { useNavigate } from "react-router-dom";
 import Button from "../../components/common/Button";
 
-export default function ProjectHeaderSection({ project, onBack }) {
-  if (!project) return null;
-
-  const { project_name, description, start_date, end_date } = project;
+export default function ProjectHeaderSection() {
+  const navigate = useNavigate();
 
   return (
     <div
@@ -12,21 +10,13 @@ export default function ProjectHeaderSection({ project, onBack }) {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 16,
+        marginBottom: 20,
       }}
     >
-      <div>
-        <h1 style={{ fontSize: 26, fontWeight: "bold", margin: 0 }}>{project_name}</h1>
-        <p style={{ color: "#666", marginTop: 4 }}>{description || "설명 없음"}</p>
-        {(start_date || end_date) && (
-          <p style={{ color: "#999", fontSize: 13, marginTop: 4 }}>
-            📅 {start_date || "시작일 미정"} ~ {end_date || "종료일 미정"}
-          </p>
-        )}
-      </div>
+      <h1 style={{ fontSize: 26, fontWeight: "bold", margin: 0 }}>📊 프로젝트 대시보드</h1>
 
-      <Button variant="secondary" onClick={onBack}>
-        ← 프로젝트 목록
+      <Button variant="secondary" onClick={() => navigate("/main")}>
+        ← 메인 화면으로
       </Button>
     </div>
   );

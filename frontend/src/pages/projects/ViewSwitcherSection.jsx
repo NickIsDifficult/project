@@ -1,6 +1,6 @@
-// ✅ src/pages/projects/ProjectDetailPage/ViewSwitcherSection.jsx
-import Button from "../../../components/common/Button";
-import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
+// src/pages/projects/ViewSwitcherSection.jsx
+import Button from "../../components/common/Button";
+import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 
 export default function ViewSwitcherSection() {
   const { viewType, setViewType, setOpenDrawer } = useProjectGlobal();

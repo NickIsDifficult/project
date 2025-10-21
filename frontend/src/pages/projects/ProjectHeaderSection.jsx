@@ -1,5 +1,5 @@
-// src/pages/projects/ProjectDetailPage/ProjectHeaderSection.jsx
-import Button from "../../../components/common/Button";
+// src/pages/projects/ProjectHeaderSection.jsx
+import Button from "../../components/common/Button";
 
 export default function ProjectHeaderSection({ project, onBack }) {
   if (!project) return null;

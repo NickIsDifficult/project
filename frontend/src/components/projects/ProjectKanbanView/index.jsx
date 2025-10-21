@@ -18,7 +18,6 @@ export default function ProjectKanbanView({ onProjectClick, onTaskClick }) {
   // 🔍 검색 시 자동 전체 펼치기
   useEffect(() => {
     if (searchKeyword.trim()) setIsAllExpanded(true);
-    else setIsAllExpanded(false);
   }, [searchKeyword, setIsAllExpanded]);
 
   if (!columns?.length) return <Loader text="칸반 데이터를 불러오는 중..." />;
@@ -117,17 +116,22 @@ export default function ProjectKanbanView({ onProjectClick, onTaskClick }) {
                                 onClick={onProjectClick}
                               />
 
-                              {/* ✅ 업무 카드: 전체 펼침 시만 보이게 */}
-                              {isAllExpanded &&
-                                projectTasks.map((task, tIdx) => (
-                                  <TaskCard
-                                    key={task.task_id}
-                                    task={task}
-                                    index={taskIndexBase + tIdx}
-                                    onClick={onTaskClick}
-                                    projectColor={projectColorMap[project.project_id]}
-                                  />
-                                ))}
+                              {/* ✅ 업무 카드: 전체 펼침 시만 표시 */}
+                              {isAllExpanded ? (
+                                projectTasks.length > 0 ? (
+                                  projectTasks.map((task, tIdx) => (
+                                    <TaskCard
+                                      key={task.task_id}
+                                      task={task}
+                                      index={taskIndexBase + tIdx}
+                                      onClick={onTaskClick}
+                                      projectColor={projectColorMap[project.project_id]}
+                                    />
+                                  ))
+                                ) : (
+                                  <p style={styles.noTask}>하위 업무 없음</p>
+                                )
+                              ) : null}
                             </div>
                           );
                         })
@@ -195,5 +199,12 @@ const styles = {
     color: "#aaa",
     marginTop: 12,
     fontSize: 13,
+  },
+  noTask: {
+    fontSize: 12,
+    color: "#999",
+    marginLeft: 16,
+    marginTop: 4,
+    fontStyle: "italic",
   },
 };

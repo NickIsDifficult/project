@@ -8,7 +8,7 @@ const Screen = lazy(() => import("../pages/screens/Screen"));
 const Calendar = lazy(() => import("../pages/calendar/CalendarView"));
 const NoticeBoard = lazy(() => import("../pages/notices/NoticeBoard"));
 const TrashBin = lazy(() => import("../components/TrashBin"));
-const ProjectDetailPage = lazy(() => import("../pages/projects/ProjectDetailPage/index"));
+const ProjectPage = lazy(() => import("../pages/projects/index"));
 const NotFoundPage = lazy(() => import("../pages/errors/NotFoundPage"));
 
 // ------------------------------------
@@ -24,7 +24,7 @@ export const routesConfig = [
     path: "/projects",
     element: (
       <ProjectGlobalProvider>
-        <ProjectDetailPage />
+        <ProjectPage />
       </ProjectGlobalProvider>
     ),
     isPrivate: true,

@@ -1,16 +1,16 @@
-// src/pages/projects/ProjectDetailPage/index.jsx
+// src/pages/projects/index.jsx
 import { useMemo } from "react";
 import { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import Button from "../../../components/common/Button";
-import { Loader } from "../../../components/common/Loader";
-import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
-import AppShell from "../../../layout/AppShell";
+import Button from "../../components/common/Button";
+import { Loader } from "../../components/common/Loader";
+import { useProjectGlobal } from "../../context/ProjectGlobalContext";
+import AppShell from "../../layout/AppShell";
 
-import ProjectKanbanView from "../../../components/projects/ProjectKanbanView";
-import TaskCalendarView from "../../../components/tasks/TaskCalendarView";
-import TaskDetailPanel from "../../../components/tasks/TaskDetailPanel";
-import TaskListView from "../../../components/tasks/TaskListView";
+import ProjectKanbanView from "../../components/projects/ProjectKanbanView";
+import TaskCalendarView from "../../components/tasks/TaskCalendarView";
+import TaskDetailPanel from "../../components/tasks/TaskDetailPanel";
+import TaskListView from "../../components/tasks/TaskListView";
 import ProjectDrawerSection from "./ProjectDrawerSection";
 import ViewSwitcherSection from "./ViewSwitcherSection";
 

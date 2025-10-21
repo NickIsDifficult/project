@@ -1,7 +1,7 @@
-// ✅ src/pages/projects/ProjectDetailPage/ProjectDrawerSection.jsx
-import { Drawer } from "../../../components/common/Drawer";
-import ProjectRegistration from "../../../components/projects/ProjectRegistration";
-import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
+// src/pages/projects/ProjectDrawerSection.jsx
+import { Drawer } from "../../components/common/Drawer";
+import ProjectRegistration from "../../components/projects/ProjectRegistration";
+import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 
 export default function ProjectDrawerSection() {
   const {

@@ -1,8 +1,7 @@
 # app/schemas/project.py
 from datetime import date, datetime
 from typing import Annotated, List, Optional
-
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator, ConfigDict
 
 from app.models.enums import (
     MemberRole,
@@ -12,10 +11,9 @@ from app.models.enums import (
     TaskStatus,
 )
 
-
-# ----------------------------
-# TaskComment
-# ----------------------------
+# ============================================================
+# 🧩 Task Comment
+# ============================================================
 class TaskCommentBase(BaseModel):
     content: str
     parent_comment_id: Optional[int] = None
@@ -29,7 +27,7 @@ class TaskComment(TaskCommentBase):
     comment_id: int
     project_id: Optional[int] = None
     task_id: int
-    emp_id: Optional[int] = None  # ✅ 댓글 작성자 ID (수정/삭제 권한용)
+    emp_id: Optional[int] = None
     author_name: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -38,12 +36,11 @@ class TaskComment(TaskCommentBase):
     def serialize_datetime(self, v: Optional[datetime], _info):
         return v.strftime("%Y-%m-%d %H:%M:%S") if v else None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
-
-# ----------------------------
-# Task
-# ----------------------------
+# ============================================================
+# 🧩 Task
+# ============================================================
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -102,7 +99,7 @@ class Task(TaskBase):
         data.assignee_name = getattr(obj, "assignee_name_prop", None)
         return data
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskTree(BaseModel):
@@ -117,15 +114,13 @@ class TaskTree(BaseModel):
     assignee_emp_id: Optional[int] = None
     assignee_name: Optional[str] = None
     progress: Optional[int] = 0
-    subtasks: List["TaskTree"] = []  # 자기참조
+    subtasks: List["TaskTree"] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-
-# ----------------------------
-# Milestone
-# ----------------------------
+# ============================================================
+# 🧩 Milestone
+# ============================================================
 class MilestoneBase(BaseModel):
     name: str
     description: Optional[str] = None
@@ -141,12 +136,11 @@ class Milestone(MilestoneBase):
     milestone_id: int
     project_id: int
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
-
-# ----------------------------
-# ProjectMember
-# ----------------------------
+# ============================================================
+# 🧩 Project Member
+# ============================================================
 class ProjectMemberBase(BaseModel):
     emp_id: int
     role: MemberRole = MemberRole.MEMBER
@@ -155,12 +149,11 @@ class ProjectMemberBase(BaseModel):
 class ProjectMember(ProjectMemberBase):
     project_id: int
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
-
-# ----------------------------
-# Project
-# ----------------------------
+# ============================================================
+# 🧩 Project
+# ============================================================
 class ProjectBase(BaseModel):
     project_name: str
     description: Optional[str] = None
@@ -173,30 +166,33 @@ class ProjectBase(BaseModel):
     def serialize_date(self, v: Optional[date], _info):
         return v.strftime("%Y-%m-%d") if v else None
 
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ✅ 생성용
 class ProjectCreate(ProjectBase):
     pass
 
 
+# ✅ 수정용
 class ProjectUpdate(BaseModel):
     project_name: Optional[str] = None
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    status: Optional[ProjectStatus] = None
-    owner_emp_id: Optional[int] = None
+    priority: Optional[str] = None
 
-    @field_validator("start_date", "end_date", mode="before")
-    def empty_str_to_none(cls, v):
-        return None if v in ("", None, "") else v
-
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore"  # ✅ tasks 같은 불필요한 필드 무시
+    )
 
 
+# ✅ 응답용
 class Project(ProjectBase):
     project_id: int
     members: List[ProjectMember] = Field(default_factory=list)
     tasks: List[Task] = Field(default_factory=list)
     milestones: List[Milestone] = Field(default_factory=list)
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)

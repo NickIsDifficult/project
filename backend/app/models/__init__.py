@@ -22,6 +22,7 @@ from app.models.project import (
     Task,
     TaskComment,
     TaskHistory,
+    TaskMember,
 )
 from app.models.role import Role
 
@@ -41,4 +42,3 @@ __all__ = [
     "TaskStatus",
     "NotificationType",
 ]
-from .project import Project, Task, TaskMember

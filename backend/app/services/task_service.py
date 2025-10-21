@@ -16,17 +16,24 @@ from app.utils.notifier import create_notifications
 def get_tasks_by_project(db: Session, project_id: int):
     """특정 프로젝트의 모든 태스크 조회 (담당자 eager load + 직렬화 보조)"""
     tasks = (
-        db.query(models.Task)
-        .options(joinedload(models.Task.assignee))
-        .options(joinedload(models.Task.members).joinedload(models.TaskMember.employee))
-        .filter(models.Task.project_id == project_id)
-        .order_by(models.Task.due_date.asc())
-        .all()
-    )
-    # hybrid_property 누락 커버
+    db.query(models.Task)
+    .options(joinedload(models.Task.members).joinedload(models.TaskMember.employee))
+    .filter(models.Task.project_id == project_id)
+    .order_by(models.Task.due_date.asc())
+    .all()
+)
+
+    result = []
     for t in tasks:
-        t.assignee_name = t.assignee.name if t.assignee else None
-    return tasks
+        assignees = [
+        {"emp_id": m.employee.emp_id, "name": m.employee.name}
+        for m in t.members
+        ]
+        result.append({
+            **t.__dict__,
+            "assignees": assignees
+        })
+    return result
 
 # =====================================================
 # ✅ 단일 태스크 조회

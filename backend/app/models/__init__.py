@@ -16,12 +16,12 @@ from app.models.external import External
 from app.models.member import Member
 from app.models.notification import Notification, NotificationType
 from app.models.project import (
-    Milestone,
+    Employee,
     Project,
     ProjectMember,
     Task,
-    TaskComment,
-    TaskHistory,
+    TaskMember,
+    Milestone,
 )
 from app.models.role import Role
 

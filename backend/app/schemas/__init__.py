@@ -5,17 +5,10 @@ from .department import Department, DepartmentCreate
 from .employee import Employee
 from .notification import Notification as NotificationSchema
 from .project import (
-    Milestone,
-    MilestoneCreate,
     Project,
-    ProjectCreate,
+    TaskTree,
+    Milestone,
     ProjectMember,
-    ProjectUpdate,
-    Task,
-    TaskComment,
-    TaskCommentCreate,
-    TaskCreate,
-    TaskUpdate,
 )
 from .role import Role
 

@@ -14,11 +14,6 @@ const STATUS_COLORS = {
   DONE: "#c8e6c9",
 };
 
-/**
- * ✅ TaskListRow (프로젝트/업무 통합 재귀형)
- * - project → main task → subtask → detailtask 구조
- * - project도 트리 구조의 루트 노드로 포함됨
- */
 export default function TaskListRow({
   task,
   depth = 0,
@@ -34,13 +29,15 @@ export default function TaskListRow({
   collapsedTasks,
   toggleCollapse,
 }) {
-  // ---------------------------------------------
-  // ✅ 고유 ID 계산 (프로젝트 / 업무 모두 지원)
-  // ---------------------------------------------
+  // ✅ 프로젝트 / 업무 구분
   const effectiveId = task.isProject ? `proj-${task.project_id}` : `task-${task.task_id}`;
   const numericId = task.isProject ? task.project_id : task.task_id;
   const isProject = !!task.isProject;
-  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+
+  // ✅ 하위 업무 안전 처리
+  const subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+  const hasSubtasks = subtasks.length > 0;
+
   const isCollapsed = collapsedTasks.has(effectiveId);
   const paddingLeft = depth * 20;
 
@@ -97,9 +94,7 @@ export default function TaskListRow({
           )}
         </td>
 
-        {/* ---------------------------- */}
         {/* ✅ 상태 */}
-        {/* ---------------------------- */}
         <td style={td}>
           <select
             value={task.status || "TODO"}
@@ -117,20 +112,16 @@ export default function TaskListRow({
           </select>
         </td>
 
-        {/* ---------------------------- */}
         {/* ✅ 담당자 */}
-        {/* ---------------------------- */}
         <td style={td}>
-  {task.assignees?.length ? (
-    <span>{task.assignees.map(a => a.name).join(", ")}</span>
-  ) : (
-    <span style={{ color: "#999" }}>— 미지정 —</span>
-  )}
-</td>
+          {task.assignees?.length ? (
+            <span>{task.assignees.map(a => a.name).join(", ")}</span>
+          ) : (
+            <span style={{ color: "#999" }}>— 미지정 —</span>
+          )}
+        </td>
 
-        {/* ---------------------------- */}
         {/* ✅ 기간 */}
-        {/* ---------------------------- */}
         <td style={td}>
           {task.start_date && task.due_date ? (
             `${task.start_date} ~ ${task.due_date}`
@@ -139,9 +130,7 @@ export default function TaskListRow({
           )}
         </td>
 
-        {/* ---------------------------- */}
         {/* ✅ 액션버튼 */}
-        {/* ---------------------------- */}
         <td style={{ ...td, textAlign: "center", whiteSpace: "nowrap" }}>
           {editingId === effectiveId ? (
             <>
@@ -187,35 +176,35 @@ export default function TaskListRow({
         </td>
       </tr>
 
-      {/* ---------------------------- */}
       {/* ✅ 하위 업무 재귀 렌더링 */}
-      {/* ---------------------------- */}
-      {hasSubtasks &&
-        !isCollapsed &&
-        task.subtasks.map(sub => (
-          <TaskListRow
-            key={`${task.project_id || "proj"}-${sub.task_id}`}
-            task={sub}
-            depth={depth + 1}
-            editingId={editingId}
-            editForm={editForm}
-            setEditForm={setEditForm}
-            onTaskClick={onTaskClick}
-            onEditStart={onEditStart}
-            onEditCancel={onEditCancel}
-            onEditSave={onEditSave}
-            onDelete={onDelete}
-            onStatusChange={onStatusChange}
-            collapsedTasks={collapsedTasks}
-            toggleCollapse={toggleCollapse}
-          />
-        ))}
+      {!isCollapsed &&
+        subtasks.map(sub => {
+          const keyValue = sub.task_id ?? sub.id ?? `${task.project_id}-${Math.random()}`;
+          return (
+            <TaskListRow
+              key={`node-${keyValue}`}
+              task={sub}
+              depth={depth + 1}
+              editingId={editingId}
+              editForm={editForm}
+              setEditForm={setEditForm}
+              onTaskClick={onTaskClick}
+              onEditStart={onEditStart}
+              onEditCancel={onEditCancel}
+              onEditSave={onEditSave}
+              onDelete={onDelete}
+              onStatusChange={onStatusChange}
+              collapsedTasks={collapsedTasks}
+              toggleCollapse={toggleCollapse}
+            />
+          );
+        })}
     </>
   );
 }
 
 /* ---------------------------- */
-/* ✅ 스타일 (inline 유지) */
+/* ✅ 스타일 */
 /* ---------------------------- */
 const rowStyle = editing => ({
   borderBottom: "1px solid #eee",

@@ -17,22 +17,26 @@ export default function TaskListView() {
    * 🧩 프로젝트 + 업무 트리 구조로 변환
    * ---------------------------------------- */
   const projectNodes = useMemo(() => {
-    if (!projects?.length) return [];
-    return projects.map(project => ({
-      project_id: project.project_id,
-      task_id: null, // ✅ 프로젝트는 task_id 없음
-      title: project.project_name,
-      isProject: true,
-      status: project.status ?? "TODO", // 기본값 보정
-      assignees: project.manager_name
-        ? [{ emp_id: project.owner_emp_id ?? 0, name: project.manager_name }]
-        : [],
-      start_date: project.start_date ?? null,
-      due_date: project.due_date ?? null,
-      subtasks: tasksByProject?.[project.project_id] ?? [],
-    }));
-  }, [projects, tasksByProject]);
+  // ✅ projects 배열이 아니라 단일 project 객체일 수도 있음
+  if (!projects) return [];
 
+  const list = Array.isArray(projects) ? projects : [projects.project];
+  const tasksMap = tasksByProject || {};
+
+  return list.map(project => ({
+    project_id: project.project_id,
+    task_id: null,
+    title: project.project_name,
+    isProject: true,
+    status: project.status ?? "TODO",
+    assignees: project.members
+      ? project.members.map(m => ({ emp_id: m.emp_id, name: m.name }))
+      : [],
+    start_date: project.start_date ?? null,
+    due_date: project.end_date ?? null,
+    subtasks: tasksMap?.[project.project_id] ?? [],
+  }));
+  }, [projects, tasksByProject]);
   /* ----------------------------------------
    * 🔁 업무 필터/정렬/검색 등 관리 훅
    * ---------------------------------------- */

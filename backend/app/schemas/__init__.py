@@ -18,3 +18,6 @@ from .project import (
     TaskUpdate,
 )
 from .role import Role
+
+
+from .project import *

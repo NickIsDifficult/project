@@ -66,8 +66,6 @@ class Notification(Base):
         foreign_keys=[actor_emp_id],
         backref="sent_notifications",
     )
-    project = relationship("Project", back_populates="notifications")
-    task = relationship("Task", back_populates="notifications")
 
     __table_args__ = (
         Index("idx_notification_recipient", "recipient_emp_id"),

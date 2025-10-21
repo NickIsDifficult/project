@@ -1,3 +1,4 @@
+# app/schemas/project.py
 from datetime import date, datetime
 from typing import Annotated, List, Optional
 
@@ -10,16 +11,6 @@ from app.models.enums import (
     TaskPriority,
     TaskStatus,
 )
-
-
-# ----------------------------
-# Employee 요약형 (Task용)
-# ----------------------------
-class EmployeeBrief(BaseModel):
-    emp_id: int
-    name: str
-
-    model_config = {"from_attributes": True}
 
 
 # ----------------------------
@@ -38,7 +29,7 @@ class TaskComment(TaskCommentBase):
     comment_id: int
     project_id: Optional[int] = None
     task_id: int
-    emp_id: Optional[int] = None  # 댓글 작성자 ID
+    emp_id: Optional[int] = None  # ✅ 댓글 작성자 ID (수정/삭제 권한용)
     author_name: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -51,24 +42,22 @@ class TaskComment(TaskCommentBase):
 
 
 # ----------------------------
-# Task (다중 담당자 반영)
+# Task
 # ----------------------------
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
     status: TaskStatus = TaskStatus.TODO
     priority: TaskPriority = TaskPriority.MEDIUM
+    assignee_emp_id: Optional[int] = None
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     estimate_hours: float = 0.0
     progress: Annotated[int, Field(ge=0, le=100)] = 0
 
-    # ✅ 다중 담당자
-    assignee_ids: List[int] = Field(default_factory=list)
-
 
 class TaskCreate(TaskBase):
-    project_id: Optional[int] = None
+    project_id: int
     parent_task_id: Optional[int] = None
 
     @field_validator("priority", mode="before")
@@ -87,11 +76,11 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[TaskStatus] = None
     priority: Optional[TaskPriority] = None
+    assignee_emp_id: Optional[int] = None
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     estimate_hours: Optional[float] = None
     progress: Optional[Annotated[int, Field(ge=0, le=100)]] = None
-    assignee_ids: Optional[List[int]] = None  # ✅ None이면 변경 없음, []이면 해제
 
     @field_validator("start_date", "due_date", mode="before")
     def empty_str_to_none(cls, v):
@@ -105,10 +94,13 @@ class TaskStatusUpdate(BaseModel):
 class Task(TaskBase):
     task_id: int
     project_id: int
+    assignee_name: Optional[str] = None
 
-    # ✅ 담당자 정보 배열
-    assignees: List[EmployeeBrief] = Field(default_factory=list)
-    comments: List[TaskComment] = Field(default_factory=list)
+    @classmethod
+    def from_orm(cls, obj):
+        data = super().model_validate(obj)
+        data.assignee_name = getattr(obj, "assignee_name_prop", None)
+        return data
 
     model_config = {"from_attributes": True}
 
@@ -122,15 +114,13 @@ class TaskTree(BaseModel):
     priority: Optional[str] = None
     start_date: Optional[date] = None
     due_date: Optional[date] = None
+    assignee_emp_id: Optional[int] = None
+    assignee_name: Optional[str] = None
     progress: Optional[int] = 0
+    subtasks: List["TaskTree"] = []  # 자기참조
 
-    # ✅ 여러 담당자
-    assignee_ids: List[int] = Field(default_factory=list)
-    assignees: List[EmployeeBrief] = Field(default_factory=list)
-
-    subtasks: List["TaskTree"] = Field(default_factory=list)
-
-    model_config = {"from_attributes": True}
+    class Config:
+        from_attributes = True
 
 
 # ----------------------------
@@ -164,15 +154,6 @@ class ProjectMemberBase(BaseModel):
 
 class ProjectMember(ProjectMemberBase):
     project_id: int
-
-    model_config = {"from_attributes": True}
-
-
-class ProjectMemberOut(BaseModel):
-    emp_id: int
-    name: str
-    email: str
-    role: str
 
     model_config = {"from_attributes": True}
 
@@ -219,10 +200,3 @@ class Project(ProjectBase):
     milestones: List[Milestone] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
-
-
-# ----------------------------
-# Project + Task 동시 생성
-# ----------------------------
-class ProjectWithTasksCreate(ProjectCreate):
-    tasks: list[TaskCreate] = []

@@ -3,7 +3,7 @@
 # ---------------------------
 import logging
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import models
@@ -30,12 +30,7 @@ logging.info("✅ DB 테이블 생성 완료")
 # ---------------------------
 # FastAPI 앱 생성
 # ---------------------------
-app = FastAPI(
-    title="업무툴 프로젝트 관리",
-    description="JWT 인증 기반 Project Management API 문서",
-    version="1.0.0",
-)
-
+app = FastAPI(title="업무툴 프로젝트 관리")
 
 # ✅ 프론트엔드 허용 도메인 (Vite: 5173)
 origins = ["http://localhost:5173", "http://127.0.0.1:5173"]

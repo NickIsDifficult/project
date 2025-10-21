@@ -19,9 +19,15 @@ export default function ViewHeaderSection({
   const doneRatio = stats.doneRatio ?? (total ? Math.round((done / total) * 100) : 0);
 
   // ✅ 전역 전체 접기/펼치기
-  const { isAllExpanded, setIsAllExpanded } = useProjectGlobal();
+  const { uiState, setUiState } = useProjectGlobal();
+  const isAllExpanded = uiState.expand.all;
 
-  const toggleExpandAll = () => setIsAllExpanded(prev => !prev);
+  const toggleExpandAll = () => {
+    setUiState(prev => ({
+      ...prev,
+      expand: { ...prev.expand, all: !prev.expand.all },
+    }));
+  };
 
   return (
     <>

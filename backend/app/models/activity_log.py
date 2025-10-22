@@ -1,8 +1,11 @@
 # app/models/activity_log.py
 from __future__ import annotations
+
 from datetime import datetime
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Text, func, Index
+
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.database import Base
 from app.models.enums import ActivityAction
 
@@ -10,11 +13,11 @@ from app.models.enums import ActivityAction
 class ActivityLog(Base):
     """
     🧾 프로젝트 / 태스크 관련 활동 로그
-    - 프로젝트/업무 단위의 사용자 액션 기록
+    - 프로젝트 / 업무 단위의 사용자 액션 기록
     - 상태 변경, 수정, 삭제 등의 이력을 추적
     """
 
-    __tablename__ = "activity_logs"
+    __tablename__ = "activity_log"
 
     # -----------------------------------------------------------------
     # 기본 컬럼
@@ -22,19 +25,19 @@ class ActivityLog(Base):
     log_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     emp_id: Mapped[int] = mapped_column(
-        ForeignKey("employees.emp_id", ondelete="CASCADE"),
+        ForeignKey("employee.emp_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
     project_id: Mapped[int | None] = mapped_column(
-        ForeignKey("projects.project_id", ondelete="SET NULL"),
+        ForeignKey("project.project_id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
 
     task_id: Mapped[int | None] = mapped_column(
-        ForeignKey("tasks.task_id", ondelete="SET NULL"),
+        ForeignKey("task.task_id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -56,24 +59,11 @@ class ActivityLog(Base):
     )
 
     # -----------------------------------------------------------------
-    # 관계
+    # 관계 (모델명 기준으로 단순화)
     # -----------------------------------------------------------------
-    project: Mapped["Project"] = relationship(
-        "Project",
-        back_populates="activity_logs",
-        lazy="selectin",
-    )
-
-    task: Mapped["Task"] = relationship(
-        "Task",
-        back_populates="activity_logs",
-        lazy="selectin",
-    )
-
-    employee: Mapped["Employee"] = relationship(
-        "Employee",
-        lazy="selectin",
-    )
+    project = relationship("Project", back_populates="activitylog", lazy="selectin")
+    task = relationship("Task", back_populates="activitylog", lazy="selectin")
+    employee = relationship("Employee", back_populates="activitylog", lazy="selectin")
 
     # -----------------------------------------------------------------
     # 인덱스

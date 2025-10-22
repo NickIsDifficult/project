@@ -14,24 +14,29 @@ export default function ProjectListView() {
   const projectNodes = useMemo(() => {
     if (!projects?.length) return [];
 
-    return projects.map(project => ({
-      project_id: project.project_id,
-      task_id: null,
-      title: project.project_name,
-      description: project.description ?? "",
-      isProject: true,
-      status: project.status ?? "PLANNED",
-      statusLabel: STATUS_LABELS[project.status] ?? "계획",
-      // ✅ owner_name 우선 사용
-      assignees: project.owner_name
-        ? [{ emp_id: project.owner_emp_id ?? 0, name: project.owner_name }]
-        : [],
-      start_date: project.start_date ?? null,
-      end_date: project.end_date ?? project.due_date ?? null,
-      owner_emp_id: project.owner_emp_id,
-      owner_name: project.owner_name,
-      subtasks: tasksByProject?.[project.project_id] ?? [],
-    }));
+    return projects.map(project => {
+      // ✅ 모든 태스크 중 parent_task_id가 없는 것만 (루트)
+      const allTasks = tasksByProject?.[project.project_id] ?? [];
+      const topLevelTasks = allTasks.filter(t => !t.parent_task_id);
+
+      return {
+        project_id: project.project_id,
+        task_id: null,
+        title: project.project_name,
+        description: project.description ?? "",
+        isProject: true,
+        status: project.status ?? "PLANNED",
+        statusLabel: STATUS_LABELS[project.status] ?? "계획",
+        assignees: project.owner_name
+          ? [{ emp_id: project.owner_emp_id ?? 0, name: project.owner_name }]
+          : [],
+        start_date: project.start_date ?? null,
+        end_date: project.end_date ?? project.due_date ?? null,
+        owner_emp_id: project.owner_emp_id,
+        owner_name: project.owner_name,
+        subtasks: topLevelTasks,
+      };
+    });
   }, [projects, tasksByProject]);
 
   /* ⚙️ 2️⃣ 리스트뷰용 훅 (검색, 필터, 정렬 등) */

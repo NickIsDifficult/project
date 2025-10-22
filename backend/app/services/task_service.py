@@ -1,15 +1,17 @@
-# app/routers/task_service.py
+# app/services/task_service.py
 from __future__ import annotations
+
 from typing import List
+
 from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
+from app.core.exceptions import bad_request, forbidden, not_found
 from app.models.enums import TaskStatus
 from app.models.notification import NotificationType
 from app.services import history_service
 from app.utils.activity_logger import log_task_action
 from app.utils.notifier import create_notifications
-from app.core.exceptions import bad_request, forbidden, not_found
 
 
 # =====================================================
@@ -20,8 +22,8 @@ def get_tasks_by_project(db: Session, project_id: int) -> List[models.Task]:
     tasks = (
         db.query(models.Task)
         .options(
-            joinedload(models.Task.members).joinedload(models.TaskMember.employee),
-            joinedload(models.Task.subtasks),
+            joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee),
+            joinedload(models.Task.subtask),
         )
         .filter(models.Task.project_id == project_id)
         .order_by(models.Task.due_date.asc().nulls_last())
@@ -29,7 +31,7 @@ def get_tasks_by_project(db: Session, project_id: int) -> List[models.Task]:
     )
 
     for t in tasks:
-        t.assignee_ids = [m.emp_id for m in t.members]
+        t.assignee_ids = [m.emp_id for m in t.taskmember]
     return tasks
 
 
@@ -39,7 +41,9 @@ def get_tasks_by_project(db: Session, project_id: int) -> List[models.Task]:
 def get_task_by_id(db: Session, task_id: int) -> models.Task | None:
     return (
         db.query(models.Task)
-        .options(joinedload(models.Task.members).joinedload(models.TaskMember.employee))
+        .options(
+            joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee)
+        )
         .filter(models.Task.task_id == task_id)
         .first()
     )
@@ -75,7 +79,11 @@ def create_task(
 
         # 담당자(단일 필드 기반)
         if request.assignee_emp_id:
-            db.add(models.TaskMember(task_id=new_task.task_id, emp_id=request.assignee_emp_id))
+            db.add(
+                models.TaskMember(
+                    task_id=new_task.task_id, emp_id=request.assignee_emp_id
+                )
+            )
             db.commit()
 
         # 로그 기록
@@ -118,7 +126,9 @@ def update_task(
 ) -> models.Task:
     """태스크 수정 + 로그 + 선택적 알림"""
     try:
-        if updater_emp_id not in [task.project.owner_emp_id] + [m.emp_id for m in task.members]:
+        if updater_emp_id not in [task.project.owner_emp_id] + [
+            m.emp_id for m in task.taskmember
+        ]:
             forbidden("담당자 또는 프로젝트 소유자만 수정 가능합니다.")
 
         update_data = request.model_dump(exclude_unset=True)
@@ -141,8 +151,8 @@ def update_task(
         )
 
         # 진행률 변경 알림
-        if "progress" in update_data and task.members:
-            for member in task.members:
+        if "progress" in update_data and task.taskmember:
+            for member in task.taskmember:
                 if member.emp_id != updater_emp_id:
                     create_notifications(
                         db=db,
@@ -164,7 +174,9 @@ def update_task(
 # =====================================================
 # ✅ 상태 변경
 # =====================================================
-def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int):
+def change_task_status(
+    db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int
+):
     """상태 변경 + 로그 + 이력 + 알림"""
     old_status = task.status
     task.status = new_status
@@ -193,8 +205,8 @@ def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, a
         )
 
         # 알림
-        if task.members:
-            for member in task.members:
+        if task.taskmember:
+            for member in task.taskmember:
                 if member.emp_id != actor_emp_id:
                     create_notifications(
                         db=db,
@@ -219,7 +231,9 @@ def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, a
 def delete_task(db: Session, task: models.Task, actor_emp_id: int):
     """태스크 삭제 + 로그"""
     try:
-        if actor_emp_id not in [task.project.owner_emp_id] + [m.emp_id for m in task.members]:
+        if actor_emp_id not in [task.project.owner_emp_id] + [
+            m.emp_id for m in task.taskmember
+        ]:
             forbidden("담당자 또는 프로젝트 소유자만 삭제할 수 있습니다.")
 
         title = task.title

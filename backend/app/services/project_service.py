@@ -1,15 +1,17 @@
 # app/services/project_service.py
 from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session, joinedload
+
 from app import models
 from app.models.enums import MemberRole, ProjectStatus, TaskPriority, TaskStatus
 
 
-# ---------------------------------------------------------------------
-# 내부 유틸: 프로젝트 OWNER 여부 확인
-# ---------------------------------------------------------------------
+# =====================================================
+# 🔹 내부 유틸: 프로젝트 OWNER 여부 확인
+# =====================================================
 def is_owner(db: Session, project_id: int, emp_id: int) -> bool:
     """현재 사용자가 해당 프로젝트의 OWNER인지 확인"""
     rec = (
@@ -24,9 +26,9 @@ def is_owner(db: Session, project_id: int, emp_id: int) -> bool:
     return rec is not None
 
 
-# ---------------------------------------------------------------------
-# 내부 유틸: 멤버가 없으면 자동 추가
-# ---------------------------------------------------------------------
+# =====================================================
+# 🔹 내부 유틸: 멤버 자동 추가
+# =====================================================
 def ensure_member(
     db: Session,
     project_id: int,
@@ -46,9 +48,9 @@ def ensure_member(
         db.add(models.ProjectMember(project_id=project_id, emp_id=emp_id, role=role))
 
 
-# ---------------------------------------------------------------------
-# 내부 유틸: 트리형 태스크 재귀 생성
-# ---------------------------------------------------------------------
+# =====================================================
+# 🔹 내부 유틸: 트리형 태스크 재귀 생성
+# =====================================================
 def create_task_recursive(
     db: Session,
     project_id: int,
@@ -84,34 +86,38 @@ def create_task_recursive(
     db.commit()
 
     # ✅ 하위 태스크 재귀
-    for child in (node.get("subtasks") or []):
-        create_task_recursive(db, project_id, creator_emp_id, child, parent_task_id=task.task_id)
+    for child in node.get("subtasks") or []:
+        create_task_recursive(
+            db, project_id, creator_emp_id, child, parent_task_id=task.task_id
+        )
 
     return task
 
 
-# ---------------------------------------------------------------------
+# =====================================================
 # ✅ CRUD 서비스
-# ---------------------------------------------------------------------
+# =====================================================
 def get_all_projects(db: Session):
     """모든 프로젝트 목록 + 소유자 이름(owner_name) 포함"""
     projects = (
         db.query(models.Project)
-        .options(joinedload(models.Project.owner))  # owner 관계 미리 로드
+        .options(joinedload(models.Project.employee))  # ✅ 관계명 일치
         .order_by(models.Project.created_at.desc())
         .all()
     )
 
     # 🔹 각 프로젝트에 owner_name 필드 주입
     for proj in projects:
-        proj.owner_name = proj.owner.name if proj.owner else None
+        proj.owner_name = proj.employee.name if proj.employee else None
 
     return projects
 
 
 def get_project_by_id(db: Session, project_id: int):
     """단일 프로젝트 조회"""
-    return db.query(models.Project).filter(models.Project.project_id == project_id).first()
+    return (
+        db.query(models.Project).filter(models.Project.project_id == project_id).first()
+    )
 
 
 def create_project(db: Session, request, current_user: models.Employee):
@@ -134,7 +140,9 @@ def create_project(db: Session, request, current_user: models.Employee):
     return proj
 
 
-def create_project_full(db: Session, payload: Dict[str, Any], current_user: models.Employee):
+def create_project_full(
+    db: Session, payload: Dict[str, Any], current_user: models.Employee
+):
     """프로젝트 + 태스크 트리 전체 생성"""
     project_name = (payload.get("project_name") or "").strip()
     if not project_name:
@@ -152,24 +160,26 @@ def create_project_full(db: Session, payload: Dict[str, Any], current_user: mode
     db.commit()
     db.refresh(proj)
 
-    # ✅ OWNER 자동 등록 (추가)
+    # ✅ OWNER 자동 등록
     ensure_member(db, proj.project_id, current_user.emp_id, MemberRole.OWNER)
     db.commit()
 
     # ✅ main_assignees를 멤버로 등록
-    for eid in (payload.get("main_assignees") or []):
+    for eid in payload.get("main_assignees") or []:
         ensure_member(db, proj.project_id, int(eid), MemberRole.MEMBER)
     db.commit()
 
     # ✅ 태스크 트리 생성
-    for root in (payload.get("tasks") or []):
+    for root in payload.get("tasks") or []:
         create_task_recursive(db, proj.project_id, current_user.emp_id, root)
 
     db.commit()
     return proj
 
 
-def update_project(db: Session, project_id: int, request, current_user: models.Employee):
+def update_project(
+    db: Session, project_id: int, request, current_user: models.Employee
+):
     """프로젝트 수정 (OWNER만 가능)"""
     proj = get_project_by_id(db, project_id)
     if not proj:
@@ -206,14 +216,19 @@ def add_member(db: Session, project_id: int, member, current_user: models.Employ
     db.commit()
 
 
-def remove_member(db: Session, project_id: int, emp_id: int, current_user: models.Employee):
+def remove_member(
+    db: Session, project_id: int, emp_id: int, current_user: models.Employee
+):
     """프로젝트 멤버 제거 (OWNER만 가능)"""
     if not is_owner(db, project_id, current_user.emp_id):
         raise PermissionError("프로젝트 소유자만 멤버 제거 가능")
 
     member = (
         db.query(models.ProjectMember)
-        .filter(models.ProjectMember.project_id == project_id, models.ProjectMember.emp_id == emp_id)
+        .filter(
+            models.ProjectMember.project_id == project_id,
+            models.ProjectMember.emp_id == emp_id,
+        )
         .first()
     )
     if not member:

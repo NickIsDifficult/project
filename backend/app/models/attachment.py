@@ -1,6 +1,8 @@
 # app/models/attachment.py
 from __future__ import annotations
+
 from datetime import datetime
+
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,27 +17,29 @@ class Attachment(Base):
     - soft-delete 지원 (is_deleted)
     """
 
-    __tablename__ = "attachments"
+    __tablename__ = "attachment"
 
     # -----------------------------------------------------------------
     # 기본 컬럼
     # -----------------------------------------------------------------
-    attachment_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    attachment_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
 
     project_id: Mapped[int | None] = mapped_column(
-        ForeignKey("projects.project_id", ondelete="CASCADE"),
+        ForeignKey("project.project_id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
 
     task_id: Mapped[int | None] = mapped_column(
-        ForeignKey("tasks.task_id", ondelete="CASCADE"),
+        ForeignKey("task.task_id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
 
     uploaded_by: Mapped[int | None] = mapped_column(
-        ForeignKey("employees.emp_id", ondelete="SET NULL"),
+        ForeignKey("employee.emp_id", ondelete="SET NULL"),
         nullable=True,
     )
 
@@ -56,22 +60,11 @@ class Attachment(Base):
     )
 
     # -----------------------------------------------------------------
-    # 관계 설정
+    # 관계 설정 (모델명 기준으로 통일)
     # -----------------------------------------------------------------
-    project: Mapped["Project"] = relationship(
-        back_populates="attachments",
-        lazy="selectin",
-    )
-
-    task: Mapped["Task"] = relationship(
-        back_populates="attachments",
-        lazy="selectin",
-    )
-
-    uploader: Mapped["Employee"] = relationship(
-        back_populates="attachments",
-        lazy="selectin",
-    )
+    project = relationship("Project", back_populates="attachment", lazy="selectin")
+    task = relationship("Task", back_populates="attachment", lazy="selectin")
+    employee = relationship("Employee", back_populates="attachment", lazy="selectin")
 
     # -----------------------------------------------------------------
     # 표현

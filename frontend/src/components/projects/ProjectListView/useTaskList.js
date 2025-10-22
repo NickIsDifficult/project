@@ -107,11 +107,8 @@ export function useTaskList({ allTasks = [] }) {
 
   // ✅ 필터 + 정렬
   const filteredTasks = useMemo(() => {
-    // 1️⃣ 평탄화된 전체 노드
-    const allNodes = flattenTasks(tasks);
-
-    // 2️⃣ 필터 조건 적용
-    const matches = allNodes.filter(node => {
+    // 🧩 최상위 노드(프로젝트 단위) 기준 필터링
+    const matches = tasks.filter(node => {
       const statusOk = status === "ALL" || node.status === status;
       const assigneeOk =
         assignee === "ALL" ||
@@ -125,7 +122,7 @@ export function useTaskList({ allTasks = [] }) {
       return statusOk && assigneeOk && keywordOk;
     });
 
-    // 3️⃣ 정렬 후 결과 반환
+    // 정렬 후 반환
     return matches.sort(sortCompare);
   }, [tasks, keyword, status, assignee, sortCompare]);
 

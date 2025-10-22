@@ -1,4 +1,4 @@
-// src/components/tasks/TaskDetailPanel/useTaskDetail.js
+// src/components/project/ProjectDetailPanel/useTaskDetail.js
 import { debounce } from "lodash";
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -21,7 +21,7 @@ import {
 /**
  * ✅ useTaskDetail (전역형)
  * - 업무(taskId) + 프로젝트(projectId) 통합 지원
- * - TaskDetailPanel, Drawer에서 사용
+ * - ProjectDetailPanel, Drawer에서 사용
  */
 export function useTaskDetail(projectId, taskId) {
   const { fetchTasksByProject, updateTaskLocal } = useProjectGlobal();

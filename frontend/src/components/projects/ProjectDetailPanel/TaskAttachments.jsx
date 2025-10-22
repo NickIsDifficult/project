@@ -1,4 +1,4 @@
-// src/components/tasks/TaskDetailPanel/TaskAttachments.jsx
+// src/components/project/ProjectDetailPanel/TaskAttachments.jsx
 import { useRef } from "react";
 import toast from "react-hot-toast";
 import Button from "../../common/Button";
@@ -6,7 +6,7 @@ import Button from "../../common/Button";
 /**
  * ✅ TaskAttachments
  * - 첨부파일 업로드 / 삭제 섹션
- * - TaskDetailPanel 및 useTaskDetail과 연동
+ * - ProjectDetailPanel 및 useTaskDetail과 연동
  */
 export default function TaskAttachments({ attachments = [], onUpload, onDelete }) {
   const fileInputRef = useRef(null);

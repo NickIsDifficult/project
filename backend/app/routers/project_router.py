@@ -1,5 +1,6 @@
 # app/routers/project_router.py
 from __future__ import annotations
+
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_db
-from app.utils.token import get_current_user
 from app.services import project_service
+from app.utils.token import get_current_user
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -28,7 +29,7 @@ def list_projects(db: Session = Depends(get_db)):
     try:
         return project_service.get_all_projects(db)
     except Exception as e:
-        _error(f"프로젝트 목록 조회 실패: {str(e)}")
+        _error(f"프로젝트 목록 조회 실패: {getattr(e, 'args', [str(e)])[0]}")
 
 
 # ---------------------------------------------------------------------
@@ -62,12 +63,12 @@ def create_project(
 # ---------------------------------------------------------------------
 @router.post("/full-create", response_model=schemas.project.Project)
 def create_project_full(
-    payload: Dict[str, Any],
+    payload: schemas.project.ProjectFullCreate,
     db: Session = Depends(get_db),
     current_user: models.Employee = Depends(get_current_user),
 ):
     try:
-        return project_service.create_project_full(db, payload, current_user)
+        return project_service.create_project_full(db, payload.dict(), current_user)
     except Exception as e:
         _error(f"프로젝트 Full 생성 실패: {str(e)}")
 

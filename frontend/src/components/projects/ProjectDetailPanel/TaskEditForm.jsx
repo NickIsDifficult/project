@@ -4,7 +4,7 @@ import Button from "../../common/Button";
 
 /**
  * ✅ TaskEditForm
- * - 업무 수정 폼 (TaskDetailPanel에서 호출)
+ * - 업무 수정 폼 (ProjectDetailPanel에서 호출)
  * - 저장 시 onSave(formData) 실행
  */
 export default function TaskEditForm({ task, employees = [], onSave, onCancel }) {

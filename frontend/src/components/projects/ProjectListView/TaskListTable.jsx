@@ -24,34 +24,41 @@ export default function TaskListTable({
     return sortOrder === "asc" ? "▲" : "▼";
   };
 
-  // 🎨 헤더 셀 스타일
-  const getHeaderStyle = key => ({
-    padding: "8px 12px",
-    cursor: "pointer",
-    fontWeight: 600,
-    fontSize: "14px",
-    textAlign: "left",
-    userSelect: "none",
-    color: sortBy === key ? "#007bff" : "#374151",
-    background: "#f3f4f6",
-    borderBottom: "1px solid #e5e7eb",
-    transition: "background 0.2s",
-  });
-
-  // 🎨 테이블 컨테이너 스타일
+  // 🎨 정돈된 스타일 (밝은 테마용)
   const containerStyle = {
     overflowX: "auto",
     border: "1px solid #e5e7eb",
-    borderRadius: "8px",
+    borderRadius: "12px",
     background: "#fff",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
   };
 
-  // 🎨 테이블 스타일
   const tableStyle = {
     width: "100%",
-    fontSize: "14px",
+    fontSize: "13.5px",
     borderCollapse: "collapse",
+    color: "#1f2937",
+  };
+
+  const thBase = {
+    fontWeight: 600,
+    fontSize: "13.5px",
+    color: "#374151",
+    background: "#f9fafb",
+    borderBottom: "2px solid #e5e7eb",
+    padding: "10px 14px",
+    textAlign: "left",
+    cursor: "pointer",
+    userSelect: "none",
+    transition: "background 0.2s ease",
+  };
+
+  const tdEmpty = {
+    padding: "36px 0",
+    textAlign: "center",
+    color: "#9ca3af",
+    fontStyle: "italic",
+    background: "#f9fafb",
   };
 
   return (
@@ -60,52 +67,35 @@ export default function TaskListTable({
         <colgroup>
           <col style={{ width: "38%" }} />
           <col style={{ width: "12%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "25%" }} />
+          <col style={{ width: "18%" }} />
+          <col style={{ width: "22%" }} />
           <col style={{ width: "10%" }} />
         </colgroup>
 
-        {/* 🔹 테이블 헤더 */}
         <thead>
           <tr>
-            <th
-              style={getHeaderStyle("title")}
-              onClick={() => handleSort?.("title")}
-              onMouseEnter={e => (e.currentTarget.style.background = "#e5e7eb")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#f3f4f6")}
-            >
-              업무명 {renderSortIcon("title")}
-            </th>
-            <th
-              style={getHeaderStyle("status")}
-              onClick={() => handleSort?.("status")}
-              onMouseEnter={e => (e.currentTarget.style.background = "#e5e7eb")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#f3f4f6")}
-            >
-              상태 {renderSortIcon("status")}
-            </th>
-            <th
-              style={getHeaderStyle("assignee_name")}
-              onClick={() => handleSort?.("assignee_name")}
-              onMouseEnter={e => (e.currentTarget.style.background = "#e5e7eb")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#f3f4f6")}
-            >
-              담당자 {renderSortIcon("assignee_name")}
-            </th>
-            {/* ✅ 시작일과 마감일 묶음 */}
-            <th
-              style={getHeaderStyle("start_date")}
-              onClick={() => handleSort?.("start_date")}
-              onMouseEnter={e => (e.currentTarget.style.background = "#e5e7eb")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#f3f4f6")}
-            >
-              기간 (시작~마감) {renderSortIcon("start_date")}
-            </th>
-            {/* 마감일 컬럼 제거 — 기간 컬럼으로 통합 */}
+            {[
+              ["title", "업무명"],
+              ["status", "상태"],
+              ["assignee_name", "담당자"],
+              ["start_date", "기간 (시작~마감)"],
+            ].map(([key, label]) => (
+              <th
+                key={key}
+                style={{
+                  ...thBase,
+                  color: sortBy === key ? "#2563eb" : "#374151",
+                }}
+                onClick={() => handleSort?.(key)}
+                onMouseEnter={e => (e.currentTarget.style.background = "#f3f4f6")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#f9fafb")}
+              >
+                {label} {renderSortIcon(key)}
+              </th>
+            ))}
           </tr>
         </thead>
 
-        {/* 🔹 테이블 바디 */}
         <tbody>
           {filteredTasks.length > 0 ? (
             filteredTasks.map(t => (
@@ -129,19 +119,7 @@ export default function TaskListTable({
           ) : (
             <tr>
               <td colSpan={5}>
-                <div
-                  style={{
-                    padding: "40px 0",
-                    textAlign: "center",
-                    color: "#6b7280",
-                    fontStyle: "italic",
-                    background: "#f9fafb",
-                    borderBottomLeftRadius: "8px",
-                    borderBottomRightRadius: "8px",
-                  }}
-                >
-                  표시할 업무가 없습니다.
-                </div>
+                <div style={tdEmpty}>표시할 업무가 없습니다.</div>
               </td>
             </tr>
           )}

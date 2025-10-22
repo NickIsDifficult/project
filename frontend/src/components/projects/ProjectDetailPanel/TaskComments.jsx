@@ -1,4 +1,4 @@
-// src/components/tasks/TaskDetailPanel/TaskComments.jsx
+// src/components/project/ProjectDetailPanel/TaskComments.jsx
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import TextareaAutosize from "react-textarea-autosize";

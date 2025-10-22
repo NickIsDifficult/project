@@ -3,7 +3,7 @@
 # ---------------------------
 import logging
 
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import models

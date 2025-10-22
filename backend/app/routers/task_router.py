@@ -1,11 +1,12 @@
 # app/routers/task_router.py
 from typing import List
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_db
-from app.services import task_service, attachment_service
+from app.services import attachment_service, task_service
 from app.utils.token import get_current_user
 
 router = APIRouter(prefix="/projects", tags=["tasks"])
@@ -30,11 +31,13 @@ def get_task_tree(
     """특정 프로젝트의 트리 구조(Task Tree) 반환"""
     roots = (
         db.query(models.Task)
-        .filter(models.Task.project_id == project_id, models.Task.parent_task_id.is_(None))
+        .filter(
+            models.Task.project_id == project_id, models.Task.parent_task_id.is_(None)
+        )
         .all()
     )
 
-    def build_tree(task: models.Task):
+    def build_tree(task):
         return {
             "task_id": task.task_id,
             "project_id": task.project_id,
@@ -46,10 +49,9 @@ def get_task_tree(
             "due_date": task.due_date,
             "progress": task.progress,
             "assignees": [
-                {"emp_id": m.employee.emp_id, "name": m.employee.name}
-                for m in task.members
+                {"emp_id": m.emp_id, "name": m.employee.name} for m in task.taskmember
             ],
-            "subtasks": [build_tree(sub) for sub in task.subtasks],
+            "subtasks": [build_tree(sub) for sub in task.subtask],
         }
 
     return [build_tree(t) for t in roots]
@@ -101,7 +103,9 @@ def update_task(
     return task_service.update_task(db, task, request, current_user.emp_id)
 
 
-@router.patch("/{project_id}/tasks/{task_id}/status", response_model=schemas.project.Task)
+@router.patch(
+    "/{project_id}/tasks/{task_id}/status", response_model=schemas.project.Task
+)
 def update_task_status(
     project_id: int,
     task_id: int,
@@ -112,7 +116,9 @@ def update_task_status(
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
         _error("태스크를 찾을 수 없습니다.", status.HTTP_404_NOT_FOUND)
-    return task_service.change_task_status(db, task, request.status, current_user.emp_id)
+    return task_service.change_task_status(
+        db, task, request.status, current_user.emp_id
+    )
 
 
 @router.delete("/{project_id}/tasks/{task_id}")
@@ -132,7 +138,10 @@ def delete_task(
 # ---------------------------------------------------------------------
 # 📎 첨부파일
 # ---------------------------------------------------------------------
-@router.get("/{project_id}/tasks/{task_id}/attachments", response_model=List[schemas.attachment.Attachment])
+@router.get(
+    "/{project_id}/tasks/{task_id}/attachments",
+    response_model=List[schemas.attachment.Attachment],
+)
 def get_task_attachments(project_id: int, task_id: int, db: Session = Depends(get_db)):
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
@@ -140,7 +149,10 @@ def get_task_attachments(project_id: int, task_id: int, db: Session = Depends(ge
     return attachment_service.get_attachments_by_task(db, task_id)
 
 
-@router.post("/{project_id}/tasks/{task_id}/attachments", response_model=schemas.attachment.Attachment)
+@router.post(
+    "/{project_id}/tasks/{task_id}/attachments",
+    response_model=schemas.attachment.Attachment,
+)
 def upload_task_attachment(
     project_id: int,
     task_id: int,
@@ -151,7 +163,9 @@ def upload_task_attachment(
     task = task_service.get_task_by_id(db, task_id)
     if not task or task.project_id != project_id:
         _error("업로드할 태스크를 찾을 수 없습니다.", status.HTTP_404_NOT_FOUND)
-    return attachment_service.upload_attachment(db, project_id, task_id, file, current_user)
+    return attachment_service.upload_attachment(
+        db, project_id, task_id, file, current_user
+    )
 
 
 @router.delete("/{project_id}/tasks/{task_id}/attachments/{attachment_id}")

@@ -1,7 +1,7 @@
-# app/schemas/project.py
 from datetime import date, datetime
 from typing import Annotated, List, Optional
-from pydantic import BaseModel, Field, field_serializer, field_validator, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from app.models.enums import (
     MemberRole,
@@ -11,6 +11,7 @@ from app.models.enums import (
     TaskStatus,
 )
 from app.schemas.employee import Employee
+
 
 # ============================================================
 # 🧱 Base Utilities
@@ -24,7 +25,7 @@ def _serialize_datetime(v: Optional[datetime], _info):
 
 
 # ============================================================
-# 🧩 Project Member
+# 🧩 ProjectMember
 # ============================================================
 class ProjectMemberBase(BaseModel):
     emp_id: int
@@ -38,7 +39,7 @@ class ProjectMember(ProjectMemberBase):
 
 
 # ============================================================
-# 🧩 Task Comment
+# 🧩 TaskComment
 # ============================================================
 class TaskCommentBase(BaseModel):
     content: str
@@ -57,7 +58,9 @@ class TaskComment(TaskCommentBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(_serialize_datetime)
+    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(
+        _serialize_datetime
+    )
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -86,7 +89,9 @@ class TaskBase(BaseModel):
     estimate_hours: float = 0.0
     progress: Annotated[int, Field(ge=0, le=100)] = 0
 
-    _ser_date = field_serializer("start_date", "due_date", when_used="always")(_serialize_date)
+    _ser_date = field_serializer("start_date", "due_date", when_used="always")(
+        _serialize_date
+    )
 
 
 class TaskCreate(TaskBase):
@@ -104,18 +109,21 @@ class TaskUpdate(BaseModel):
     estimate_hours: Optional[float] = None
     progress: Optional[int] = None
 
-    _ser_date = field_serializer("start_date", "due_date", when_used="always")(_serialize_date)
+    _ser_date = field_serializer("start_date", "due_date", when_used="always")(
+        _serialize_date
+    )
 
 
 class Task(TaskBase):
     task_id: int
     project_id: int
     assignee_ids: Optional[List[int]] = []
-    members: List[TaskMember] = []
-    comments: List[TaskComment] = []
-    subtasks: List["Task"] = []
+    taskmember: List[TaskMember] = Field(default_factory=list)  # ✅ 관계명 일치
+    taskcomment: List[TaskComment] = Field(default_factory=list)  # ✅ 관계명 일치
+    subtask: List["Task"] = Field(default_factory=list)  # ✅ 관계명 일치
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class TaskStatusUpdate(BaseModel):
     status: TaskStatus
@@ -155,16 +163,16 @@ class ProjectBase(BaseModel):
     status: ProjectStatus = ProjectStatus.PLANNED
     owner_emp_id: Optional[int] = None
 
-    _ser_date = field_serializer("start_date", "end_date", when_used="always")(_serialize_date)
+    _ser_date = field_serializer("start_date", "end_date", when_used="always")(
+        _serialize_date
+    )
     model_config = ConfigDict(from_attributes=True)
 
 
-# ✅ 생성용
 class ProjectCreate(ProjectBase):
     pass
 
 
-# ✅ 수정용
 class ProjectUpdate(BaseModel):
     project_name: Optional[str] = None
     description: Optional[str] = None
@@ -173,22 +181,25 @@ class ProjectUpdate(BaseModel):
     status: Optional[ProjectStatus] = None
     owner_emp_id: Optional[int] = None
 
-    _ser_date = field_serializer("start_date", "end_date", when_used="always")(_serialize_date)
+    _ser_date = field_serializer("start_date", "end_date", when_used="always")(
+        _serialize_date
+    )
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
 
-# ✅ 응답용
 class Project(ProjectBase):
     project_id: int
-    members: List[ProjectMember] = Field(default_factory=list)
-    tasks: List[Task] = Field(default_factory=list)
-    milestones: List[Milestone] = Field(default_factory=list)
-    comments: List[TaskComment] = Field(default_factory=list)
+    projectmember: List[ProjectMember] = Field(default_factory=list)  # ✅ 관계명 일치
+    task: List[Task] = Field(default_factory=list)  # ✅ 관계명 일치
+    milestone: List[Milestone] = Field(default_factory=list)  # ✅ 관계명 일치
+    taskcomment: List[TaskComment] = Field(default_factory=list)  # ✅ 관계명 일치
     owner_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(_serialize_datetime)
+    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(
+        _serialize_datetime
+    )
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -208,7 +219,7 @@ class TaskHistory(BaseModel):
 
 
 # ============================================================
-# 🌳 Task Tree (트리형 구조 전용)
+# 🌳 TaskTree (트리형 구조 전용)
 # ============================================================
 class TaskTree(BaseModel):
     task_id: int
@@ -224,6 +235,15 @@ class TaskTree(BaseModel):
     subtasks: List["TaskTree"] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================
+# 🧩 ProjectFullCreate (프로젝트 + 태스크 + 멤버 동시 생성)
+# ============================================================
+class ProjectFullCreate(ProjectCreate):
+
+    members: Optional[List[ProjectMemberBase]] = None
+    tasks: Optional[List[TaskCreate]] = None
 
 
 # forward refs

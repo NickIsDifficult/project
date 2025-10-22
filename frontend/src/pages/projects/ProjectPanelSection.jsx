@@ -1,5 +1,5 @@
 // src/pages/projects/ProjectPanelSection.jsx
-import TaskDetailPanel from "../../components/tasks/TaskDetailPanel";
+import ProjectDetailPanel from "../../components/projects/ProjectDetailPanel";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 
 export default function ProjectPanelSection() {
@@ -8,10 +8,12 @@ export default function ProjectPanelSection() {
 
   if (!selectedTask) return null;
 
+  const isProject = !!selectedTask.isProject;
+
   return (
-    <TaskDetailPanel
+    <ProjectDetailPanel
       projectId={selectedTask.project_id}
-      taskId={selectedTask.isProject ? undefined : selectedTask.task_id}
+      taskId={isProject ? undefined : selectedTask.task_id}
       isProject={selectedTask.isProject}
       onClose={() =>
         setUiState(prev => ({

@@ -1,4 +1,4 @@
-// src/components/tasks/TaskDetailPanel/index.jsx
+// src/components/project/ProjectDetailPanel/index.jsx
 import { useEffect, useState } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import Button from "../../common/Button";
@@ -30,11 +30,11 @@ function decodeJwt(token) {
 }
 
 /**
- * ✅ TaskDetailPanel (상세보기 전용)
+ * ✅ ProjectDetailPanel (상세보기 전용)
  * - 수정/편집 모드 제거됨
  * - 프로젝트/업무 상세정보 + 첨부파일/댓글만 표시
  */
-export default function TaskDetailPanel({ projectId, taskId, onClose, onAddSubtask }) {
+export default function ProjectDetailPanel({ projectId, taskId, onClose, onAddSubtask }) {
   const { fetchTasksByProject, setUiState } = useProjectGlobal();
 
   const {

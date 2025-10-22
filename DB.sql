@@ -100,15 +100,6 @@ CREATE TABLE `task` (
    CONSTRAINT `task_ibfk_3` FOREIGN KEY (`parent_task_id`) REFERENCES `task` (`task_id`)
  ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE task_assignee (
-  task_id INT NOT NULL,
-  emp_id INT NOT NULL,
-  assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (task_id, emp_id),
-  FOREIGN KEY (task_id) REFERENCES task(task_id) ON DELETE CASCADE,
-  FOREIGN KEY (emp_id) REFERENCES employee(emp_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
 -- 5) project를 참조
 CREATE TABLE `milestone` (
   `milestone_id` int NOT NULL AUTO_INCREMENT,

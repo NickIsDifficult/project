@@ -72,8 +72,10 @@ export default function Button({
         e.currentTarget.style.borderColor = hoverMap[variant];
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.background = variants[variant].background;
-        e.currentTarget.style.borderColor = variants[variant].borderColor;
+        const bg = variants[variant]?.background ?? "#fff";
+        const border = variants[variant]?.borderColor ?? "#ccc";
+        e.currentTarget.style.background = bg;
+        e.currentTarget.style.borderColor = border;
       }}
       {...props}
     >

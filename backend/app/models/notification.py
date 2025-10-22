@@ -27,24 +27,24 @@ class Notification(Base):
 
     recipient_emp_id = Column(
         Integer,
-        ForeignKey("employees.emp_id", ondelete="CASCADE"),
+        ForeignKey("employee.emp_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     actor_emp_id = Column(
         Integer,
-        ForeignKey("employees.emp_id", ondelete="CASCADE"),
+        ForeignKey("employee.emp_id", ondelete="CASCADE"),
         nullable=False,
     )
     project_id = Column(
         Integer,
-        ForeignKey("projects.project_id", ondelete="CASCADE"),
+        ForeignKey("project.project_id", ondelete="CASCADE"),
         index=True,
         nullable=True,
     )
     task_id = Column(
         Integer,
-        ForeignKey("tasks.task_id", ondelete="CASCADE"),
+        ForeignKey("task.task_id", ondelete="CASCADE"),
         index=True,
         nullable=True,
     )
@@ -59,15 +59,17 @@ class Notification(Base):
     recipient = relationship(
         "Employee",
         foreign_keys=[recipient_emp_id],
-        backref="received_notifications",
+        back_populates="notification_received",  # ✅ 정확히 일치
     )
+
     actor = relationship(
         "Employee",
         foreign_keys=[actor_emp_id],
-        backref="sent_notifications",
+        back_populates="notification_sent",  # ✅ 정확히 일치
     )
-    project = relationship("Project", back_populates="notifications")
-    task = relationship("Task", back_populates="notifications")
+
+    project = relationship("Project", back_populates="notification")
+    task = relationship("Task", back_populates="notification")
 
     __table_args__ = (
         Index("idx_notification_recipient", "recipient_emp_id"),

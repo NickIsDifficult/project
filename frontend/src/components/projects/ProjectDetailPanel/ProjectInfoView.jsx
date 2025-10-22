@@ -1,4 +1,4 @@
-// src/components/tasks/TaskDetailPanel/ProjectInfoView.jsx
+// src/components/project/ProjectDetailPanel/ProjectInfoView.jsx
 import ProjectDetailForm from "./ProjectDetailForm";
 
 export default function ProjectInfoView({ project, onClose }) {

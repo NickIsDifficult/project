@@ -30,7 +30,7 @@ def _next_code(db: Session, table: str, id_col: str, no_col: str, prefix: int) -
 def create_employee_with_member(
     db: Session, *, dept_id: int, role_id: int, name: str, email: str, mobile: str
 ) -> Tuple[Employee, Member]:
-    emp_no = _next_code(db, "employee", "emp_id", "emp_no", dept_id)
+    emp_no = _next_code(db, "employees", "emp_id", "emp_no", dept_id)
     employee = Employee(
         emp_no=emp_no, dept_id=dept_id, role_id=role_id,
         name=name, email=email, mobile=mobile

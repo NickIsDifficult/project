@@ -11,17 +11,20 @@ export function useProjectMembers(projectId) {
 
   useEffect(() => {
     if (!projectId) return;
-
     setLoading(true);
+
     getProjectMembers(projectId)
       .then(data => {
-        const formatted = data.map(m => ({
-          value: m.emp_id,
-          label: `${m.name} (${m.role})`,
-          email: m.email,
-          role: m.role,
-        }));
-        setMembers(formatted);
+        // ✅ API 응답이 이미 [{ emp_id, name, role, email }] 구조이므로
+        // 별도 변환 없이 그대로 사용
+        setMembers(
+          data.map(m => ({
+            emp_id: m.emp_id,
+            name: m.name,
+            role: m.role,
+            email: m.email,
+          })),
+        );
       })
       .catch(err => {
         console.error("❌ 프로젝트 멤버 로드 실패:", err);

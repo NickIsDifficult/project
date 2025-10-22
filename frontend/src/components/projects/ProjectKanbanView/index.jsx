@@ -10,6 +10,7 @@ import { useKanbanData } from "./useKanbanData";
 export default function ProjectKanbanView({ onProjectClick, onTaskClick }) {
   const { uiState, setUiState } = useProjectGlobal();
   const { columns, stats, assigneeOptions, handleDragEnd, projectColorMap } = useKanbanData();
+
   const { filter, expand } = uiState;
   const { keyword, status, assignee } = filter;
 
@@ -18,7 +19,7 @@ export default function ProjectKanbanView({ onProjectClick, onTaskClick }) {
     if (keyword.trim()) {
       setUiState(prev => ({
         ...prev,
-        expand: { ...prev.expand, all: true },
+        expand: { ...prev.expand, kanban: true },
       }));
     }
   }, [keyword, setUiState]);
@@ -60,17 +61,13 @@ export default function ProjectKanbanView({ onProjectClick, onTaskClick }) {
       filter: { keyword: "", status: "ALL", assignee: "ALL" },
     }));
 
-  // ✅ 전체 펼치기 / 접기 토글
-  const toggleExpandAll = () =>
-    setUiState(prev => ({
-      ...prev,
-      expand: { ...prev.expand, all: !prev.expand.all },
-    }));
+  const isExpanded = expand.kanban; // ✅ 현재 칸반 확장 여부
 
   return (
     <div style={{ width: "100%" }}>
-      {/* 🔹 상단 필터 / 검색 / 전체 펼치기 */}
+      {/* 🔹 상단 필터 / 검색 / 전체 접기/펼치기 */}
       <ViewHeaderSection
+        viewType="kanban"
         stats={stats}
         assigneeOptions={assigneeOptions}
         filterStatus={status}
@@ -194,7 +191,7 @@ export default function ProjectKanbanView({ onProjectClick, onTaskClick }) {
                                 />
 
                                 {/* 🧩 하위 업무: 전체 펼치기 시 표시 */}
-                                {expand.all &&
+                                {isExpanded &&
                                   (projectTasks.length > 0 ? (
                                     projectTasks.map((task, tIdx) => (
                                       <TaskCard

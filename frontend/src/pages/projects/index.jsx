@@ -13,11 +13,12 @@ export default function ProjectDashboard() {
   const { loading, projects } = useProjectGlobal();
 
   if (loading) return <Loader text="전체 프로젝트 불러오는 중..." />;
-  if (!projects?.length) return <div className="p-6">❌ 등록된 프로젝트가 없습니다.</div>;
+
+  const hasProjects = projects && projects.length > 0;
 
   return (
     <AppShell>
-      <div className="p-6">
+      <div className="p-6 space-y-4">
         <Toaster position="top-right" />
         <ProjectHeaderSection />
         <ViewSwitcherSection />

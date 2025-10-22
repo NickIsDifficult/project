@@ -1,311 +1,249 @@
-import { useEffect, useMemo, useState } from "react";
-import toast from "react-hot-toast";
+// src/components/projects/ProjectListView/useTaskList.js
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
-import { deleteProject, updateProject } from "../../../services/api/project";
-import { deleteTask, updateTask, updateTaskStatus } from "../../../services/api/task";
+import { useTaskActions } from "./useTaskActions";
 
-/* ----------------------------------------
- * 🔁 상태 변환 매핑
- * ---------------------------------------- */
-const normalizeProjectStatus = status => {
-  switch (status) {
-    case "DONE":
-    case "REVIEW":
-      return "COMPLETED";
-    case "TODO":
-    case "PLANNED":
-      return "PLANNED";
-    case "IN_PROGRESS":
-      return "IN_PROGRESS";
-    case "ON_HOLD":
-      return "ON_HOLD";
-    default:
-      return "PLANNED";
-  }
-};
-
-/* ----------------------------------------
- * 🔁 정렬 헬퍼
- * ---------------------------------------- */
-function sortCompare(a, b, key, order) {
-  if (key === "assignee_name") {
-    const nameA = a.assignees?.map(x => x.name).join(", ") || "";
-    const nameB = b.assignees?.map(x => x.name).join(", ") || "";
-    return order === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
-  }
-
-  const valA = a[key] ?? "";
-  const valB = b[key] ?? "";
-
-  if (key.includes("date")) {
-    const dateA = valA ? new Date(valA) : new Date(0);
-    const dateB = valB ? new Date(valB) : new Date(0);
-    return order === "asc" ? dateA - dateB : dateB - dateA;
-  }
-
-  return order === "asc"
-    ? String(valA).localeCompare(String(valB))
-    : String(valB).localeCompare(String(valA));
-}
-
-/* ----------------------------------------
- * 📦 메인 훅
- * ---------------------------------------- */
+/**
+ * ✅ useTaskList
+ * - 프로젝트 + 업무 리스트뷰 통합 훅
+ * - 필터링, 정렬, 접기/펼치기 상태 관리
+ */
 export function useTaskList({ allTasks = [] }) {
-  const { fetchTasksByProject, updateTaskLocal, setSelectedTask } = useProjectGlobal();
+  const { uiState, setUiState, setSelectedTask } = useProjectGlobal();
+  const { handleStatusChange, handleDelete } = useTaskActions();
 
   const [tasks, setTasks] = useState(allTasks);
-  const [loading, setLoading] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ title: "", description: "" });
-  const [collapsedTasks, setCollapsedTasks] = useState(new Set());
-
-  // 필터/정렬 상태
-  const [filterStatus, setFilterStatus] = useState("ALL");
-  const [filterAssignee, setFilterAssignee] = useState("ALL");
-  const [searchKeyword, setSearchKeyword] = useState("");
+  const [collapsedTasks, setCollapsedTasks] = useState(() => new Set());
   const [sortBy, setSortBy] = useState("start_date");
   const [sortOrder, setSortOrder] = useState("asc");
 
-  /* ----------------------------------------
-   * 🧩 데이터 동기화
-   * ---------------------------------------- */
-  useEffect(() => {
-    setTasks([...allTasks]);
-  }, [allTasks]);
+  const { keyword, status, assignee } = uiState.filter;
 
-  /* ----------------------------------------
-   * 🧩 트리 평탄화 유틸
-   * ---------------------------------------- */
-  function flattenTasks(nodes = []) {
+  // ✅ 담당자 이름 추출
+  const extractAssigneeNames = useCallback(t => {
+    if (!t) return [];
+
+    // 🏗 프로젝트 → owner_name 또는 members
+    if (t.isProject) {
+      if (t.owner_name) return [t.owner_name];
+      if (Array.isArray(t.members))
+        return t.members.map(m => m?.employee?.name ?? m?.name ?? "").filter(Boolean);
+      return [];
+    }
+    // 🧩 업무(Task) → assignees, members, assignee_name
+    const names = [];
+    if (Array.isArray(t.assignees)) {
+      t.assignees.forEach(a => {
+        if (a?.name) names.push(a.name);
+        else if (a?.employee?.name) names.push(a.employee.name);
+      });
+    }
+    if (Array.isArray(t.members)) {
+      t.members.forEach(m => {
+        if (m?.employee?.name) names.push(m.employee.name);
+        else if (m?.name) names.push(m.name);
+      });
+    }
+    if (t.assignee_name && !names.includes(t.assignee_name)) {
+      names.push(t.assignee_name);
+    }
+    return names.filter(Boolean);
+  }, []);
+
+  // ✅ 프로젝트/업무 리스트 갱신 시 담당자 이름 추가
+  useEffect(() => {
+    const enriched = allTasks.map(t => ({
+      ...t,
+      assigneeNames: extractAssigneeNames(t),
+    }));
+    setTasks(enriched);
+  }, [allTasks, extractAssigneeNames]);
+
+  // ✅ 트리 평탄화
+  const flattenTasks = useCallback((nodes = []) => {
     const result = [];
     for (const n of nodes) {
       result.push(n);
-      if (Array.isArray(n.subtasks) && n.subtasks.length) {
-        result.push(...flattenTasks(n.subtasks));
-      }
+      if (Array.isArray(n.subtasks) && n.subtasks.length) result.push(...flattenTasks(n.subtasks));
     }
     return result;
-  }
+  }, []);
 
-  /* ----------------------------------------
-   * 🧩 Subtask 안전 보정 유틸
-   * ---------------------------------------- */
-  function normalizeSubtasks(s) {
-    if (Array.isArray(s)) return s;
-    if (s && typeof s === "object") return Object.values(s); // 객체형도 처리
-    return [];
-  }
+  const flatTasks = useMemo(() => flattenTasks(tasks), [tasks, flattenTasks]);
 
-  /* ----------------------------------------
-   * 🔍 담당자 목록
-   * ---------------------------------------- */
+  // ✅ 담당자 목록 (필터용)
   const assigneeOptions = useMemo(() => {
-    const set = new Set();
-    flattenTasks(tasks).forEach(t => {
-      if (t.assignees?.length) {
-        t.assignees.forEach(a => set.add(a.name));
-      } else {
-        set.add("미지정");
-      }
+    const names = new Set(["ALL"]);
+    flatTasks.forEach(t => {
+      if (t.assigneeNames?.length) t.assigneeNames.forEach(n => names.add(n));
+      else names.add("미지정");
     });
-    return ["ALL", ...Array.from(set)];
-  }, [tasks]);
+    return Array.from(names);
+  }, [flatTasks]);
 
-  /* ----------------------------------------
-   * 🔍 필터 + 정렬 + 검색 (트리 구조 유지)
-   * ---------------------------------------- */
+  // ✅ 정렬 비교
+  const sortCompare = useCallback(
+    (a, b) => {
+      let valA = a[sortBy] ?? "";
+      let valB = b[sortBy] ?? "";
+
+      if (sortBy === "assignee_name" || sortBy === "assigneeNames") {
+        valA = a.assigneeNames?.[0] ?? "";
+        valB = b.assigneeNames?.[0] ?? "";
+      }
+
+      if (["start_date", "due_date", "end_date"].includes(sortBy)) {
+        return sortOrder === "asc"
+          ? new Date(valA || 0) - new Date(valB || 0)
+          : new Date(valB || 0) - new Date(valA || 0);
+      }
+
+      return sortOrder === "asc"
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA));
+    },
+    [sortBy, sortOrder],
+  );
+
+  // ✅ 필터 + 정렬
   const filteredTasks = useMemo(() => {
-    const filterNode = node => {
-      const status = node.status?.trim()?.toUpperCase?.() || "TODO";
-      const statusOk = filterStatus === "ALL" || status === filterStatus;
+    // 1️⃣ 평탄화된 전체 노드
+    const allNodes = flattenTasks(tasks);
+
+    // 2️⃣ 필터 조건 적용
+    const matches = allNodes.filter(node => {
+      const statusOk = status === "ALL" || node.status === status;
       const assigneeOk =
-        filterAssignee === "ALL" || (node.assignees?.some(a => a.name === filterAssignee) ?? false);
+        assignee === "ALL" ||
+        (Array.isArray(node.assigneeNames) && node.assigneeNames.includes(assignee));
       const keywordOk =
-        !searchKeyword || node.title?.toLowerCase().includes(searchKeyword.toLowerCase());
+        !keyword ||
+        node.title?.toLowerCase().includes(keyword.toLowerCase()) ||
+        node.project_name?.toLowerCase().includes(keyword.toLowerCase()) ||
+        node.description?.toLowerCase().includes(keyword.toLowerCase());
 
-      const matchSelf = statusOk && assigneeOk && keywordOk;
-
-      const children = normalizeSubtasks(node.subtasks)
-        .map(sub => filterNode(sub))
-        .filter(Boolean)
-        .sort((a, b) => sortCompare(a, b, sortBy, sortOrder));
-
-      if (matchSelf || children.length > 0) {
-        return { ...node, subtasks: children };
-      }
-      return null;
-    };
-
-    return (Array.isArray(tasks) ? tasks : [])
-      .map(task => filterNode(task))
-      .filter(Boolean)
-      .sort((a, b) => sortCompare(a, b, sortBy, sortOrder));
-  }, [tasks, filterStatus, filterAssignee, searchKeyword, sortBy, sortOrder]);
-
-  /* ----------------------------------------
-   * 📊 통계 계산
-   * ---------------------------------------- */
-  const stats = useMemo(() => {
-    const flat = flattenTasks(filteredTasks ?? []);
-    const total = flat.length;
-    const counts = { TODO: 0, IN_PROGRESS: 0, REVIEW: 0, DONE: 0 };
-
-    flat.forEach(t => {
-      const key = t.status || "TODO";
-      counts[key] = (counts[key] || 0) + 1;
+      return statusOk && assigneeOk && keywordOk;
     });
 
-    const doneRatio = total ? ((counts.DONE / total) * 100).toFixed(1) : 0;
-    return { total, ...counts, doneRatio };
-  }, [filteredTasks]);
+    // 3️⃣ 정렬 후 결과 반환
+    return matches.sort(sortCompare);
+  }, [tasks, keyword, status, assignee, sortCompare]);
 
-  /* ----------------------------------------
-   * ⚙️ 필터 / 정렬 제어
-   * ---------------------------------------- */
-  const handleSort = key => {
-    if (sortBy === key) setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
-    else {
-      setSortBy(key);
-      setSortOrder("asc");
-    }
-  };
+  // ✅ 정렬 핸들러
+  const handleSort = useCallback(
+    key => {
+      setSortOrder(prev => {
+        if (sortBy === key) {
+          const next = prev === "asc" ? "desc" : "asc";
+          return next;
+        } else {
+          setSortBy(key);
+          return "asc";
+        }
+      });
+    },
+    [sortBy],
+  );
 
-  const handleStatusFilter = key => setFilterStatus(prev => (prev === key ? "ALL" : key));
-
-  const resetFilters = () => {
-    setFilterStatus("ALL");
-    setFilterAssignee("ALL");
-    setSearchKeyword("");
-    setSortBy("start_date");
-    setSortOrder("asc");
-  };
-
-  /* ----------------------------------------
-   * 📋 상태 변경 / 수정 / 삭제 / 클릭
-   * ---------------------------------------- */
-  const handleStatusChange = async (task, newStatus) => {
-    if (!task) return;
-    const projectId = Number(task.project_id);
-    const taskId = Number(task.task_id);
-    const isProject = !!task.isProject;
-
-    try {
-      setLoading(true);
-      if (isProject) {
-        await updateProject(projectId, { status: normalizeProjectStatus(newStatus) });
-        toast.success("프로젝트 상태가 변경되었습니다.");
-      } else {
-        await updateTaskStatus(projectId, taskId, newStatus);
-        updateTaskLocal(taskId, { ...task, status: newStatus });
-        toast.success("업무 상태가 변경되었습니다.");
-      }
-      await fetchTasksByProject(projectId);
-    } catch (err) {
-      console.error("❌ 상태 변경 실패:", err);
-      toast.error("상태 변경 실패");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (taskId, projectId) => {
-    if (!window.confirm("정말 삭제하시겠습니까?")) return;
-    const pid = Number(projectId);
-    const tid = Number(taskId);
-    const isProject = !tid || String(taskId).startsWith("proj");
-
-    try {
-      setLoading(true);
-      if (isProject) await deleteProject(pid);
-      else await deleteTask(pid, tid);
-      toast.success(isProject ? "프로젝트 삭제 완료" : "업무 삭제 완료");
-      await fetchTasksByProject(pid);
-    } catch (err) {
-      console.error("❌ 삭제 실패:", err);
-      toast.error("삭제 실패");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const startEdit = task => {
-    setEditingId(task.task_id || task.project_id);
-    setEditForm({
-      title: task.title || "",
-      description: task.description || "",
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditForm({ title: "", description: "" });
-  };
-
-  const saveEdit = async (taskId, projectId) => {
-    if (!editForm.title.trim()) return toast.error("제목을 입력하세요.");
-    const isProject = !taskId || String(taskId).startsWith("proj");
-    const pid = Number(projectId);
-    const tid = Number(taskId);
-
-    try {
-      setLoading(true);
-      if (isProject) {
-        await updateProject(pid, editForm);
-      } else {
-        const updated = await updateTask(pid, tid, editForm);
-        updateTaskLocal(tid, updated);
-      }
-      toast.success(isProject ? "프로젝트 수정 완료" : "업무 수정 완료");
-      setEditingId(null);
-      setEditForm({ title: "", description: "" });
-      await fetchTasksByProject(pid);
-    } catch (err) {
-      console.error("❌ 수정 실패:", err);
-      toast.error("수정 실패");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleCollapse = id => {
+  // ✅ 개별 접기 토글
+  const toggleCollapse = useCallback(id => {
     setCollapsedTasks(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  };
+  }, []);
 
-  const onTaskClick = task => setSelectedTask(task);
+  // ✅ 전체 접기/펼치기
+  const toggleExpandAll = useCallback(
+    expandAll => {
+      setCollapsedTasks(() => {
+        if (expandAll) {
+          // 전체 펼치기 → 비움
+          return new Set();
+        } else {
+          // 전체 접기 → 모든 부모 노드 추가
+          const ids = new Set();
+          tasks.forEach(t => {
+            const id = t.isProject ? `proj-${t.project_id}` : `task-${t.task_id}`;
+            if (t.subtasks?.length) ids.add(id);
+          });
+          return ids;
+        }
+      });
+    },
+    [tasks],
+  );
 
-  /* ----------------------------------------
-   * 📤 반환
-   * ---------------------------------------- */
+  // ✅ 검색어 변경
+  const setSearchKeyword = useCallback(
+    newKeyword => {
+      setUiState(prev => ({
+        ...prev,
+        filter: { ...prev.filter, keyword: newKeyword },
+        expand: { ...prev.expand, list: !!newKeyword.trim() },
+      }));
+    },
+    [setUiState],
+  );
+
+  // ✅ 담당자 필터
+  const setFilterAssignee = useCallback(
+    newAssignee => {
+      setUiState(prev => ({
+        ...prev,
+        filter: { ...prev.filter, assignee: newAssignee },
+      }));
+    },
+    [setUiState],
+  );
+
+  // ✅ 상태 필터
+  const handleStatusFilter = useCallback(
+    newStatus => {
+      setUiState(prev => ({
+        ...prev,
+        filter: {
+          ...prev.filter,
+          status: prev.filter.status === newStatus ? "ALL" : newStatus,
+        },
+      }));
+    },
+    [setUiState],
+  );
+
+  // ✅ 필터 초기화
+  const resetFilters = useCallback(() => {
+    setUiState(prev => ({
+      ...prev,
+      filter: { keyword: "", status: "ALL", assignee: "ALL" },
+      expand: { ...prev.expand, list: true },
+    }));
+    setSortBy("start_date");
+    setSortOrder("asc");
+    setCollapsedTasks(new Set());
+  }, [setUiState]);
+
+  const onTaskClick = useCallback(task => setSelectedTask(task), [setSelectedTask]);
+
   return {
-    loading,
     filteredTasks,
-    stats,
     assigneeOptions,
-    editingId,
-    editForm,
-    collapsedTasks,
-    filterStatus,
-    filterAssignee,
-    searchKeyword,
+    keyword,
+    status,
+    assignee,
     sortBy,
     sortOrder,
+    handleSort,
     setSearchKeyword,
     setFilterAssignee,
-    handleSort,
-    resetFilters,
     handleStatusFilter,
+    resetFilters,
     handleStatusChange,
     handleDelete,
-    startEdit,
-    cancelEdit,
-    saveEdit,
     toggleCollapse,
-    setEditForm,
+    toggleExpandAll, // ✅ 추가됨
+    collapsedTasks,
     onTaskClick,
   };
 }

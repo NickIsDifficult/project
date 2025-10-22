@@ -1,4 +1,3 @@
-// src/context/ProjectGlobalContext.jsx
 import { debounce } from "lodash";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { usePersistedState } from "../hooks/usePersistedState";
@@ -17,7 +16,7 @@ export function ProjectGlobalProvider({ children }) {
     drawer: { project: false, task: false, parentTaskId: null },
     panel: { selectedTask: null },
     filter: { keyword: "", status: "ALL", assignee: "ALL" },
-    expand: { all: true },
+    expand: { list: true, kanban: true },
   });
 
   // ✅ viewType (localStorage 연동)
@@ -64,24 +63,32 @@ export function ProjectGlobalProvider({ children }) {
 
   const fetchTasksByProject = useRef(debounce(pid => fetchTasksByProjectNow(pid), 250)).current;
 
-  // ✅ Optimistic UI 업데이트
+  // ✅ Optimistic UI 업데이트 (재귀 - 업무)
   const updateTaskLocal = useCallback((taskId, updatedFields) => {
     if (!taskId || !updatedFields) return;
+    const updateTree = list =>
+      list.map(t =>
+        String(t.task_id) === String(taskId)
+          ? { ...t, ...updatedFields }
+          : t.subtasks
+            ? { ...t, subtasks: updateTree(t.subtasks) }
+            : t,
+      );
     setTasksByProject(prev => {
-      const updated = { ...prev };
-      for (const [pid, list] of Object.entries(updated)) {
-        const idx = list.findIndex(t => String(t.task_id) === String(taskId));
-        if (idx !== -1) {
-          updated[pid] = [
-            ...list.slice(0, idx),
-            { ...list[idx], ...updatedFields },
-            ...list.slice(idx + 1),
-          ];
-          break;
-        }
+      const updated = {};
+      for (const [pid, list] of Object.entries(prev)) {
+        updated[pid] = updateTree(list);
       }
       return updated;
     });
+  }, []);
+
+  // ✅ Optimistic UI 업데이트 (프로젝트)
+  const updateProjectLocal = useCallback((projectId, updatedFields) => {
+    if (!projectId || !updatedFields) return;
+    setProjects(prev =>
+      prev.map(p => (String(p.project_id) === String(projectId) ? { ...p, ...updatedFields } : p)),
+    );
   }, []);
 
   // ✅ 마운트 시 전체 프로젝트 로드
@@ -119,6 +126,7 @@ export function ProjectGlobalProvider({ children }) {
     fetchAllProjects,
     fetchTasksByProject,
     fetchTasksByProjectNow,
+    updateProjectLocal,
     updateTaskLocal,
     uiState,
     setUiState,

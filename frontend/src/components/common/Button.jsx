@@ -1,12 +1,4 @@
 // src/components/common/Button.jsx
-
-/**
- * 공용 버튼 컴포넌트
- * ----------------------------
- * variant: 'primary' | 'success' | 'secondary' | 'outline' | 'login'
- * size: 'sm' | 'md' | 'lg'
- * fullWidth: boolean (true일 경우 width: 100%)
- */
 export default function Button({
   children,
   onClick,
@@ -20,8 +12,8 @@ export default function Button({
   const base = {
     display: "inline-block",
     fontWeight: 600,
-    border: "1px solid transparent",
     borderRadius: "8px",
+    border: "1px solid transparent",
     cursor: "pointer",
     transition: "all 0.2s",
     textAlign: "center",
@@ -35,20 +27,33 @@ export default function Button({
   };
 
   const variants = {
-    primary: { background: "#007bff", color: "#fff" },
-    success: { background: "#28a745", color: "#fff" },
-    secondary: { background: "#6c757d", color: "#fff" },
+    primary: {
+      background: "#007bff",
+      color: "#fff",
+      borderColor: "#007bff",
+    },
+    success: {
+      background: "#28a745",
+      color: "#fff",
+      borderColor: "#28a745",
+    },
+    secondary: {
+      background: "#6c757d",
+      color: "#fff",
+      borderColor: "#6c757d",
+    },
     outline: {
       background: "#fff",
       color: "#333",
       border: "1px solid #ccc",
     },
-    login: {
-      background: "#2d6cdf",
-      color: "#fff",
-      fontWeight: 700,
-      borderRadius: "12px",
-    },
+  };
+
+  const hoverMap = {
+    primary: "#0056b3",
+    success: "#1e7e34",
+    secondary: "#545b62",
+    outline: "#f8f9fa",
   };
 
   return (
@@ -60,6 +65,15 @@ export default function Button({
         ...sizes[size],
         ...variants[variant],
         ...style,
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background =
+          variant === "outline" ? hoverMap[variant] : hoverMap[variant];
+        e.currentTarget.style.borderColor = hoverMap[variant];
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = variants[variant].background;
+        e.currentTarget.style.borderColor = variants[variant].borderColor;
       }}
       {...props}
     >

@@ -184,6 +184,7 @@ class Project(ProjectBase):
     tasks: List[Task] = Field(default_factory=list)
     milestones: List[Milestone] = Field(default_factory=list)
     comments: List[TaskComment] = Field(default_factory=list)
+    owner_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

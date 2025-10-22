@@ -7,43 +7,46 @@ import ViewHeaderSection from "../ViewHeaderSection";
 import TaskListTable from "./TaskListTable";
 import { useTaskList } from "./useTaskList";
 
-/**
- * ✅ ProjectListView (전역 프로젝트 기반)
- * - 모든 프로젝트를 루트 노드로 포함하는 트리 리스트 뷰
- * - ProjectGlobalContext + useTaskList 조합
- */
 export default function ProjectListView() {
-  const { projects, tasksByProject, loading, setUiState } = useProjectGlobal();
+  const { projects, tasksByProject, loading, uiState, setUiState } = useProjectGlobal();
 
-  /* ----------------------------------------
-   * 🧩 프로젝트 + 업무 트리 구조로 변환
-   * ---------------------------------------- */
+  /* 🧱 1️⃣ 프로젝트 + 하위 업무 트리 구조 생성 */
   const projectNodes = useMemo(() => {
     if (!projects?.length) return [];
+
     return projects.map(project => ({
       project_id: project.project_id,
-      task_id: null, // ✅ 프로젝트는 task_id 없음
+      task_id: null,
       title: project.project_name,
+      description: project.description ?? "",
       isProject: true,
-      status: project.status ?? "PLANNED", // ✅ 상태 키 통일
+      status: project.status ?? "PLANNED",
       statusLabel: STATUS_LABELS[project.status] ?? "계획",
-      assignees: project.manager_name
-        ? [{ emp_id: project.owner_emp_id ?? 0, name: project.manager_name }]
+      // ✅ owner_name 우선 사용
+      assignees: project.owner_name
+        ? [{ emp_id: project.owner_emp_id ?? 0, name: project.owner_name }]
         : [],
       start_date: project.start_date ?? null,
-      due_date: project.due_date ?? null,
+      end_date: project.end_date ?? project.due_date ?? null,
+      owner_emp_id: project.owner_emp_id,
+      owner_name: project.owner_name,
       subtasks: tasksByProject?.[project.project_id] ?? [],
     }));
   }, [projects, tasksByProject]);
 
-  /* ----------------------------------------
-   * 🔁 필터/검색/정렬/수정 등 관리 훅
-   * ---------------------------------------- */
+  /* ⚙️ 2️⃣ 리스트뷰용 훅 (검색, 필터, 정렬 등) */
   const hook = useTaskList({ allTasks: projectNodes });
 
-  /* ----------------------------------------
-   * ⚙️ 상세 보기 클릭 시 Drawer 자동 닫기
-   * ---------------------------------------- */
+  /* 🧭 3️⃣ 전체 접기 / 펼치기 상태 */
+  const isExpanded = uiState.expand.list;
+
+  /* 📋 4️⃣ 현재 표시할 데이터 (프로젝트만 / 전체) */
+  const visibleNodes = useMemo(() => {
+    if (isExpanded) return hook.filteredTasks; // 전체 펼치기 시 모든 프로젝트 + 업무
+    return projectNodes.filter(node => node.isProject); // 전체 접기 시 프로젝트만
+  }, [isExpanded, projectNodes, hook.filteredTasks]);
+
+  /* 🪟 5️⃣ 상세 패널 열기 */
   const handleTaskClick = task => {
     setUiState(prev => ({
       ...prev,
@@ -52,36 +55,35 @@ export default function ProjectListView() {
     }));
   };
 
-  /* ----------------------------------------
-   * ⏳ 로딩 / 예외 처리
-   * ---------------------------------------- */
+  /* 🌀 6️⃣ 로딩 처리 */
   if (loading) return <Loader text="📂 프로젝트 및 업무를 불러오는 중..." />;
 
-  if (!projects?.length)
-    return <div className="p-6 text-gray-600">❌ 등록된 프로젝트가 없습니다.</div>;
-
-  /* ----------------------------------------
-   * ✅ 메인 렌더링
-   * ---------------------------------------- */
+  /* 🎨 7️⃣ 렌더링 */
   return (
-    <>
-      <div className="p-4">
-        {/* 🔍 공통 필터/요약 섹션 */}
-        <ViewHeaderSection
-          stats={hook.stats}
-          assigneeOptions={hook.assigneeOptions}
-          filterStatus={hook.filterStatus}
-          filterAssignee={hook.filterAssignee}
-          searchKeyword={hook.searchKeyword}
-          setSearchKeyword={hook.setSearchKeyword}
-          setFilterAssignee={hook.setFilterAssignee}
-          handleStatusFilter={hook.handleStatusFilter}
-          resetFilters={hook.resetFilters}
-        />
+    <div className="p-4 space-y-4">
+      {/* 🔹 상단 필터 & 전체 접기/펼치기 버튼 */}
+      <ViewHeaderSection
+        viewType="list" // ✅ 리스트뷰 전용 토글 제어
+        assigneeOptions={hook.assigneeOptions}
+        setSearchKeyword={hook.setSearchKeyword}
+        setFilterAssignee={hook.setFilterAssignee}
+        handleStatusFilter={hook.handleStatusFilter}
+        resetFilters={hook.resetFilters}
+        onToggleExpandAll={hook.toggleExpandAll}
+      />
 
-        {/* 📋 리스트 테이블 본문 */}
-        <TaskListTable {...hook} onTaskClick={handleTaskClick} />
-      </div>
-    </>
+      {/* 🔹 리스트 테이블 영역 */}
+      <TaskListTable
+        filteredTasks={visibleNodes}
+        collapsedTasks={hook.collapsedTasks}
+        toggleCollapse={hook.toggleCollapse}
+        handleSort={hook.handleSort}
+        handleDelete={hook.handleDelete}
+        handleStatusChange={hook.handleStatusChange}
+        onTaskClick={handleTaskClick}
+        sortBy={hook.sortBy}
+        sortOrder={hook.sortOrder}
+      />
+    </div>
   );
 }

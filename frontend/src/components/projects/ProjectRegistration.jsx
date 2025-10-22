@@ -5,9 +5,8 @@ import { useProjectMembers } from "../../hooks/useProjectMembers";
 import api from "../../services/api/http";
 
 // =========================================
-// ✅ 담당자 선택 컴포넌트
+// ✅ 담당자 선택
 // =========================================
-
 function AssigneeSelector({ employees, selected, setSelected }) {
   const [query, setQuery] = useState("");
   const filtered = employees.filter(
@@ -16,6 +15,7 @@ function AssigneeSelector({ employees, selected, setSelected }) {
 
   return (
     <div style={{ marginTop: 6, position: "relative" }}>
+      {/* 선택된 담당자 */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {selected.map(id => {
           const emp = employees.find(e => e.emp_id === id);
@@ -34,11 +34,7 @@ function AssigneeSelector({ employees, selected, setSelected }) {
             >
               {emp?.name}
               <button
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                }}
+                style={{ border: "none", background: "transparent", cursor: "pointer" }}
                 onClick={() => setSelected(selected.filter(sid => sid !== id))}
               >
                 ✕
@@ -48,6 +44,7 @@ function AssigneeSelector({ employees, selected, setSelected }) {
         })}
       </div>
 
+      {/* 검색 입력 */}
       <input
         type="text"
         placeholder="담당자 검색"
@@ -56,6 +53,7 @@ function AssigneeSelector({ employees, selected, setSelected }) {
         style={{ width: "100%", marginTop: 6 }}
       />
 
+      {/* 드롭다운 */}
       {query && (
         <div
           style={{
@@ -74,11 +72,7 @@ function AssigneeSelector({ employees, selected, setSelected }) {
           {filtered.map(emp => (
             <div
               key={emp.emp_id}
-              style={{
-                padding: 8,
-                cursor: "pointer",
-                borderBottom: "1px solid #eee",
-              }}
+              style={{ padding: 8, cursor: "pointer", borderBottom: "1px solid #eee" }}
               onClick={() => {
                 setSelected([...selected, emp.emp_id]);
                 setQuery("");
@@ -95,10 +89,10 @@ function AssigneeSelector({ employees, selected, setSelected }) {
 }
 
 // =========================================
-// ✅ 재귀형 업무 노드 (같은레벨 & 하위업무)
+// ✅ 재귀형 하위 업무 입력
 // =========================================
 function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
-  const [showDetails, setShowDetails] = useState(false); // ✅ 상세입력 기본 닫힘
+  const [showDetails, setShowDetails] = useState(false);
 
   const handleAddChild = () => {
     const newChild = {
@@ -112,7 +106,6 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
     onUpdate({ ...task, children: [...task.children, newChild] });
   };
 
-  const handleAddSibling = () => onAddSibling();
   const handleDelete = () => onUpdate(null);
 
   const handleChildUpdate = (index, updated) => {
@@ -120,13 +113,6 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
     if (updated === null) newChildren.splice(index, 1);
     else newChildren[index] = updated;
     onUpdate({ ...task, children: newChildren });
-  };
-
-  const handleKeyDown = e => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleAddSibling();
-    }
   };
 
   return (
@@ -144,7 +130,6 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
           placeholder="업무 제목"
           value={task.title}
           onChange={e => onUpdate({ ...task, title: e.target.value })}
-          onKeyDown={handleKeyDown}
           style={{
             flex: 1,
             padding: "4px 8px",
@@ -163,23 +148,19 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
             cursor: "pointer",
           }}
         >
-          {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
+          {showDetails ? "▲ 닫기" : "▼ 상세"}
         </button>
-        <button onClick={handleAddSibling}>➕ 업무 추가</button>
-        <button onClick={handleAddChild}>↳ 하위업무 추가</button>
+        <button onClick={onAddSibling}>➕ 업무추가</button>
+        <button onClick={handleAddChild}>↳ 하위업무</button>
         <button
           onClick={handleDelete}
-          style={{
-            color: "crimson",
-            border: "none",
-            background: "transparent",
-          }}
+          style={{ color: "crimson", border: "none", background: "transparent" }}
         >
           ✕
         </button>
       </div>
 
-      {/* 상세입력 (토글) */}
+      {/* 상세입력 */}
       {showDetails && (
         <div
           style={{
@@ -245,7 +226,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
 }
 
 // =========================================
-// ✅ 메인 등록 컴포넌트
+// ✅ 프로젝트 + 하위업무 등록
 // =========================================
 export default function TaskRegistration({ onClose }) {
   const [projectName, setProjectName] = useState("");
@@ -258,42 +239,36 @@ export default function TaskRegistration({ onClose }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [tasks, setTasks] = useState([]);
+
   const { selectedProjectId } = useProjectGlobal();
   const { members, loading } = useProjectMembers(selectedProjectId);
-
   const fileInputRef = useRef(null);
 
+  // ✅ 직원 목록 로드
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        // 프로젝트 선택이 안 되어 있으면 전체 직원 불러오기
         if (!selectedProjectId) {
           const res = await api.get("/employees");
-          console.log("✅ 전체 직원 목록 로드:", res.data);
           setEmployees(res.data);
-        } else {
-          // 선택된 프로젝트가 있을 때는 기존 로직 유지
-          if (!loading) {
-            console.log("🧩 members from hook:", members);
-            setEmployees(members);
-          }
+        } else if (!loading) {
+          setEmployees(members);
         }
       } catch (err) {
         console.error("❌ 직원 목록 불러오기 실패:", err);
       }
     };
-
     fetchEmployees();
   }, [selectedProjectId, members, loading]);
-  // 파일 업로드
 
+  // ✅ 파일 업로드
   const handleFileChange = e => {
     const file = e.target.files?.[0];
     if (file) setAttachments(prev => [...prev, file]);
   };
   const handleFileDelete = index => setAttachments(prev => prev.filter((_, i) => i !== index));
 
-  // 최상위 업무 추가
+  // ✅ 최상위 업무 추가
   const handleAddRootTask = () => {
     const newTask = {
       id: Date.now(),
@@ -313,7 +288,10 @@ export default function TaskRegistration({ onClose }) {
     setTasks(newTasks);
   };
 
+  // ✅ 프로젝트 + 업무 등록
   const handleSubmit = async () => {
+    if (!projectName.trim()) return toast.error("프로젝트 이름을 입력하세요.");
+
     const payload = {
       project_name: projectName,
       description,
@@ -323,7 +301,7 @@ export default function TaskRegistration({ onClose }) {
       main_assignees: mainAssignees,
       tasks: tasks.map(t => ({
         title: t.title,
-        description: t.description || "",
+        description: "",
         start_date: t.startDate || null,
         due_date: t.endDate || null,
         priority: "MEDIUM",
@@ -341,16 +319,25 @@ export default function TaskRegistration({ onClose }) {
       })),
     };
 
-    console.log("📤 전송 payload:", payload);
-
     try {
-      // ✅ 기존 full-create → projects 로 교체
-      await api.post("/projects", payload);
+      // ✅ full-create API 호출
+      const res = await api.post("/projects/full-create", payload);
+      const projectId = res.data.project_id;
       toast.success("✅ 프로젝트가 등록되었습니다!");
+
+      // ✅ 첨부파일 업로드 (선택)
+      for (const file of attachments) {
+        const formData = new FormData();
+        formData.append("file", file);
+        await api.post(`/projects/${projectId}/attachments`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
+
       onClose?.();
     } catch (err) {
       console.error("❌ 등록 실패:", err);
-      toast.error("등록 중 오류 발생");
+      toast.error(`등록 중 오류: ${err.message}`);
     }
   };
 
@@ -358,7 +345,6 @@ export default function TaskRegistration({ onClose }) {
     <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
       <h2>📌 프로젝트 등록</h2>
 
-      {/* 기본정보 */}
       <label>프로젝트 이름</label>
       <input
         value={projectName}
@@ -366,7 +352,6 @@ export default function TaskRegistration({ onClose }) {
         style={{ width: "100%", marginBottom: 12 }}
       />
 
-      {/* 상세입력 */}
       <button
         onClick={() => setShowDetails(!showDetails)}
         style={{
@@ -421,7 +406,6 @@ export default function TaskRegistration({ onClose }) {
         </div>
       )}
 
-      {/* 설명 */}
       <label style={{ marginTop: 12 }}>프로젝트 설명</label>
       <textarea
         placeholder="프로젝트 설명을 입력하세요..."
@@ -492,7 +476,7 @@ export default function TaskRegistration({ onClose }) {
         )}
       </div>
 
-      {/* 업무 구조 */}
+      {/* 하위 업무 */}
       <div style={{ marginTop: 20 }}>
         <h3>📋 하위 업무</h3>
         {tasks.map((task, index) => (
@@ -517,8 +501,6 @@ export default function TaskRegistration({ onClose }) {
             }}
           />
         ))}
-
-        {/* ✅ 최상위 업무 추가 버튼 (없을 때만 표시) */}
         {tasks.length === 0 && (
           <button
             onClick={handleAddRootTask}

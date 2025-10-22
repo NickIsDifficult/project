@@ -27,24 +27,24 @@ class Notification(Base):
 
     recipient_emp_id = Column(
         Integer,
-        ForeignKey("employee.emp_id", ondelete="CASCADE"),
+        ForeignKey("employees.emp_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     actor_emp_id = Column(
         Integer,
-        ForeignKey("employee.emp_id", ondelete="CASCADE"),
+        ForeignKey("employees.emp_id", ondelete="CASCADE"),
         nullable=False,
     )
     project_id = Column(
         Integer,
-        ForeignKey("project.project_id", ondelete="CASCADE"),
+        ForeignKey("projects.project_id", ondelete="CASCADE"),
         index=True,
         nullable=True,
     )
     task_id = Column(
         Integer,
-        ForeignKey("task.task_id", ondelete="CASCADE"),
+        ForeignKey("tasks.task_id", ondelete="CASCADE"),
         index=True,
         nullable=True,
     )

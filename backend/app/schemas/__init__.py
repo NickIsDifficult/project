@@ -1,23 +1,37 @@
 # app/schemas/__init__.py
-from .activity import ActivityFeedItem, ActivityLogSchema
-from .auth import LoginRequest, LoginResponse, SignupRequest, SignupResponse, UserType
-from .department import Department, DepartmentCreate
-from .employee import Employee
-from .notification import Notification as NotificationSchema
-from .project import (
-    Milestone,
-    MilestoneCreate,
+from app.schemas.project import (
     Project,
     ProjectCreate,
-    ProjectMember,
     ProjectUpdate,
     Task,
-    TaskComment,
-    TaskCommentCreate,
     TaskCreate,
     TaskUpdate,
+    Milestone,
+    ProjectMember,
+    TaskComment,
 )
-from .role import Role
+from app.schemas.employee import Employee
+from app.schemas.activity_log import ActivityLog, ActivityLogCreate
+from app.schemas.attachment import Attachment
+from app.schemas.department import Department
+from app.schemas.role import Role
+from app.schemas.notification import Notification
 
-
-from .project import *
+__all__ = [
+    "Project",
+    "ProjectCreate",
+    "ProjectUpdate",
+    "Task",
+    "TaskCreate",
+    "TaskUpdate",
+    "Milestone",
+    "ProjectMember",
+    "TaskComment",
+    "Employee",
+    "ActivityLog",
+    "ActivityLogCreate",
+    "Attachment",
+    "Department",
+    "Role",
+    "Notification",
+]

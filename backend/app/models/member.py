@@ -16,7 +16,7 @@ class Member(Base):
     member_id = Column(Integer, primary_key=True, autoincrement=True)
     login_id = Column(String(50), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    emp_id = Column(Integer, ForeignKey("employee.emp_id"), nullable=True)
+    emp_id = Column(Integer, ForeignKey("employees.emp_id"), nullable=True)
     ext_id = Column(Integer, ForeignKey("external.ext_id"), nullable=True)
     user_type = Column(Enum(UserType), nullable=False)
     last_login_at = Column(DateTime, nullable=True)

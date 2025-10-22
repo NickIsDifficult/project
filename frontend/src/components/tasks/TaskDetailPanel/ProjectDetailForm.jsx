@@ -74,7 +74,7 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
             >
               {filtered.map(emp => (
                 <div
-                  key={emp.emp_id}
+                  key={`emp-${emp.emp_id}`}
                   onClick={() => {
                     setSelected([...selected, emp.emp_id]);
                     setQuery("");
@@ -253,7 +253,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
       {/* 재귀 렌더링 */}
       {task.children?.map((child, index) => (
         <TaskNode
-          key={child.id}
+          key={child.id ?? `${depth}-${index}-${task.title ?? "child"}`}
           task={child}
           employees={employees}
           onUpdate={updated => handleChildUpdate(index, updated)}
@@ -266,12 +266,14 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
 }
 
 /* =========================================
- ✅ 메인: 프로젝트 상세보기 + 수정
+ ✅ 메인: 프로젝트 상세보기 + 수정 + 상위업무 토글
 ========================================= */
 export default function ProjectDetailForm({ projectId, onClose }) {
   const [isEditing, setIsEditing] = useState(false);
   const [project, setProject] = useState(null);
   const [employees, setEmployees] = useState([]);
+  const [showDetails, setShowDetails] = useState(false); // ✅ 상세입력 토글
+  const [mainAssignees, setMainAssignees] = useState([]); // ✅ 상위 담당자
 
   useEffect(() => {
     if (!projectId) return;
@@ -283,6 +285,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         ]);
         setProject(projectRes.data);
         setEmployees(employeeRes.data);
+        setMainAssignees(projectRes.data?.main_assignees || []);
       } catch (err) {
         console.error("❌ 데이터 로드 실패:", err);
         alert("데이터를 불러오지 못했습니다.");
@@ -294,12 +297,11 @@ export default function ProjectDetailForm({ projectId, onClose }) {
   const handleSave = async () => {
     try {
       const token = localStorage.getItem("access_token");
-      const { tasks, ...projectData } = project; // ✅ tasks는 제외하고 전송
+      const { tasks, ...projectData } = project;
+      projectData.main_assignees = mainAssignees;
 
       await axios.put(`http://127.0.0.1:8000/projects/${projectId}`, projectData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       alert("✅ 수정 완료!");
@@ -370,11 +372,73 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         }}
       />
 
+      {/* ✅ 상세입력 토글 (상위 담당자 / 날짜) */}
+      <button
+        onClick={() => setShowDetails(!showDetails)}
+        style={{
+          background: showDetails ? "#555" : "#1976d2",
+          color: "white",
+          border: "none",
+          borderRadius: 6,
+          padding: "8px 12px",
+          cursor: "pointer",
+          marginTop: 10,
+        }}
+      >
+        {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
+      </button>
+
+      {showDetails && (
+        <div
+          style={{
+            background: "#f9f9f9",
+            padding: 12,
+            borderRadius: 8,
+            marginTop: 10,
+          }}
+        >
+          <div style={{ marginBottom: 8 }}>
+            <label>시작일</label>
+            <input
+              type="date"
+              value={project.start_date || ""}
+              disabled={!isEditing}
+              onChange={e => setProject({ ...project, start_date: e.target.value })}
+              style={{
+                marginLeft: 8,
+                background: !isEditing ? "#f6f6f6" : "white",
+              }}
+            />
+            <label style={{ marginLeft: 16 }}>종료일</label>
+            <input
+              type="date"
+              value={project.end_date || ""}
+              disabled={!isEditing}
+              onChange={e => setProject({ ...project, end_date: e.target.value })}
+              style={{
+                marginLeft: 8,
+                background: !isEditing ? "#f6f6f6" : "white",
+              }}
+            />
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <strong>상위업무 담당자:</strong>
+            <AssigneeSelector
+              employees={employees}
+              selected={mainAssignees}
+              setSelected={setMainAssignees}
+              disabled={!isEditing}
+            />
+          </div>
+        </div>
+      )}
+
       <div style={{ marginTop: 20 }}>
         <h3>📋 하위 업무</h3>
         {project.tasks?.map((task, i) => (
           <TaskNode
-            key={task.id}
+            key={task.id ?? `root-${i}-${projectId}`}
             task={task}
             employees={employees}
             onUpdate={u => handleTaskUpdate(i, u)}
@@ -382,7 +446,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           />
         ))}
 
-        {!isEditing ? null : (
+        {isEditing && (
           <button
             onClick={handleAddRootTask}
             style={{
@@ -439,21 +503,19 @@ export default function ProjectDetailForm({ projectId, onClose }) {
             </button>
           </>
         ) : (
-          <>
-            <button
-              onClick={() => setIsEditing(true)}
-              style={{
-                background: "#4caf50",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                padding: "8px 14px",
-                cursor: "pointer",
-              }}
-            >
-              ✏️ 수정
-            </button>
-          </>
+          <button
+            onClick={() => setIsEditing(true)}
+            style={{
+              background: "#4caf50",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 14px",
+              cursor: "pointer",
+            }}
+          >
+            ✏️ 수정
+          </button>
         )}
       </div>
     </div>

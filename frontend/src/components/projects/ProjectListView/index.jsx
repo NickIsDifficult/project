@@ -13,7 +13,7 @@ import { useTaskList } from "./useTaskList";
  * - ProjectGlobalContext + useTaskList 조합
  */
 export default function ProjectListView() {
-  const { projects, tasksByProject, loading, uiState, setUiState } = useProjectGlobal();
+  const { projects, tasksByProject, loading, setUiState } = useProjectGlobal();
 
   /* ----------------------------------------
    * 🧩 프로젝트 + 업무 트리 구조로 변환

@@ -1,54 +1,77 @@
 # app/routers/activity_router.py
-from fastapi import APIRouter, Depends, Query
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.core.exceptions import forbidden
 from app.database import get_db
-from app.services.activity_logger import (
-    get_project_activity,
-    get_task_activity,
-    is_project_member,
-)
+from app.services import activity_service
 from app.utils.token import get_current_user
 
-router = APIRouter(prefix="/projects/{project_id}/activity", tags=["activity_feed"])
+router = APIRouter(prefix="/activities", tags=["activity_logs"])
 
 
-# -------------------------------
-# ✅ 프로젝트 단위 활동 피드 조회
-# -------------------------------
-@router.get("/", response_model=list[schemas.activity.ActivityFeedItem])
-def get_project_activity_feed(
+# ------------------------------------------------------------
+# 내부 헬퍼
+# ------------------------------------------------------------
+def _error(msg: str, code=status.HTTP_400_BAD_REQUEST):
+    raise HTTPException(status_code=code, detail=msg)
+
+
+# ------------------------------------------------------------
+# ✅ 전체 로그 (관리자용)
+# ------------------------------------------------------------
+@router.get("/", response_model=List[schemas.activity_log.ActivityLog])
+def list_all_logs(
+    db: Session = Depends(get_db),
+    current_user: models.Employee = Depends(get_current_user),
+):
+    try:
+        return activity_service.get_all_logs(db)
+    except Exception as e:
+        _error(str(e))
+
+
+# ------------------------------------------------------------
+# ✅ 프로젝트 단위 로그 조회
+# ------------------------------------------------------------
+@router.get("/project/{project_id}", response_model=List[schemas.activity_log.ActivityLog])
+def list_project_logs(
     project_id: int,
     db: Session = Depends(get_db),
-    current_user: models.Member = Depends(get_current_user),
-    limit: int = Query(100, le=300),
+    current_user: models.Employee = Depends(get_current_user),
 ):
-    """
-    프로젝트 전체 활동 로그 조회 (댓글, 상태변경, 첨부 등)
-    """
-    if not is_project_member(db, project_id, current_user.emp_id):
-        forbidden("이 프로젝트의 활동 피드를 볼 권한이 없습니다.")
-
-    return get_project_activity(db, project_id, limit)
+    try:
+        return activity_service.get_logs_by_project(db, project_id)
+    except Exception as e:
+        _error(str(e))
 
 
-# -------------------------------
-# ✅ 업무 단위 활동 피드 조회
-# -------------------------------
-@router.get("/tasks/{task_id}", response_model=list[schemas.activity.ActivityFeedItem])
-def get_task_activity_feed(
-    project_id: int,
+# ------------------------------------------------------------
+# ✅ 태스크 단위 로그 조회
+# ------------------------------------------------------------
+@router.get("/task/{task_id}", response_model=List[schemas.activity_log.ActivityLog])
+def list_task_logs(
     task_id: int,
     db: Session = Depends(get_db),
-    current_user: models.Member = Depends(get_current_user),
-    limit: int = Query(100, le=300),
+    current_user: models.Employee = Depends(get_current_user),
 ):
-    """
-    개별 업무(Task) 단위의 활동 로그 조회
-    """
-    if not is_project_member(db, project_id, current_user.emp_id):
-        forbidden("이 프로젝트의 활동 피드를 볼 권한이 없습니다.")
+    try:
+        return activity_service.get_logs_by_task(db, task_id)
+    except Exception as e:
+        _error(str(e))
 
-    return get_task_activity(db, project_id, task_id, limit)
+
+# ------------------------------------------------------------
+# ✅ 개별 로그 상세 조회
+# ------------------------------------------------------------
+@router.get("/{log_id}", response_model=schemas.activity_log.ActivityLog)
+def get_log_detail(
+    log_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.Employee = Depends(get_current_user),
+):
+    try:
+        return activity_service.get_log_by_id(db, log_id)
+    except Exception as e:
+        _error(str(e))

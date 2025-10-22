@@ -1,11 +1,12 @@
-// src/components/projects/ProjectListView/useTaskList.js
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { deleteProject, updateProject } from "../../../services/api/project";
 import { deleteTask, updateTask, updateTaskStatus } from "../../../services/api/task";
 
-// 상태 변환 매핑
+/* ----------------------------------------
+ * 🔁 상태 변환 매핑
+ * ---------------------------------------- */
 const normalizeProjectStatus = status => {
   switch (status) {
     case "DONE":
@@ -19,20 +20,20 @@ const normalizeProjectStatus = status => {
     case "ON_HOLD":
       return "ON_HOLD";
     default:
-      return "PLANNED"; // 기본값
+      return "PLANNED";
   }
 };
 
 /* ----------------------------------------
- * 🔁 정렬 헬퍼 (함수 선언식으로 호이스팅 안전)
+ * 🔁 정렬 헬퍼
  * ---------------------------------------- */
 function sortCompare(a, b, key, order) {
-  // ✅ 다중 담당자 정렬 지원
   if (key === "assignee_name") {
     const nameA = a.assignees?.map(x => x.name).join(", ") || "";
     const nameB = b.assignees?.map(x => x.name).join(", ") || "";
     return order === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
   }
+
   const valA = a[key] ?? "";
   const valB = b[key] ?? "";
 
@@ -53,14 +54,13 @@ function sortCompare(a, b, key, order) {
 export function useTaskList({ allTasks = [] }) {
   const { fetchTasksByProject, updateTaskLocal, setSelectedTask } = useProjectGlobal();
 
-  // 상태 정의
   const [tasks, setTasks] = useState(allTasks);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ title: "", description: "" });
   const [collapsedTasks, setCollapsedTasks] = useState(new Set());
 
-  // 필터 상태
+  // 필터/정렬 상태
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterAssignee, setFilterAssignee] = useState("ALL");
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -81,9 +81,20 @@ export function useTaskList({ allTasks = [] }) {
     const result = [];
     for (const n of nodes) {
       result.push(n);
-      if (n.subtasks?.length) result.push(...flattenTasks(n.subtasks));
+      if (Array.isArray(n.subtasks) && n.subtasks.length) {
+        result.push(...flattenTasks(n.subtasks));
+      }
     }
     return result;
+  }
+
+  /* ----------------------------------------
+   * 🧩 Subtask 안전 보정 유틸
+   * ---------------------------------------- */
+  function normalizeSubtasks(s) {
+    if (Array.isArray(s)) return s;
+    if (s && typeof s === "object") return Object.values(s); // 객체형도 처리
+    return [];
   }
 
   /* ----------------------------------------
@@ -115,29 +126,25 @@ export function useTaskList({ allTasks = [] }) {
 
       const matchSelf = statusOk && assigneeOk && keywordOk;
 
-      const children =
-        node.subtasks
-          ?.map(sub => filterNode(sub))
-          .filter(Boolean)
-          .sort((a, b) => sortCompare(a, b, sortBy, sortOrder)) ?? [];
+      const children = normalizeSubtasks(node.subtasks)
+        .map(sub => filterNode(sub))
+        .filter(Boolean)
+        .sort((a, b) => sortCompare(a, b, sortBy, sortOrder));
 
-      // ✅ 하위가 있거나 자신이 매치되면 유지
       if (matchSelf || children.length > 0) {
         return { ...node, subtasks: children };
       }
       return null;
     };
 
-    return (
-      tasks
-        ?.map(task => filterNode(task))
-        .filter(Boolean)
-        .sort((a, b) => sortCompare(a, b, sortBy, sortOrder)) ?? []
-    );
+    return (Array.isArray(tasks) ? tasks : [])
+      .map(task => filterNode(task))
+      .filter(Boolean)
+      .sort((a, b) => sortCompare(a, b, sortBy, sortOrder));
   }, [tasks, filterStatus, filterAssignee, searchKeyword, sortBy, sortOrder]);
 
   /* ----------------------------------------
-   * 📊 통계 계산 (filteredTasks 기반)
+   * 📊 통계 계산
    * ---------------------------------------- */
   const stats = useMemo(() => {
     const flat = flattenTasks(filteredTasks ?? []);
@@ -154,7 +161,7 @@ export function useTaskList({ allTasks = [] }) {
   }, [filteredTasks]);
 
   /* ----------------------------------------
-   * ⚙️ 필터 / 정렬 제어 함수
+   * ⚙️ 필터 / 정렬 제어
    * ---------------------------------------- */
   const handleSort = key => {
     if (sortBy === key) setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
@@ -251,7 +258,7 @@ export function useTaskList({ allTasks = [] }) {
       }
       toast.success(isProject ? "프로젝트 수정 완료" : "업무 수정 완료");
       setEditingId(null);
-      setEditForm({ title: "", description: "" }); // ✅ form 초기화 추가
+      setEditForm({ title: "", description: "" });
       await fetchTasksByProject(pid);
     } catch (err) {
       console.error("❌ 수정 실패:", err);

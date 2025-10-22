@@ -2,12 +2,10 @@
 import ProjectDetailForm from "./ProjectDetailForm";
 
 export default function ProjectInfoView({ project, onClose }) {
-  if (!project)
-    return <p style={{ padding: 20, color: "crimson" }}>⚠️ 프로젝트 데이터 없음</p>;
+  if (!project) return <p style={{ padding: 20, color: "crimson" }}>⚠️ 프로젝트 데이터 없음</p>;
 
   const projectId = project.id || project.project_id;
-  if (!projectId)
-    return <p style={{ padding: 20, color: "crimson" }}>⚠️ projectId가 없습니다.</p>;
+  if (!projectId) return <p style={{ padding: 20, color: "crimson" }}>⚠️ projectId가 없습니다.</p>;
 
   return (
     <div style={{ padding: 16 }}>

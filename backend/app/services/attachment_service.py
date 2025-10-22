@@ -1,135 +1,115 @@
 # app/services/attachment_service.py
+from __future__ import annotations
 import os
-from datetime import datetime
-
+import shutil
+from typing import List
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app import models
-from app.core.exceptions import bad_request, forbidden, not_found
-from app.utils.activity_logger import log_task_action
-
-# -------------------------------
-# 🧭 기본 저장 경로 설정
-# -------------------------------
-UPLOAD_DIR = os.path.join("uploads", "files")  # 루트 경로 기준
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+from app import models, schemas
+from app.core.exceptions import bad_request, not_found, forbidden
 
 
-# -------------------------------
-# ✅ 특정 태스크의 첨부파일 목록 조회
-# -------------------------------
-def get_attachments_by_task(db: Session, task_id: int):
-    """특정 태스크에 연결된 첨부파일 조회"""
-    attachments = (
+# ------------------------------------------------------
+# ✅ 첨부파일 목록 조회
+# ------------------------------------------------------
+def get_attachments_by_task(db: Session, task_id: int) -> List[models.Attachment]:
+    return (
         db.query(models.Attachment)
-        .filter(models.Attachment.task_id == task_id)
+        .filter(models.Attachment.task_id == task_id, models.Attachment.is_deleted == False)
         .order_by(models.Attachment.uploaded_at.desc())
         .all()
     )
-    # 빈 리스트면 그냥 [] 반환 (404 굳이 아님)
-    return attachments
 
 
-# -------------------------------
+def get_attachments_by_project(db: Session, project_id: int) -> List[models.Attachment]:
+    return (
+        db.query(models.Attachment)
+        .filter(models.Attachment.project_id == project_id, models.Attachment.is_deleted == False)
+        .order_by(models.Attachment.uploaded_at.desc())
+        .all()
+    )
+
+
+# ------------------------------------------------------
 # ✅ 첨부파일 업로드
-# -------------------------------
+# ------------------------------------------------------
 def upload_attachment(
     db: Session,
-    task_id: int,
-    project_id: int,
+    project_id: int | None,
+    task_id: int | None,
     file: UploadFile,
-    current_user,
-):
-    """파일 업로드 처리"""
-    if current_user.user_type != "EMPLOYEE":
-        forbidden("직원만 첨부파일을 업로드할 수 있습니다.")
-
-    # task 존재 여부 체크
-    task = db.query(models.Task).filter(models.Task.task_id == task_id).first()
-    if not task:
-        not_found("해당 태스크를 찾을 수 없습니다.")
-
+    current_user: models.Employee,
+) -> models.Attachment:
     try:
-        # ----------------------------
-        # 1️⃣ 실제 파일 저장
-        # ----------------------------
-        filename = file.filename
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        safe_name = f"{timestamp}_{filename}"
-        file_path = os.path.join(UPLOAD_DIR, safe_name)
+        # 🧱 저장 경로 지정
+        upload_dir = f"uploads/projects/{project_id or 'general'}/tasks/{task_id or 'misc'}"
+        os.makedirs(upload_dir, exist_ok=True)
 
-        # UploadFile은 async이므로 .file.read() 보다는 .read() 써도 되지만, 파일이 클 경우는 async context 필요
+        file_path = os.path.join(upload_dir, file.filename)
         with open(file_path, "wb") as buffer:
-            buffer.write(file.file.read())
+            shutil.copyfileobj(file.file, buffer)
 
-        # ----------------------------
-        # 2️⃣ DB 기록
-        # ----------------------------
-        new_file = models.Attachment(
+        attachment = models.Attachment(
             project_id=project_id,
             task_id=task_id,
             uploaded_by=current_user.emp_id,
-            file_name=filename,
+            file_name=file.filename,
             file_path=file_path,
-            uploaded_at=datetime.utcnow(),
+            file_type=file.content_type,
+            file_size=os.path.getsize(file_path),
         )
-        db.add(new_file)
+
+        db.add(attachment)
         db.commit()
-        db.refresh(new_file)
-
-        # ----------------------------
-        # 3️⃣ 로그 기록
-        # ----------------------------
-        log_task_action(
-            db=db,
-            task_id=task_id,
-            emp_id=current_user.emp_id,
-            action="file_uploaded",
-            detail=f"{filename} 업로드됨",
-        )
-
-        return new_file
+        db.refresh(attachment)
+        return attachment
 
     except Exception as e:
         db.rollback()
-        bad_request(f"파일 업로드 중 오류 발생: {str(e)}")
+        bad_request(f"첨부파일 업로드 실패: {str(e)}")
 
 
-# -------------------------------
-# ✅ 첨부파일 삭제
-# -------------------------------
-def delete_attachment(db: Session, attachment_id: int, current_user):
-    """본인이 업로드한 파일만 삭제 가능"""
+# ------------------------------------------------------
+# ✅ 첨부파일 삭제 (soft delete + 파일 삭제)
+# ------------------------------------------------------
+def delete_attachment(db: Session, attachment_id: int, current_user: models.Employee):
     attachment = (
         db.query(models.Attachment)
         .filter(models.Attachment.attachment_id == attachment_id)
         .first()
     )
     if not attachment:
-        not_found(f"첨부파일 ID {attachment_id}를 찾을 수 없습니다.")
+        not_found("삭제할 첨부파일을 찾을 수 없습니다.")
+
+    # 권한 검증 (업로더 또는 프로젝트 소유자만)
     if attachment.uploaded_by != current_user.emp_id:
-        forbidden("본인이 업로드한 파일만 삭제할 수 있습니다.")
+        project_owner = (
+            db.query(models.Project)
+            .filter(models.Project.project_id == attachment.project_id)
+            .first()
+        )
+        if not project_owner or project_owner.owner_emp_id != current_user.emp_id:
+            forbidden("삭제 권한이 없습니다.")
+
+    # Soft delete + 실제 파일 삭제
+    attachment.is_deleted = True
+    db.commit()
 
     try:
-        # 실제 파일 삭제
-        if attachment.file_path and os.path.exists(attachment.file_path):
+        if os.path.exists(attachment.file_path):
             os.remove(attachment.file_path)
+    except Exception:
+        pass  # 파일 시스템 오류 무시 (DB 우선)
 
-        db.delete(attachment)
-        db.commit()
+    return {"success": True, "message": f"{attachment.file_name} 삭제 완료"}
 
-        # 로그 기록
-        log_task_action(
-            db=db,
-            task_id=attachment.task_id,
-            emp_id=current_user.emp_id,
-            action="file_deleted",
-            detail=f"{attachment.file_name} 삭제됨",
-        )
 
-        return {"success": True, "message": f"{attachment.file_name} 삭제 완료"}
-
-    except Exception as e:
-        db.rollback()
-        bad_request(f"첨부파일 삭제 중 오류 발생: {str(e)}")
+# ------------------------------------------------------
+# ✅ 첨부파일 상세 조회
+# ------------------------------------------------------
+def get_attachment_by_id(db: Session, attachment_id: int) -> models.Attachment:
+    att = db.query(models.Attachment).filter(models.Attachment.attachment_id == attachment_id).first()
+    if not att:
+        not_found("첨부파일을 찾을 수 없습니다.")
+    return att

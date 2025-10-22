@@ -1,166 +1,142 @@
-# app/models/project.py
-from __future__ import annotations
-
-from datetime import date, datetime
+from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Text, Date, DateTime, Enum, ForeignKey, Float, UniqueConstraint
+    Column,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Boolean,
+    func,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.database import Base
-from app.models.enums import MemberRole, ProjectStatus, TaskStatus, TaskPriority, MilestoneStatus
+from app.models.enums import ProjectStatus, TaskPriority, TaskStatus
 
 
 # =========================
-# Employee
-# =========================
-class Employee(Base):
-    __tablename__ = "employees"
-
-    emp_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-
-    # reverse
-    project_memberships = relationship("ProjectMember", back_populates="employee", lazy="selectin")
-    task_memberships = relationship("TaskMember", back_populates="employee", lazy="selectin")
-
-    def __repr__(self) -> str:
-        return f"<Employee {self.emp_id} {self.name}>"
-
-
-# =========================
-# Project
+# 📁 Project
 # =========================
 class Project(Base):
-    __tablename__ = "projects"
+    __tablename__ = "project"
 
-    project_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    # ⚠️ DB에 'title'이 없고 'project_name'만 있는 구조를 표준화
-    project_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    project_id = Column(Integer, primary_key=True, autoincrement=True)
+    project_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    status = Column(Enum(ProjectStatus, native_enum=False), default=ProjectStatus.PLANNING)
+    is_archived = Column(Boolean, default=False)
 
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    status: Mapped[ProjectStatus | None] = mapped_column(Enum(ProjectStatus), default=ProjectStatus.PLANNED, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    owner_emp_id: Mapped[int | None] = mapped_column(ForeignKey("employees.emp_id"), nullable=True)
+    # 🔗 관계 설정
+    tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+    attachments = relationship("Attachment", back_populates="project", cascade="all, delete-orphan")
+    notifications = relationship("Notification", backref="project", cascade="all, delete")
+    activities = relationship("ActivityLog", backref="project", cascade="all, delete")
 
-    # relations
-    owner = relationship("Employee", lazy="selectin")
-    members = relationship(
-        "ProjectMember",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-    tasks = relationship(
-        "Task",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-    milestones = relationship(
-        "Milestone",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-
-    def __repr__(self) -> str:
-        return f"<Project {self.project_id} {self.project_name}>"
+    def __repr__(self):
+        return f"<Project(id={self.project_id}, name={self.project_name}, status={self.status})>"
 
 
 # =========================
-# ProjectMember
+# 👥 ProjectMember (N:N Project ↔ Employee)
 # =========================
 class ProjectMember(Base):
-    __tablename__ = "project_members"
-    __table_args__ = (
-        UniqueConstraint("project_id", "emp_id", name="uq_project_member"),
-    )
+    __tablename__ = "project_member"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    project_id: Mapped[int] = mapped_column(ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False)
-    emp_id: Mapped[int] = mapped_column(ForeignKey("employees.emp_id", ondelete="CASCADE"), nullable=False)
-    role: Mapped[MemberRole] = mapped_column(Enum(MemberRole), default=MemberRole.MEMBER, nullable=False)
+    project_id = Column(Integer, ForeignKey("project.project_id", ondelete="CASCADE"), primary_key=True)
+    emp_id = Column(Integer, ForeignKey("employee.emp_id", ondelete="CASCADE"), primary_key=True)
+    role = Column(String(50), nullable=True)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
 
-    project = relationship("Project", back_populates="members", lazy="selectin")
-    employee = relationship("Employee", back_populates="project_memberships", lazy="selectin")
+    project = relationship("Project", back_populates="members")
+    employee = relationship("Employee", back_populates="project_memberships")
 
-    def __repr__(self) -> str:
-        return f"<ProjectMember P{self.project_id} E{self.emp_id} {self.role}>"
+    def __repr__(self):
+        return f"<ProjectMember(project_id={self.project_id}, emp_id={self.emp_id}, role={self.role})>"
 
 
 # =========================
-# Task
+# ✅ Task
 # =========================
 class Task(Base):
-    __tablename__ = "tasks"
+    __tablename__ = "task"
 
-    task_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    project_id: Mapped[int] = mapped_column(ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(Integer, ForeignKey("project.project_id", ondelete="CASCADE"), nullable=False)
+    parent_task_id = Column(Integer, ForeignKey("task.task_id", ondelete="CASCADE"), nullable=True)
+    assignee_id = Column(Integer, ForeignKey("employee.emp_id", ondelete="SET NULL"), nullable=True)
 
-    # self reference
-    parent_task_id: Mapped[int | None] = mapped_column(ForeignKey("tasks.task_id", ondelete="CASCADE"), nullable=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    priority = Column(Enum(TaskPriority, native_enum=False), default=TaskPriority.MEDIUM)
+    status = Column(Enum(TaskStatus, native_enum=False), default=TaskStatus.TODO)
+    progress = Column(Integer, default=0)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
 
-    title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
-    priority: Mapped[TaskPriority] = mapped_column(Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False)
+    # 🔗 관계
+    project = relationship("Project", back_populates="tasks")
+    assignee = relationship("Employee", back_populates="tasks")
+    parent_task = relationship("Task", remote_side=[task_id], backref="subtasks")
+    attachments = relationship("Attachment", back_populates="task", cascade="all, delete-orphan")
+    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")
+    notifications = relationship("Notification", backref="task", cascade="all, delete")
 
-    assignee_emp_id: Mapped[int | None] = mapped_column(ForeignKey("employees.emp_id"), nullable=True)
+    # ✅ 추가: TaskMember (다대다 연결)
+    members = relationship("TaskMember", back_populates="task", cascade="all, delete-orphan")
 
-    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    estimate_hours: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
-    # relations
-    project = relationship("Project", back_populates="tasks", lazy="selectin")
-
-    parent_task = relationship(
-        "Task",
-        remote_side="Task.task_id",
-        back_populates="subtasks",
-        lazy="selectin",
-    )
-    subtasks = relationship(
-        "Task",
-        back_populates="parent_task",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-
-    # ✅ 핵심: 각 태스크에 직접 연결된 담당자만 가져오도록 관계 명확화
-    members = relationship(
-        "TaskMember",
-        back_populates="task",
-        cascade="all, delete-orphan",
-        lazy="selectin",
-    )
-
-    assignee = relationship("Employee", lazy="selectin")
-
-    def __repr__(self) -> str:
-        return f"<Task {self.task_id} P{self.project_id} {self.title}>"
+    def __repr__(self):
+        return f"<Task(id={self.task_id}, title={self.title}, status={self.status})>"
 
 
 # =========================
-# TaskMember (many-to-many Task ↔ Employee)
+# 💬 TaskComment
+# =========================
+class TaskComment(Base):
+    __tablename__ = "task_comment"
+
+    comment_id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(Integer, ForeignKey("task.task_id", ondelete="CASCADE"), nullable=False)
+    emp_id = Column(Integer, ForeignKey("employee.emp_id", ondelete="SET NULL"), nullable=True)
+    content = Column(Text, nullable=False)
+    parent_comment_id = Column(Integer, ForeignKey("task_comment.comment_id", ondelete="CASCADE"), nullable=True)
+
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    task = relationship("Task", back_populates="comments")
+    employee = relationship("Employee", back_populates="comments")
+    replies = relationship("TaskComment", backref="parent_comment", remote_side=[comment_id])
+
+    def __repr__(self):
+        return f"<TaskComment(id={self.comment_id}, task_id={self.task_id}, emp_id={self.emp_id})>"
+
+
+# =========================
+# 👥 TaskMember (many-to-many Task ↔ Employee)
 # =========================
 class TaskMember(Base):
-    __tablename__ = "task_members"
+    __tablename__ = "task_member"
     __table_args__ = (
         UniqueConstraint("task_id", "emp_id", name="uq_task_member"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.task_id", ondelete="CASCADE"), nullable=False)
-    emp_id: Mapped[int] = mapped_column(ForeignKey("employees.emp_id", ondelete="CASCADE"), nullable=False)
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"), nullable=False)
+    emp_id: Mapped[int] = mapped_column(ForeignKey("employee.emp_id", ondelete="CASCADE"), nullable=False)
 
     task = relationship("Task", back_populates="members", lazy="selectin")
     employee = relationship("Employee", back_populates="task_memberships", lazy="selectin")
@@ -169,21 +145,4 @@ class TaskMember(Base):
         return f"<TaskMember T{self.task_id} E{self.emp_id}>"
 
 
-# =========================
-# Milestone
-# =========================
-class Milestone(Base):
-    __tablename__ = "milestones"
 
-    milestone_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    project_id: Mapped[int] = mapped_column(ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False)
-
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    status: Mapped[MilestoneStatus] = mapped_column(Enum(MilestoneStatus), default=MilestoneStatus.PLANNED, nullable=False)
-
-    project = relationship("Project", back_populates="milestones", lazy="selectin")
-
-    def __repr__(self) -> str:
-        return f"<Milestone {self.milestone_id} P{self.project_id} {self.name}>"

@@ -82,7 +82,7 @@ export default function KanbanColumn({ column, projectColorMap, onProjectClick, 
                       project={item}
                       index={idx}
                       color={projectColorMap[item.project_id]}
-                      onClick={onProjectClick}
+                      onClick={() => onProjectClick(item)}
                     />
 
                     {/* ✅ 업무 숨김 중 표시줄 */}
@@ -109,7 +109,7 @@ export default function KanbanColumn({ column, projectColorMap, onProjectClick, 
                   key={`task-${item.task_id}`}
                   task={item}
                   index={idx}
-                  onClick={onTaskClick}
+                  onClick={() => onTaskClick(item)}
                   projectColor={projectColorMap[item.project_id]}
                 />
               );

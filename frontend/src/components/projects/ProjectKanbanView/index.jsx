@@ -1,3 +1,4 @@
+// src/components/projects/ProjectKanbanView/index.jsx
 import { DragDropContext } from "@hello-pangea/dnd";
 import { useEffect, useMemo } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
@@ -21,6 +22,27 @@ export default function ProjectKanbanView({ onProjectClick, onTaskClick }) {
 
   // 3) 드래그 핸들러
   const handleDragEnd = useKanbanDnD();
+
+  // ✅ 카드 클릭 시 상세 패널 오픈
+  const handleCardClick = item => {
+    if (!item) return;
+
+    if (item.type === "project") {
+      // 📁 프로젝트 카드 클릭 → 프로젝트 상세 패널 열기
+      setUiState(prev => ({
+        ...prev,
+        drawer: { ...prev.drawer, project: false, task: false },
+        panel: { selectedTask: { ...item, isProject: true } },
+      }));
+    } else if (item.type === "task") {
+      // 📋 업무 카드 클릭 → 업무 상세 패널 열기
+      setUiState(prev => ({
+        ...prev,
+        drawer: { ...prev.drawer, task: true, project: false },
+        panel: { ...prev.panel, selectedTask: item },
+      }));
+    }
+  };
 
   // 🔍 검색 시 자동 전체 펼치기
   useEffect(() => {
@@ -86,8 +108,8 @@ export default function ProjectKanbanView({ onProjectClick, onTaskClick }) {
               column={col}
               projectColorMap={projectColorMap}
               isExpanded={isExpanded}
-              onProjectClick={onProjectClick}
-              onTaskClick={onTaskClick}
+              onProjectClick={item => handleCardClick({ ...item, type: "project" })}
+              onTaskClick={item => handleCardClick({ ...item, type: "task" })}
             />
           ))}
         </div>

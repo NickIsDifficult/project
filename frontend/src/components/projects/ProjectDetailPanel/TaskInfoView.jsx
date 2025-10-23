@@ -1,3 +1,4 @@
+// src/components/project/ProjectDetailPanel/TaskInfoView.jsx
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useMemo } from "react";
@@ -6,7 +7,6 @@ import Button from "../../common/Button";
 /**
  * ✅ TaskInfoView
  * - 업무 상세보기 (읽기 전용)
- * - 상태/진행률/기본정보 표시
  */
 export default function TaskInfoView({
   task,
@@ -14,6 +14,7 @@ export default function TaskInfoView({
   onStatusChange,
   onProgressChange,
   onAddSubtask,
+  onDeleteTask, // 🔹 추가
 }) {
   if (!task)
     return (
@@ -110,6 +111,10 @@ export default function TaskInfoView({
         </Button>
         <Button variant="success" onClick={onAddSubtask}>
           ➕ 하위 업무 추가
+        </Button>
+        {/* 🔹 삭제 버튼 추가 */}
+        <Button variant="danger" onClick={onDeleteTask}>
+          🗑️ 삭제
         </Button>
       </div>
     </div>

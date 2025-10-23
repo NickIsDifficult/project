@@ -1,7 +1,9 @@
 // src/components/projects/ProjectDetailPanel/ProjectDetailForm.jsx
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { getEmployees } from "../../../services/api/employee";
-import { getProject, updateProject } from "../../../services/api/project";
+import { deleteProject, getProject, updateProject } from "../../../services/api/project";
 
 /* =========================================
  ✅ 담당자 선택 컴포넌트
@@ -268,6 +270,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
  ✅ 메인: 프로젝트 상세 폼
 ========================================= */
 export default function ProjectDetailForm({ projectId, onClose }) {
+  const { setProjects } = useProjectGlobal();
   const [isEditing, setIsEditing] = useState(false);
   const [project, setProject] = useState(null);
   const [employees, setEmployees] = useState([]);
@@ -303,6 +306,23 @@ export default function ProjectDetailForm({ projectId, onClose }) {
     } catch (err) {
       console.error("❌ 수정 실패:", err);
       alert("수정 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("이 프로젝트를 삭제하시겠습니까?")) return;
+    try {
+      await deleteProject(projectId);
+      toast.success("프로젝트가 삭제되었습니다.");
+
+      // 전역 상태에서 제거 (즉시 반영)
+      setProjects(prev => prev.filter(p => p.project_id !== projectId));
+
+      // 패널 닫기
+      onClose?.();
+    } catch (err) {
+      console.error("❌ 삭제 실패:", err);
+      toast.error("삭제 중 오류가 발생했습니다.");
     }
   };
 
@@ -496,19 +516,36 @@ export default function ProjectDetailForm({ projectId, onClose }) {
             </button>
           </>
         ) : (
-          <button
-            onClick={() => setIsEditing(true)}
-            style={{
-              background: "#4caf50",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              padding: "8px 14px",
-              cursor: "pointer",
-            }}
-          >
-            ✏️ 수정
-          </button>
+          <>
+            <button
+              onClick={() => setIsEditing(true)}
+              style={{
+                background: "#4caf50",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                padding: "8px 14px",
+                cursor: "pointer",
+              }}
+            >
+              ✏️ 수정
+            </button>
+
+            {/* 🔹 삭제 버튼 추가 */}
+            <button
+              onClick={handleDelete}
+              style={{
+                background: "#f44336",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                padding: "8px 14px",
+                cursor: "pointer",
+              }}
+            >
+              🗑️ 삭제
+            </button>
+          </>
         )}
       </div>
     </div>

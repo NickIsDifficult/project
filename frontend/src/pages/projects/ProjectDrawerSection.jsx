@@ -5,6 +5,7 @@ import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 
 export default function ProjectDrawerSection() {
   const { uiState, setUiState, fetchAllProjects } = useProjectGlobal();
+
   const open = uiState.drawer.project;
 
   const handleClose = () => {

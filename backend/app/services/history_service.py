@@ -1,7 +1,10 @@
+# app/services/history_service.py
 from __future__ import annotations
-from sqlalchemy.orm import Session
 from typing import List, Optional
-from app import models, schemas
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+
+from app import models
 from app.core.exceptions import bad_request, not_found
 
 
@@ -13,8 +16,8 @@ def create_task_history(
     task_id: int,
     old_status: models.enums.TaskStatus,
     new_status: models.enums.TaskStatus,
-    changed_by: Optional[int],
-):
+    changed_by: Optional[int] = None,
+) -> models.TaskHistory:
     """태스크 상태 변경 이력 기록"""
     try:
         history = models.TaskHistory(
@@ -27,7 +30,8 @@ def create_task_history(
         db.commit()
         db.refresh(history)
         return history
-    except Exception as e:
+
+    except SQLAlchemyError as e:
         db.rollback()
         bad_request(f"태스크 이력 생성 실패: {str(e)}")
 
@@ -57,15 +61,15 @@ def get_history_by_id(db: Session, history_id: int) -> models.TaskHistory:
         .first()
     )
     if not history:
-        not_found("해당 이력 기록을 찾을 수 없습니다.")
+        not_found(f"이력 기록 {history_id}를 찾을 수 없습니다.")
     return history
 
 
 # ============================================================
-# ✅ 특정 프로젝트 내 모든 태스크 이력 조회 (옵션)
+# ✅ 특정 프로젝트 내 모든 태스크 이력 조회
 # ============================================================
 def get_histories_by_project(db: Session, project_id: int) -> List[models.TaskHistory]:
-    """프로젝트 내 전체 태스크 이력 (관리자용)"""
+    """프로젝트 내 전체 태스크 상태 변경 이력 (관리자용)"""
     histories = (
         db.query(models.TaskHistory)
         .join(models.Task)

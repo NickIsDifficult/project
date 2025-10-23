@@ -1,6 +1,5 @@
 from datetime import date, datetime
 from typing import Annotated, List, Optional
-
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from app.models.enums import (
@@ -77,7 +76,7 @@ class TaskMember(BaseModel):
 
 
 # ============================================================
-# 🧩 Task
+# 🧩 Task (기본 모델)
 # ============================================================
 class TaskBase(BaseModel):
     title: str
@@ -95,7 +94,7 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    project_id: int
+    project_id: Optional[int] = None
     parent_task_id: Optional[int] = None
 
 
@@ -118,9 +117,9 @@ class Task(TaskBase):
     task_id: int
     project_id: int
     assignee_ids: Optional[List[int]] = []
-    taskmember: List[TaskMember] = Field(default_factory=list)  # ✅ 관계명 일치
-    taskcomment: List[TaskComment] = Field(default_factory=list)  # ✅ 관계명 일치
-    subtask: List["Task"] = Field(default_factory=list)  # ✅ 관계명 일치
+    taskmember: List[TaskMember] = Field(default_factory=list)
+    taskcomment: List[TaskComment] = Field(default_factory=list)
+    subtask: List["Task"] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -153,7 +152,7 @@ class Milestone(MilestoneBase):
 
 
 # ============================================================
-# 🧩 Project
+# 🧩 Project 기본
 # ============================================================
 class ProjectBase(BaseModel):
     project_name: str
@@ -189,10 +188,10 @@ class ProjectUpdate(BaseModel):
 
 class Project(ProjectBase):
     project_id: int
-    projectmember: List[ProjectMember] = Field(default_factory=list)  # ✅ 관계명 일치
-    task: List[Task] = Field(default_factory=list)  # ✅ 관계명 일치
-    milestone: List[Milestone] = Field(default_factory=list)  # ✅ 관계명 일치
-    taskcomment: List[TaskComment] = Field(default_factory=list)  # ✅ 관계명 일치
+    projectmember: List[ProjectMember] = Field(default_factory=list)
+    task: List[Task] = Field(default_factory=list)
+    milestone: List[Milestone] = Field(default_factory=list)
+    taskcomment: List[TaskComment] = Field(default_factory=list)
     owner_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -219,7 +218,7 @@ class TaskHistory(BaseModel):
 
 
 # ============================================================
-# 🌳 TaskTree (트리형 구조 전용)
+# 🌳 TaskTree (트리형 구조 전용 응답)
 # ============================================================
 class TaskTree(BaseModel):
     task_id: int
@@ -231,21 +230,77 @@ class TaskTree(BaseModel):
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     progress: Optional[int] = 0
-    assignees: List[dict] = []  # [{ "emp_id": int, "name": str }]
-    subtasks: List["TaskTree"] = []
+    assignees: List[dict] = []
+    subtasks: List["TaskTree"] = Field(default_factory=list)
+
+    _ser_date = field_serializer("start_date", "due_date", when_used="always")(
+        _serialize_date
+    )
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================
+# 🧩 ProjectFullCreate (단순형 - 기존 호환)
+# ============================================================
+class ProjectFullCreate(ProjectCreate):
+    members: Optional[List[ProjectMemberBase]] = None
+    tasks: Optional[List[TaskCreate]] = None
+
+
+# ============================================================
+# 🧩 TaskCreateRecursive (하위업무 포함 생성용)
+# ============================================================
+class TaskCreateRecursive(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    start_date: Optional[date] = None
+    due_date: Optional[date] = None
+    priority: TaskPriority = TaskPriority.MEDIUM
+    status: TaskStatus = TaskStatus.PLANNED
+    progress: int = 0
+    assignee_ids: List[int] = Field(default_factory=list)
+    subtasks: List["TaskCreateRecursive"] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+TaskCreateRecursive.model_rebuild()
+
+
+# ============================================================
+# 🧩 ProjectFullCreateRequest (프로젝트 + 업무 + 하위업무)
+# ============================================================
+class ProjectFullCreateRequest(BaseModel):
+    project_name: str
+    description: Optional[str] = ""
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: ProjectStatus = ProjectStatus.PLANNED
+    main_assignees: List[int] = Field(default_factory=list)
+    tasks: List[TaskCreateRecursive] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================
-# 🧩 ProjectFullCreate (프로젝트 + 태스크 + 멤버 동시 생성)
+# 🕓 ActivityLog (활동 로그)
 # ============================================================
-class ProjectFullCreate(ProjectCreate):
+class ActivityLog(BaseModel):
+    log_id: int
+    project_id: int
+    task_id: Optional[int] = None
+    emp_id: Optional[int] = None
+    action: str
+    detail: Optional[str] = None
+    created_at: datetime
 
-    members: Optional[List[ProjectMemberBase]] = None
-    tasks: Optional[List[TaskCreate]] = None
+    _ser_dt = field_serializer("created_at", when_used="always")(_serialize_datetime)
+    model_config = ConfigDict(from_attributes=True)
 
 
-# forward refs
+# ============================================================
+# 🔁 Forward References
+# ============================================================
 Task.model_rebuild()
 TaskTree.model_rebuild()
+TaskCreateRecursive.model_rebuild()

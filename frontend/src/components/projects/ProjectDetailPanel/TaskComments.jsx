@@ -144,7 +144,15 @@ export default function TaskComments({ comments = [], currentUser, onAdd, onEdit
                       >
                         수정
                       </Button>
-                      <Button variant="danger" size="sm" onClick={() => handleDelete(c.comment_id)}>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => {
+                          if (window.confirm("이 댓글을 삭제하시겠습니까?")) {
+                            handleDelete(c.comment_id);
+                          }
+                        }}
+                      >
                         삭제
                       </Button>
                     </div>

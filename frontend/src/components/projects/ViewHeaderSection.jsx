@@ -1,4 +1,13 @@
-import { ChevronDown, ChevronUp, Filter, RefreshCw, Search as SearchIcon } from "lucide-react";
+// src/components/projects/ViewHeaderSection.jsx
+import {
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  EyeOff,
+  Filter,
+  RefreshCw,
+  Search as SearchIcon,
+} from "lucide-react";
 import { useMemo } from "react";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 import Button from "../common/Button";
@@ -15,10 +24,11 @@ export default function ViewHeaderSection({
 }) {
   const { uiState, setUiState, tasksByProject } = useProjectGlobal();
   const { keyword, status, assignee } = uiState.filter;
-  const isAllExpanded = uiState.expand?.[viewType] ?? true;
+  const isExpanded = uiState.expand?.[viewType] ?? true;
 
+  // 🔹 접기/펼치기 or 업무 표시 토글
   const toggleExpandAll = () => {
-    const newExpand = !isAllExpanded;
+    const newExpand = !isExpanded;
     setUiState(prev => ({
       ...prev,
       expand: { ...prev.expand, [viewType]: newExpand },
@@ -26,6 +36,7 @@ export default function ViewHeaderSection({
     onToggleExpandAll?.(newExpand);
   };
 
+  // 🔹 완료율 계산
   const completionRate = useMemo(() => {
     let total = 0,
       done = 0;
@@ -65,7 +76,10 @@ export default function ViewHeaderSection({
           {Object.entries(STATUS_LABELS).map(([key, label]) => (
             <div
               key={key}
-              onClick={() => handleStatusFilter(key)}
+              onClick={() => {
+                const newStatus = status === key ? "ALL" : key;
+                handleStatusFilter(newStatus);
+              }}
               style={{
                 cursor: "pointer",
                 padding: "6px 12px",
@@ -133,7 +147,7 @@ export default function ViewHeaderSection({
             minWidth: "300px",
           }}
         >
-          {/* 담당자 선택 (좁게 고정) */}
+          {/* 담당자 선택 */}
           <select
             value={assignee}
             onChange={e => setFilterAssignee(e.target.value)}
@@ -153,7 +167,7 @@ export default function ViewHeaderSection({
             ))}
           </select>
 
-          {/* 검색창 (자동 확장) */}
+          {/* 검색창 */}
           <div style={{ position: "relative", flex: 1, minWidth: "220px", maxWidth: "400px" }}>
             <SearchIcon
               size={16}
@@ -172,7 +186,6 @@ export default function ViewHeaderSection({
                 borderRadius: "6px",
                 padding: "6px 8px 6px 28px",
                 fontSize: "13px",
-                transition: "border 0.2s ease",
               }}
               onFocus={e => (e.target.style.border = "1px solid #2563eb")}
               onBlur={e => (e.target.style.border = "1px solid #d1d5db")}
@@ -181,29 +194,41 @@ export default function ViewHeaderSection({
         </div>
 
         {/* 오른쪽: 버튼 그룹 */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            flexShrink: 0,
-          }}
-        >
-          <Button
-            variant="outline"
-            onClick={toggleExpandAll}
-            style={{ fontSize: "13px", padding: "5px 10px" }}
-          >
-            {isAllExpanded ? (
-              <>
-                <ChevronUp size={14} /> 전체 접기
-              </>
-            ) : (
-              <>
-                <ChevronDown size={14} /> 전체 펼치기
-              </>
-            )}
-          </Button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+          {/* ✅ 뷰 타입별 다른 버튼 */}
+          {viewType === "list" ? (
+            <Button
+              variant="outline"
+              onClick={toggleExpandAll}
+              style={{ fontSize: "13px", padding: "5px 10px" }}
+            >
+              {isExpanded ? (
+                <>
+                  <ChevronUp size={14} /> 전체 접기
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={14} /> 전체 펼치기
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={toggleExpandAll}
+              style={{ fontSize: "13px", padding: "5px 10px" }}
+            >
+              {isExpanded ? (
+                <>
+                  <EyeOff size={14} /> 업무 표시 비활성
+                </>
+              ) : (
+                <>
+                  <Eye size={14} /> 업무 표시 활성
+                </>
+              )}
+            </Button>
+          )}
 
           <Button
             variant="outline"

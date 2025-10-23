@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import toast from "react-hot-toast";
-import Gantt from "frappe-gantt";
-import "../../assets/frappe-gantt.css";
 import dayjs from "dayjs";
-import { updateTask } from "../../services/api/task";
+import Gantt from "frappe-gantt";
+import { useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { updateTask } from "../../../services/api/task";
+import "../../assets/frappe-gantt.css";
 
 const STATUS_OPTIONS = [
   { key: "TODO", label: "할 일" },
@@ -20,29 +20,33 @@ export default function GanttView({ projectId, tasks = [], onTaskMove, onTaskCli
   const [scrollLeft, setScrollLeft] = useState(0);
 
   // 필터 상태
-  const [activeStatuses, setActiveStatuses] = useState(new Set(STATUS_OPTIONS.map((s) => s.key)));
+  const [activeStatuses, setActiveStatuses] = useState(new Set(STATUS_OPTIONS.map(s => s.key)));
   const [assignee, setAssignee] = useState("ALL");
   const [search, setSearch] = useState("");
 
   // 필터 적용
   const filteredTasks = useMemo(() => {
-    const match = (t) => {
+    const match = t => {
       const s = activeStatuses.has(t.status || "TODO");
       const a = assignee === "ALL" || t.assignee_name === assignee;
       const kw = !search || t.title.toLowerCase().includes(search.trim().toLowerCase());
       return s && a && kw;
     };
     const walk = (list, depth = 0) =>
-      list.flatMap((t) => {
+      list.flatMap(t => {
         const current = {
           id: String(t.task_id),
           name: `${"— ".repeat(depth)}${t.title}`,
           start: t.start_date || new Date().toISOString().slice(0, 10),
           end: t.due_date || new Date().toISOString().slice(0, 10),
           progress:
-            t.status === "DONE" ? 100 :
-            t.status === "IN_PROGRESS" ? 60 :
-            t.status === "REVIEW" ? 80 : 0,
+            t.status === "DONE"
+              ? 100
+              : t.status === "IN_PROGRESS"
+                ? 60
+                : t.status === "REVIEW"
+                  ? 80
+                  : 0,
           custom_class: `status-${t.status}`,
           assignee: t.assignee_name,
           taskData: t,
@@ -57,12 +61,12 @@ export default function GanttView({ projectId, tasks = [], onTaskMove, onTaskCli
   const stats = useMemo(() => {
     if (!filteredTasks.length) return null;
     const total = filteredTasks.length;
-    const done = filteredTasks.filter((t) => t.taskData.status === "DONE").length;
-    const inProgress = filteredTasks.filter((t) => t.taskData.status === "IN_PROGRESS").length;
-    const review = filteredTasks.filter((t) => t.taskData.status === "REVIEW").length;
+    const done = filteredTasks.filter(t => t.taskData.status === "DONE").length;
+    const inProgress = filteredTasks.filter(t => t.taskData.status === "IN_PROGRESS").length;
+    const review = filteredTasks.filter(t => t.taskData.status === "REVIEW").length;
     const avg = filteredTasks.reduce((s, t) => s + t.progress, 0) / total;
-    const minDate = new Date(Math.min(...filteredTasks.map((t) => new Date(t.start))));
-    const maxDate = new Date(Math.max(...filteredTasks.map((t) => new Date(t.end))));
+    const minDate = new Date(Math.min(...filteredTasks.map(t => new Date(t.start))));
+    const maxDate = new Date(Math.max(...filteredTasks.map(t => new Date(t.end))));
     return {
       total,
       done,
@@ -77,8 +81,8 @@ export default function GanttView({ projectId, tasks = [], onTaskMove, onTaskCli
   // 담당자 옵션
   const assigneeOptions = useMemo(() => {
     const set = new Set();
-    const walk = (list) => {
-      list.forEach((t) => {
+    const walk = list => {
+      list.forEach(t => {
         if (t.assignee_name) set.add(t.assignee_name);
         if (t.subtasks?.length) walk(t.subtasks);
       });
@@ -114,7 +118,7 @@ export default function GanttView({ projectId, tasks = [], onTaskMove, onTaskCli
       view_mode: viewMode,
       language: "ko",
       custom_popup_html: null,
-      on_click: (task) => {
+      on_click: task => {
         if (task.id === "dummy") return;
         onTaskClick?.(task.taskData);
       },
@@ -175,7 +179,9 @@ export default function GanttView({ projectId, tasks = [], onTaskMove, onTaskCli
       {/* 진행률 통계 */}
       {stats && (
         <div style={summaryBox}>
-          <div>📅 기간: {stats.minDate} ~ {stats.maxDate}</div>
+          <div>
+            📅 기간: {stats.minDate} ~ {stats.maxDate}
+          </div>
           <div>🧩 전체 {stats.total}개</div>
           <div>🚧 진행중 {stats.inProgress}</div>
           <div>🔍 검토 {stats.review}</div>
@@ -186,7 +192,7 @@ export default function GanttView({ projectId, tasks = [], onTaskMove, onTaskCli
 
       {/* 필터/툴바 */}
       <div style={toolbar}>
-        {["Day", "Week", "Month"].map((m) => (
+        {["Day", "Week", "Month"].map(m => (
           <button
             key={m}
             onClick={() => setViewMode(m)}
@@ -200,13 +206,15 @@ export default function GanttView({ projectId, tasks = [], onTaskMove, onTaskCli
           </button>
         ))}
 
-        <button onClick={fitToRange} style={btn}>📐 Zoom Fit</button>
+        <button onClick={fitToRange} style={btn}>
+          📐 Zoom Fit
+        </button>
 
-        {STATUS_OPTIONS.map((s) => (
+        {STATUS_OPTIONS.map(s => (
           <button
             key={s.key}
             onClick={() =>
-              setActiveStatuses((prev) => {
+              setActiveStatuses(prev => {
                 const next = new Set(prev);
                 next.has(s.key) ? next.delete(s.key) : next.add(s.key);
                 return next;
@@ -222,8 +230,8 @@ export default function GanttView({ projectId, tasks = [], onTaskMove, onTaskCli
           </button>
         ))}
 
-        <select value={assignee} onChange={(e) => setAssignee(e.target.value)} style={sel}>
-          {assigneeOptions.map((a) => (
+        <select value={assignee} onChange={e => setAssignee(e.target.value)} style={sel}>
+          {assigneeOptions.map(a => (
             <option key={a} value={a}>
               {a === "ALL" ? "담당자: 전체" : a}
             </option>
@@ -233,13 +241,13 @@ export default function GanttView({ projectId, tasks = [], onTaskMove, onTaskCli
         <input
           placeholder="검색"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={e => setSearch(e.target.value)}
           style={inp}
         />
 
         <button
           onClick={() => {
-            setActiveStatuses(new Set(STATUS_OPTIONS.map((s) => s.key)));
+            setActiveStatuses(new Set(STATUS_OPTIONS.map(s => s.key)));
             setAssignee("ALL");
             setSearch("");
           }}

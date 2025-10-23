@@ -2,7 +2,6 @@
 import { Draggable } from "@hello-pangea/dnd";
 
 export default function ProjectCard({ project, index, color, onClick }) {
-  const isDone = project.status?.toUpperCase() === "DONE";
   const progress = Math.min(project.progress ?? 0, 100);
 
   return (
@@ -17,11 +16,12 @@ export default function ProjectCard({ project, index, color, onClick }) {
             ...styles.container,
             borderColor: snapshot.isDragging ? color : "#ddd",
             boxShadow: snapshot.isDragging
-              ? `0 4px 10px rgba(0,0,0,0.15)`
+              ? "0 6px 16px rgba(0,0,0,0.16)"
               : "0 1px 2px rgba(0,0,0,0.08)",
-            background: "#fff",
+            transform: snapshot.isDragging ? "scale(1.02)" : "none",
             ...provided.draggableProps.style,
           }}
+          title={`${project.project_name} (${statusLabel(project.status)})`}
         >
           <div style={{ ...styles.colorBar, background: color }} />
           <div style={styles.content}>
@@ -31,19 +31,14 @@ export default function ProjectCard({ project, index, color, onClick }) {
                 {statusIcon(project.status)} {statusLabel(project.status)}
               </span>
             </div>
-            <div style={styles.info}>
-              👤 {project.owner_name ?? "미지정"}
+
+            <div style={styles.meta}>
+              <span>👤 {project.owner_name ?? "미지정"}</span>
               <span style={{ marginLeft: "auto" }}>📈 {progress}%</span>
             </div>
 
-            <div style={styles.progressOuter}>
-              <div
-                style={{
-                  ...styles.progressInner,
-                  background: color,
-                  width: `${progress}%`,
-                }}
-              />
+            <div style={styles.progressOuter} aria-label="progress">
+              <div style={{ ...styles.progressInner, background: color, width: `${progress}%` }} />
             </div>
           </div>
         </div>
@@ -52,7 +47,6 @@ export default function ProjectCard({ project, index, color, onClick }) {
   );
 }
 
-/* 🎨 스타일 */
 const styles = {
   container: {
     display: "flex",
@@ -61,7 +55,8 @@ const styles = {
     marginBottom: 8,
     cursor: "grab",
     overflow: "hidden",
-    transition: "all 0.25s ease",
+    transition: "all 0.2s ease",
+    background: "#fff",
   },
   colorBar: { width: 8, borderRadius: "10px 0 0 10px" },
   content: { flex: 1, padding: "8px 10px" },
@@ -69,45 +64,30 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   name: {
     fontSize: 14,
-    fontWeight: 600,
+    fontWeight: 700,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  info: {
-    fontSize: 12,
-    color: "#555",
-    display: "flex",
-    gap: 6,
-  },
-  progressOuter: {
-    height: 6,
-    borderRadius: 4,
-    background: "#e0e0e0",
-    overflow: "hidden",
-    marginTop: 4,
-  },
-  progressInner: {
-    height: "100%",
-    borderRadius: 4,
-    transition: "width 0.3s ease",
-  },
+  meta: { fontSize: 12, color: "#555", display: "flex", gap: 6, marginBottom: 6 },
+  progressOuter: { height: 6, borderRadius: 4, background: "#e0e0e0", overflow: "hidden" },
+  progressInner: { height: "100%", borderRadius: 4, transition: "width 0.25s ease" },
   statusTag: s => ({
     background: `${statusColor(s)}22`,
     color: statusColor(s),
     borderRadius: 6,
     padding: "2px 6px",
     fontSize: 11,
-    fontWeight: 600,
+    fontWeight: 700,
   }),
 };
 
-const statusColor = s => {
-  switch (s?.toUpperCase()) {
+function statusColor(s) {
+  switch ((s || "").toUpperCase()) {
     case "DONE":
       return "#4CAF50";
     case "IN_PROGRESS":
@@ -119,13 +99,13 @@ const statusColor = s => {
     default:
       return "#BDBDBD";
   }
-};
+}
 const statusLabel = s =>
   ({ DONE: "완료", IN_PROGRESS: "진행 중", REVIEW: "검토 중", ON_HOLD: "보류" })[
-    s?.toUpperCase()
+    (s || "").toUpperCase()
   ] ?? "계획";
-const statusIcon = s => {
-  switch (s?.toUpperCase()) {
+function statusIcon(s) {
+  switch ((s || "").toUpperCase()) {
     case "DONE":
       return "✅";
     case "IN_PROGRESS":
@@ -137,4 +117,4 @@ const statusIcon = s => {
     default:
       return "🗂";
   }
-};
+}

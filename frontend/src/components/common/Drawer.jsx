@@ -1,4 +1,4 @@
-// src/components/common/Drawer.jsx (Tailwind 없이 완전 독립형)
+// src/components/common/Drawer.jsx
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 

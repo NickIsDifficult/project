@@ -50,7 +50,15 @@ export default function TaskAttachments({ attachments = [], onUpload, onDelete }
               >
                 {file.filename}
               </a>
-              <Button size="sm" variant="danger" onClick={() => onDelete(file.attachment_id)}>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => {
+                  if (window.confirm("이 파일을 삭제하시겠습니까?")) {
+                    onDelete(file.attachment_id);
+                  }
+                }}
+              >
                 삭제
               </Button>
             </li>

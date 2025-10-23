@@ -2,11 +2,17 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import models
-from app.models.enums import MemberRole, ProjectStatus, TaskPriority, TaskStatus
+from app.models.enums import (
+    MemberRole,
+    ProjectStatus,
+    TaskPriority,
+    TaskStatus,
+    ActivityAction,
+)
 
 
 # =====================================================
@@ -70,43 +76,39 @@ def create_task_recursive(
         start_date=node.get("start_date"),
         due_date=node.get("due_date"),
         priority=node.get("priority") or TaskPriority.MEDIUM,
-        status=TaskStatus.PLANNED,
+        status=node.get("status") or TaskStatus.PLANNED,
         parent_task_id=parent_task_id,
         progress=node.get("progress") or 0,
     )
     db.add(task)
-    db.commit()
-    db.refresh(task)
+    db.flush()
 
     # ✅ 다중 담당자 등록 + 프로젝트 멤버 자동 포함
-    assignee_ids: List[int] = node.get("assignee_ids") or []
-    for eid in assignee_ids:
+    for eid in node.get("assignee_ids") or []:
         db.add(models.TaskMember(task_id=task.task_id, emp_id=eid))
         ensure_member(db, project_id, eid, MemberRole.MEMBER)
-    db.commit()
 
-    # ✅ 하위 태스크 재귀
+    db.flush()
+
+    # ✅ 하위 태스크 재귀 생성
     for child in node.get("subtasks") or []:
-        create_task_recursive(
-            db, project_id, creator_emp_id, child, parent_task_id=task.task_id
-        )
+        create_task_recursive(db, project_id, creator_emp_id, child, parent_task_id=task.task_id)
 
     return task
 
 
 # =====================================================
-# ✅ CRUD 서비스
+# ✅ 프로젝트 CRUD
 # =====================================================
 def get_all_projects(db: Session):
     """모든 프로젝트 목록 + 소유자 이름(owner_name) 포함"""
     projects = (
         db.query(models.Project)
-        .options(joinedload(models.Project.employee))  # ✅ 관계명 일치
+        .options(joinedload(models.Project.employee))
         .order_by(models.Project.created_at.desc())
         .all()
     )
 
-    # 🔹 각 프로젝트에 owner_name 필드 주입
     for proj in projects:
         proj.owner_name = proj.employee.name if proj.employee else None
 
@@ -116,7 +118,9 @@ def get_all_projects(db: Session):
 def get_project_by_id(db: Session, project_id: int):
     """단일 프로젝트 조회"""
     return (
-        db.query(models.Project).filter(models.Project.project_id == project_id).first()
+        db.query(models.Project)
+        .filter(models.Project.project_id == project_id)
+        .first()
     )
 
 
@@ -131,55 +135,63 @@ def create_project(db: Session, request, current_user: models.Employee):
         owner_emp_id=current_user.emp_id,
     )
     db.add(proj)
-    db.commit()
-    db.refresh(proj)
+    db.flush()
 
-    # ✅ OWNER 자동 등록
     ensure_member(db, proj.project_id, current_user.emp_id, MemberRole.OWNER)
     db.commit()
+    db.refresh(proj)
     return proj
 
 
-def create_project_full(
-    db: Session, payload: Dict[str, Any], current_user: models.Employee
-):
+def create_project_full(db: Session, payload: Dict[str, Any], current_user: models.Employee):
     """프로젝트 + 태스크 트리 전체 생성"""
-    project_name = (payload.get("project_name") or "").strip()
-    if not project_name:
-        raise ValueError("project_name이 비어 있습니다.")
+    try:
+        project_name = (payload.get("project_name") or "").strip()
+        if not project_name:
+            raise ValueError("project_name이 비어 있습니다.")
 
-    proj = models.Project(
-        project_name=project_name,
-        description=payload.get("description"),
-        start_date=payload.get("start_date"),
-        end_date=payload.get("end_date"),
-        status=payload.get("status") or ProjectStatus.PLANNED,
-        owner_emp_id=current_user.emp_id,
-    )
-    db.add(proj)
-    db.commit()
-    db.refresh(proj)
+        proj = models.Project(
+            project_name=project_name,
+            description=payload.get("description"),
+            start_date=payload.get("start_date"),
+            end_date=payload.get("end_date"),
+            status=payload.get("status") or ProjectStatus.PLANNED,
+            owner_emp_id=current_user.emp_id,
+        )
+        db.add(proj)
+        db.flush()
 
-    # ✅ OWNER 자동 등록
-    ensure_member(db, proj.project_id, current_user.emp_id, MemberRole.OWNER)
-    db.commit()
+        # OWNER 자동 등록
+        ensure_member(db, proj.project_id, current_user.emp_id, MemberRole.OWNER)
 
-    # ✅ main_assignees를 멤버로 등록
-    for eid in payload.get("main_assignees") or []:
-        ensure_member(db, proj.project_id, int(eid), MemberRole.MEMBER)
-    db.commit()
+        # 메인 담당자 멤버 추가
+        for eid in payload.get("main_assignees") or []:
+            ensure_member(db, proj.project_id, int(eid), MemberRole.MEMBER)
 
-    # ✅ 태스크 트리 생성
-    for root in payload.get("tasks") or []:
-        create_task_recursive(db, proj.project_id, current_user.emp_id, root)
+        db.flush()
 
-    db.commit()
-    return proj
+        # 태스크 트리 생성
+        for root in payload.get("tasks") or []:
+            create_task_recursive(db, proj.project_id, current_user.emp_id, root)
+
+        # Activity Log 기록
+        db.add(models.ActivityLog(
+            project_id=proj.project_id,
+            emp_id=current_user.emp_id,
+            action=ActivityAction.project_created,
+            detail=f"프로젝트 생성: {proj.project_name}"
+        ))
+
+        db.commit()
+        db.refresh(proj)
+        return proj
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise e
 
 
-def update_project(
-    db: Session, project_id: int, request, current_user: models.Employee
-):
+def update_project(db: Session, project_id: int, request, current_user: models.Employee):
     """프로젝트 수정 (OWNER만 가능)"""
     proj = get_project_by_id(db, project_id)
     if not proj:
@@ -190,6 +202,7 @@ def update_project(
     data = request.model_dump(exclude_unset=True)
     for k, v in data.items():
         setattr(proj, k, v)
+
     db.commit()
     db.refresh(proj)
     return proj
@@ -207,6 +220,9 @@ def delete_project(db: Session, project_id: int, current_user: models.Employee):
     db.commit()
 
 
+# =====================================================
+# ✅ 프로젝트 멤버 관리
+# =====================================================
 def add_member(db: Session, project_id: int, member, current_user: models.Employee):
     """프로젝트 멤버 추가 (OWNER만 가능)"""
     if not is_owner(db, project_id, current_user.emp_id):
@@ -216,9 +232,7 @@ def add_member(db: Session, project_id: int, member, current_user: models.Employ
     db.commit()
 
 
-def remove_member(
-    db: Session, project_id: int, emp_id: int, current_user: models.Employee
-):
+def remove_member(db: Session, project_id: int, emp_id: int, current_user: models.Employee):
     """프로젝트 멤버 제거 (OWNER만 가능)"""
     if not is_owner(db, project_id, current_user.emp_id):
         raise PermissionError("프로젝트 소유자만 멤버 제거 가능")
@@ -238,3 +252,124 @@ def remove_member(
 
     db.delete(member)
     db.commit()
+
+
+# =====================================================
+# ✅ 태스크 상태 / 진행률 변경 + 활동 로그
+# =====================================================
+def update_task_status(db: Session, project_id: int, task_id: int, new_status: str, emp_id: int):
+    task = (
+        db.query(models.Task)
+        .filter(models.Task.project_id == project_id, models.Task.task_id == task_id)
+        .first()
+    )
+    if not task:
+        raise ValueError("해당 업무를 찾을 수 없습니다.")
+    if new_status not in TaskStatus.__members__:
+        raise ValueError(f"잘못된 상태 값: {new_status}")
+
+    old_status = task.status
+    task.status = TaskStatus[new_status]
+    db.flush()
+
+    db.add(models.TaskHistory(
+        task_id=task.task_id,
+        old_status=old_status,
+        new_status=task.status,
+        changed_by=emp_id,
+    ))
+    db.add(models.ActivityLog(
+        project_id=project_id,
+        task_id=task.task_id,
+        emp_id=emp_id,
+        action=ActivityAction.status_changed,
+        detail=f"상태 변경: {old_status.value} → {task.status.value}"
+    ))
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def update_task_progress(db: Session, project_id: int, task_id: int, progress: int, emp_id: int):
+    task = (
+        db.query(models.Task)
+        .filter(models.Task.project_id == project_id, models.Task.task_id == task_id)
+        .first()
+    )
+    if not task:
+        raise ValueError("해당 업무를 찾을 수 없습니다.")
+    if not (0 <= progress <= 100):
+        raise ValueError("진행률은 0~100 사이여야 합니다.")
+
+    old_progress = task.progress
+    task.progress = progress
+
+    db.add(models.ActivityLog(
+        project_id=project_id,
+        task_id=task.task_id,
+        emp_id=emp_id,
+        action=ActivityAction.progress_changed,
+        detail=f"진행률 변경: {old_progress}% → {progress}%"
+    ))
+
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+# =====================================================
+# ✅ 활동 로그 조회
+# =====================================================
+def list_activity_logs(db: Session, project_id: int, limit: int = 50):
+    """프로젝트별 활동 로그 조회 (최신순)"""
+    logs = (
+        db.query(models.ActivityLog)
+        .filter(models.ActivityLog.project_id == project_id)
+        .order_by(models.ActivityLog.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return logs
+
+
+# =====================================================
+# ✅ 태스크 트리 조회
+# =====================================================
+def list_task_tree(db: Session, project_id: int) -> List[Dict[str, Any]]:
+    """
+    프로젝트의 태스크 트리 구조 반환
+    - 각 Task에 subtasks 포함
+    """
+    def build_tree(tasks, parent_id=None):
+        tree = []
+        for t in tasks:
+            if t.parent_task_id == parent_id:
+                node = {
+                    "task_id": t.task_id,
+                    "project_id": t.project_id,
+                    "title": t.title,
+                    "description": t.description,
+                    "status": t.status.value if t.status else None,
+                    "priority": t.priority.value if t.priority else None,
+                    "start_date": t.start_date,
+                    "due_date": t.due_date,
+                    "progress": t.progress,
+                    "assignees": [
+                        {"emp_id": m.emp_id, "name": m.employee.name if m.employee else None}
+                        for m in t.taskmember
+                    ],
+                    "subtasks": build_tree(tasks, t.task_id),
+                }
+                tree.append(node)
+        return tree
+
+    tasks = (
+        db.query(models.Task)
+        .options(
+            joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee),
+        )
+        .filter(models.Task.project_id == project_id)
+        .all()
+    )
+    return build_tree(tasks)

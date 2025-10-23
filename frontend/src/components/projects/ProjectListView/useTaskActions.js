@@ -6,10 +6,11 @@ import { deleteTask, updateTask, updateTaskStatus } from "../../../services/api/
 
 /**
  * ✅ useTaskActions
- * - 프로젝트 / 업무의 CRUD 및 상태 변경 로직을 담당
+ * - 프로젝트 / 업무의 CRUD 및 상태 변경 로직 담당
  */
 export function useTaskActions() {
-  const { fetchTasksByProject, updateTaskLocal, updateProjectLocal } = useProjectGlobal();
+  const { fetchTasksByProject, fetchAllProjects, updateTaskLocal, updateProjectLocal } =
+    useProjectGlobal();
 
   /* ----------------------------------------
    * 🔄 상태 변경
@@ -36,18 +37,28 @@ export function useTaskActions() {
   };
 
   /* ----------------------------------------
-   * 🗑️ 삭제
+   * 🗑️ 삭제 (수정됨)
    * ---------------------------------------- */
-  const handleDelete = async (taskId, projectId) => {
+  const handleDelete = async (effectiveId, projectId) => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     const pid = Number(projectId);
-    const tid = Number(taskId);
-    const isProject = String(taskId).startsWith("proj");
+    const isProject = String(effectiveId).startsWith("proj");
 
     try {
-      if (isProject) await deleteProject(pid);
-      else await deleteTask(pid, tid);
-      toast.success(isProject ? "프로젝트 삭제 완료" : "업무 삭제 완료");
+      if (isProject) {
+        // 프로젝트 삭제
+        await deleteProject(pid);
+        toast.success("프로젝트 삭제 완료");
+        await fetchAllProjects();
+      } else {
+        // 업무 삭제 (문자열에서 숫자만 추출)
+        const tid = parseInt(String(effectiveId).replace("task-", ""), 10);
+        if (isNaN(tid)) throw new Error(`잘못된 taskId: ${effectiveId}`);
+        await deleteTask(pid, tid);
+        toast.success("업무 삭제 완료");
+        await fetchTasksByProject(pid);
+      }
+
       await fetchTasksByProject(pid);
     } catch (err) {
       console.error("❌ 삭제 실패:", err);
@@ -60,16 +71,16 @@ export function useTaskActions() {
    * ---------------------------------------- */
   const handleSaveEdit = async (taskId, projectId, data) => {
     const pid = Number(projectId);
-    const tid = Number(taskId);
     const isProject = String(taskId).startsWith("proj");
+    const tid = parseInt(String(taskId).replace("task-", ""), 10);
 
     try {
       if (isProject) {
         await updateProject(pid, data);
-        updateProjectLocal(pid, data); // ✅ 즉시 반영
+        updateProjectLocal(pid, data);
       } else {
         const updated = await updateTask(pid, tid, data);
-        updateTaskLocal(tid, updated); // ✅ 즉시 반영
+        updateTaskLocal(tid, updated);
       }
       toast.success(isProject ? "프로젝트 수정 완료" : "업무 수정 완료");
     } catch (err) {

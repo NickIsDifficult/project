@@ -19,6 +19,10 @@ export function ProjectGlobalProvider({ children }) {
     expand: { list: true, kanban: true },
   });
 
+  // ✅ 전역 선택 상태 추가 (💡 새로 추가됨)
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
+
   // ✅ viewType (localStorage 연동)
   const [viewType, setViewType] = usePersistedState("viewType_global", "list");
 
@@ -63,17 +67,22 @@ export function ProjectGlobalProvider({ children }) {
 
   const fetchTasksByProject = useRef(debounce(pid => fetchTasksByProjectNow(pid), 250)).current;
 
-  // ✅ Optimistic UI 업데이트 (재귀 - 업무)
-  const updateTaskLocal = useCallback((taskId, updatedFields) => {
-    if (!taskId || !updatedFields) return;
+  // ✅ Optimistic UI 업데이트 (업무)
+  const updateTaskLocal = useCallback((taskId, updater) => {
+    if (!taskId || !updater) return;
+
     const updateTree = list =>
-      list.map(t =>
-        String(t.task_id) === String(taskId)
-          ? { ...t, ...updatedFields }
-          : t.subtasks
-            ? { ...t, subtasks: updateTree(t.subtasks) }
-            : t,
-      );
+      list.map(t => {
+        if (String(t.task_id) === String(taskId)) {
+          const nextValue = typeof updater === "function" ? updater(t) : { ...t, ...updater };
+          return { ...t, ...nextValue };
+        }
+        if (t.subtasks && t.subtasks.length > 0) {
+          return { ...t, subtasks: updateTree(t.subtasks) };
+        }
+        return t;
+      });
+
     setTasksByProject(prev => {
       const updated = {};
       for (const [pid, list] of Object.entries(prev)) {
@@ -116,10 +125,13 @@ export function ProjectGlobalProvider({ children }) {
       drawer: { ...prev.drawer, project: false, task: false },
       panel: { selectedTask: null },
     }));
+    setSelectedTask(null);
+    setSelectedProject(null);
   }, [viewType]);
 
-  // 🌐 제공 값
+  // 🌐 Context value 정의
   const value = {
+    // 데이터
     projects,
     setProjects,
     tasksByProject,
@@ -128,14 +140,23 @@ export function ProjectGlobalProvider({ children }) {
     fetchTasksByProjectNow,
     updateProjectLocal,
     updateTaskLocal,
+    loading,
+
+    // 선택 상태 (💡 새로 추가)
+    selectedTask,
+    setSelectedTask,
+    selectedProject,
+    setSelectedProject,
+
+    // UI
     uiState,
     setUiState,
     viewType,
     setViewType,
-    loading,
   };
 
   return <ProjectGlobalContext.Provider value={value}>{children}</ProjectGlobalContext.Provider>;
 }
 
+// ✅ export 훅
 export const useProjectGlobal = () => useContext(ProjectGlobalContext);

@@ -150,7 +150,7 @@ export function useTaskDetail(projectId, taskId) {
     if (!taskId || !task) return;
     const prevStatus = task.status;
     setTask(prev => ({ ...prev, status: newStatus }));
-    updateTaskLocal(taskId, { ...task, status: newStatus });
+    updateTaskLocal(taskId, prev => ({ ...prev, status: newStatus }));
 
     try {
       await updateTaskStatus(projectId, taskId, newStatus);
@@ -159,7 +159,7 @@ export function useTaskDetail(projectId, taskId) {
     } catch (err) {
       toast.error("상태 변경 실패");
       setTask(prev => ({ ...prev, status: prevStatus }));
-      updateTaskLocal(taskId, { ...task, status: prevStatus });
+      updateTaskLocal(taskId, prev => ({ ...prev, status: prevStatus }));
     }
   };
 

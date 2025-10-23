@@ -1,5 +1,7 @@
-import axios from "axios";
+// src/components/projects/ProjectDetailPanel/ProjectDetailForm.jsx
 import { useEffect, useState } from "react";
+import { getEmployees } from "../../../services/api/employee";
+import { getProject, updateProject } from "../../../services/api/project";
 
 /* =========================================
  ✅ 담당자 선택 컴포넌트
@@ -97,12 +99,11 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
 }
 
 /* =========================================
- ✅ 재귀형 업무 노드 + 하위 업무 추가 기능
+ ✅ 재귀형 업무 노드 (기존 유지)
 ========================================= */
 function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
   const [showDetails, setShowDetails] = useState(false);
 
-  // 하위업무 추가
   const handleAddChild = () => {
     const newChild = {
       id: Date.now(),
@@ -116,7 +117,6 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
     onUpdate({ ...task, children: newChildren });
   };
 
-  // 하위업무 삭제
   const handleDelete = () => {
     if (window.confirm("이 업무를 삭제하시겠습니까?")) {
       onUpdate(null);
@@ -250,7 +250,6 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
         </div>
       )}
 
-      {/* 재귀 렌더링 */}
       {task.children?.map((child, index) => (
         <TaskNode
           key={child.id ?? `${depth}-${index}-${task.title ?? "child"}`}
@@ -266,26 +265,26 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
 }
 
 /* =========================================
- ✅ 메인: 프로젝트 상세보기 + 수정 + 상위업무 토글
+ ✅ 메인: 프로젝트 상세 폼
 ========================================= */
 export default function ProjectDetailForm({ projectId, onClose }) {
   const [isEditing, setIsEditing] = useState(false);
   const [project, setProject] = useState(null);
   const [employees, setEmployees] = useState([]);
-  const [showDetails, setShowDetails] = useState(false); // ✅ 상세입력 토글
-  const [mainAssignees, setMainAssignees] = useState([]); // ✅ 상위 담당자
+  const [showDetails, setShowDetails] = useState(false);
+  const [mainAssignees, setMainAssignees] = useState([]);
 
   useEffect(() => {
     if (!projectId) return;
     const fetchData = async () => {
       try {
-        const [projectRes, employeeRes] = await Promise.all([
-          axios.get(`http://127.0.0.1:8000/projects/${projectId}`),
-          axios.get(`http://127.0.0.1:8000/employees`),
+        const [projectData, employeeData] = await Promise.all([
+          getProject(projectId),
+          getEmployees(),
         ]);
-        setProject(projectRes.data);
-        setEmployees(employeeRes.data);
-        setMainAssignees(projectRes.data?.main_assignees || []);
+        setProject(projectData);
+        setEmployees(employeeData);
+        setMainAssignees(projectData?.main_assignees || []);
       } catch (err) {
         console.error("❌ 데이터 로드 실패:", err);
         alert("데이터를 불러오지 못했습니다.");
@@ -296,18 +295,13 @@ export default function ProjectDetailForm({ projectId, onClose }) {
 
   const handleSave = async () => {
     try {
-      const token = localStorage.getItem("access_token");
       const { tasks, ...projectData } = project;
       projectData.main_assignees = mainAssignees;
-
-      await axios.put(`http://127.0.0.1:8000/projects/${projectId}`, projectData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      await updateProject(projectId, projectData);
       alert("✅ 수정 완료!");
       setIsEditing(false);
     } catch (err) {
-      console.error("❌ 수정 실패:", err.response?.data || err);
+      console.error("❌ 수정 실패:", err);
       alert("수정 중 오류가 발생했습니다.");
     }
   };
@@ -372,7 +366,6 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         }}
       />
 
-      {/* ✅ 상세입력 토글 (상위 담당자 / 날짜) */}
       <button
         onClick={() => setShowDetails(!showDetails)}
         style={{

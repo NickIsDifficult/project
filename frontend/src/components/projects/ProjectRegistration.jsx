@@ -1,234 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+// src/components/projects/ProjectRegistration.jsx
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 import { useProjectMembers } from "../../hooks/useProjectMembers";
 import api from "../../services/api/http";
+import AssigneeSelector from "./AssigneeSelector";
+import TaskNode from "./TaskNode";
 
-// =========================================
-// ✅ 담당자 선택
-// =========================================
-function AssigneeSelector({ employees, selected, setSelected }) {
-  const [query, setQuery] = useState("");
-  const filtered = employees.filter(
-    emp => emp.name.toLowerCase().includes(query.toLowerCase()) && !selected.includes(emp.emp_id),
-  );
-
-  return (
-    <div style={{ marginTop: 6, position: "relative" }}>
-      {/* 선택된 담당자 */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {selected.map(id => {
-          const emp = employees.find(e => e.emp_id === id);
-          return (
-            <span
-              key={id}
-              style={{
-                background: "#e3f2fd",
-                color: "#1976d2",
-                padding: "4px 8px",
-                borderRadius: 16,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              {emp?.name}
-              <button
-                style={{ border: "none", background: "transparent", cursor: "pointer" }}
-                onClick={() => setSelected(selected.filter(sid => sid !== id))}
-              >
-                ✕
-              </button>
-            </span>
-          );
-        })}
-      </div>
-
-      {/* 검색 입력 */}
-      <input
-        type="text"
-        placeholder="담당자 검색"
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        style={{ width: "100%", marginTop: 6 }}
-      />
-
-      {/* 드롭다운 */}
-      {query && (
-        <div
-          style={{
-            border: "1px solid #ccc",
-            borderRadius: 6,
-            marginTop: 4,
-            maxHeight: 160,
-            overflowY: "auto",
-            background: "#fff",
-            position: "absolute",
-            zIndex: 1000,
-            width: "100%",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-          }}
-        >
-          {filtered.map(emp => (
-            <div
-              key={emp.emp_id}
-              style={{ padding: 8, cursor: "pointer", borderBottom: "1px solid #eee" }}
-              onClick={() => {
-                setSelected([...selected, emp.emp_id]);
-                setQuery("");
-              }}
-            >
-              {emp.name}
-              <span style={{ color: "#888", fontSize: 12, marginLeft: 6 }}>({emp.role})</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// =========================================
-// ✅ 재귀형 하위 업무 입력
-// =========================================
-function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
-  const [showDetails, setShowDetails] = useState(false);
-
-  const handleAddChild = () => {
-    const newChild = {
-      id: Date.now(),
-      title: "",
-      startDate: "",
-      endDate: "",
-      assignees: [],
-      children: [],
-    };
-    onUpdate({ ...task, children: [...task.children, newChild] });
-  };
-
-  const handleDelete = () => onUpdate(null);
-
-  const handleChildUpdate = (index, updated) => {
-    const newChildren = [...task.children];
-    if (updated === null) newChildren.splice(index, 1);
-    else newChildren[index] = updated;
-    onUpdate({ ...task, children: newChildren });
-  };
-
-  return (
-    <div
-      style={{
-        marginLeft: depth * 20,
-        borderLeft: depth > 0 ? "2px solid #ddd" : "none",
-        paddingLeft: depth > 0 ? 8 : 0,
-        marginTop: 10,
-      }}
-    >
-      {/* 제목줄 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <input
-          placeholder="업무 제목"
-          value={task.title}
-          onChange={e => onUpdate({ ...task, title: e.target.value })}
-          style={{
-            flex: 1,
-            padding: "4px 8px",
-            borderRadius: 6,
-            border: "1px solid #ccc",
-          }}
-        />
-        <button
-          onClick={() => setShowDetails(!showDetails)}
-          style={{
-            background: showDetails ? "#555" : "#1976d2",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            padding: "4px 8px",
-            cursor: "pointer",
-          }}
-        >
-          {showDetails ? "▲ 닫기" : "▼ 상세"}
-        </button>
-        <button onClick={onAddSibling}>➕ 업무추가</button>
-        <button onClick={handleAddChild}>↳ 하위업무</button>
-        <button
-          onClick={handleDelete}
-          style={{ color: "crimson", border: "none", background: "transparent" }}
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* 상세입력 */}
-      {showDetails && (
-        <div
-          style={{
-            background: "#f9f9f9",
-            borderRadius: 8,
-            padding: 8,
-            marginTop: 8,
-          }}
-        >
-          <div style={{ marginBottom: 6 }}>
-            <label>시작일</label>
-            <input
-              type="date"
-              value={task.startDate}
-              onChange={e => onUpdate({ ...task, startDate: e.target.value })}
-              style={{ marginLeft: 8 }}
-            />
-            <label style={{ marginLeft: 12 }}>종료일</label>
-            <input
-              type="date"
-              value={task.endDate}
-              onChange={e => onUpdate({ ...task, endDate: e.target.value })}
-              style={{ marginLeft: 8 }}
-            />
-          </div>
-
-          <div>
-            <strong>담당자:</strong>
-            <AssigneeSelector
-              employees={employees}
-              selected={task.assignees}
-              setSelected={newList => onUpdate({ ...task, assignees: newList })}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 하위 업무 (재귀) */}
-      {task.children.map((child, index) => (
-        <TaskNode
-          key={child.id}
-          task={child}
-          employees={employees}
-          onUpdate={updated => handleChildUpdate(index, updated)}
-          depth={depth + 1}
-          onAddSibling={() => {
-            const newChildren = [...task.children];
-            const newTask = {
-              id: Date.now(),
-              title: "",
-              startDate: "",
-              endDate: "",
-              assignees: [],
-              children: [],
-            };
-            newChildren.splice(index + 1, 0, newTask);
-            onUpdate({ ...task, children: newChildren });
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// =========================================
-// ✅ 프로젝트 + 하위업무 등록
-// =========================================
-export default function TaskRegistration({ onClose }) {
+export default function ProjectRegistration({ onClose }) {
   const [projectName, setProjectName] = useState("");
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState([]);
@@ -239,8 +18,9 @@ export default function TaskRegistration({ onClose }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [tasks, setTasks] = useState([]);
+  const [saving, setSaving] = useState(false);
 
-  const { selectedProjectId } = useProjectGlobal();
+  const { selectedProjectId, fetchAllProjects, setUiState } = useProjectGlobal();
   const { members, loading } = useProjectMembers(selectedProjectId);
   const fileInputRef = useRef(null);
 
@@ -248,49 +28,97 @@ export default function TaskRegistration({ onClose }) {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        if (!selectedProjectId) {
-          const res = await api.get("/employees");
-          setEmployees(res.data);
-        } else if (!loading) {
-          setEmployees(members);
-        }
+        const res = selectedProjectId ? !loading && members : await api.get("/employees");
+        setEmployees(selectedProjectId ? members : res.data);
       } catch (err) {
-        console.error("❌ 직원 목록 불러오기 실패:", err);
+        console.error("❌ 직원 목록 실패:", err);
       }
     };
     fetchEmployees();
   }, [selectedProjectId, members, loading]);
 
-  // ✅ 파일 업로드
+  // ✅ 파일 핸들러
   const handleFileChange = e => {
     const file = e.target.files?.[0];
-    if (file) setAttachments(prev => [...prev, file]);
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("10MB 이하의 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    setAttachments(prev => [...prev, file]);
   };
-  const handleFileDelete = index => setAttachments(prev => prev.filter((_, i) => i !== index));
+  const handleFileDelete = i => setAttachments(prev => prev.filter((_, idx) => idx !== i));
 
-  // ✅ 최상위 업무 추가
-  const handleAddRootTask = () => {
-    const newTask = {
-      id: Date.now(),
-      title: "",
-      startDate: "",
-      endDate: "",
-      assignees: [],
-      children: [],
-    };
-    setTasks([...tasks, newTask]);
-  };
+  // ✅ 업무 관리
+  const handleAddRootTask = () =>
+    setTasks(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        title: "",
+        startDate: "",
+        endDate: "",
+        assignees: [],
+        children: [],
+      },
+    ]);
 
-  const handleTaskUpdate = (index, updated) => {
-    const newTasks = [...tasks];
-    if (updated === null) newTasks.splice(index, 1);
-    else newTasks[index] = updated;
-    setTasks(newTasks);
-  };
+  const handleTaskUpdate = useCallback((i, updated) => {
+    setTasks(prev => {
+      const copy = [...prev];
+      if (updated === null) copy.splice(i, 1);
+      else copy[i] = updated;
+      return copy;
+    });
+  }, []);
 
-  // ✅ 프로젝트 + 업무 등록
-  const handleSubmit = async () => {
+  // ✅ 하위업무 재귀 직렬화 함수
+  const serializeTasks = (list = []) =>
+    list.map(t => ({
+      title: t.title,
+      start_date: t.startDate || null,
+      due_date: t.endDate || null,
+      priority: "MEDIUM",
+      progress: 0,
+      assignee_ids: Array.isArray(t.assignees) ? t.assignees : [],
+      subtasks: serializeTasks(t.children || []), // ✅ 재귀 호출
+    }));
+
+  // ✅ 유효성 검사
+  const validateForm = useCallback(() => {
     if (!projectName.trim()) return toast.error("프로젝트 이름을 입력하세요.");
+    if (startDate && endDate && new Date(startDate) > new Date(endDate))
+      return toast.error("시작일은 종료일보다 이전이어야 합니다.");
+
+    for (const t of tasks) {
+      if (!t.title.trim()) return toast.error("모든 업무에 제목을 입력하세요.");
+      if (t.startDate && t.endDate && new Date(t.startDate) > new Date(t.endDate))
+        return toast.error("하위 업무의 시작일은 종료일보다 이전이어야 합니다.");
+    }
+    return true;
+  }, [projectName, startDate, endDate, tasks]);
+
+  // ✅ 취소 시 확인
+  const hasChanges = useMemo(() => {
+    return (
+      projectName ||
+      description ||
+      startDate ||
+      endDate ||
+      tasks.length > 0 ||
+      attachments.length > 0
+    );
+  }, [projectName, description, startDate, endDate, tasks, attachments]);
+
+  const handleCancel = () => {
+    if (hasChanges && !window.confirm("작성 중인 내용이 있습니다. 정말 취소하시겠습니까?")) return;
+    onClose?.();
+  };
+
+  // ✅ 등록 + 자동 새로고침 + Drawer 닫기
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+    setSaving(true);
 
     const payload = {
       project_name: projectName,
@@ -299,45 +127,43 @@ export default function TaskRegistration({ onClose }) {
       end_date: endDate || null,
       status: "PLANNED",
       main_assignees: mainAssignees,
-      tasks: tasks.map(t => ({
-        title: t.title,
-        description: "",
-        start_date: t.startDate || null,
-        due_date: t.endDate || null,
-        priority: "MEDIUM",
-        progress: 0,
-        assignee_ids: t.assignees,
-        subtasks: (t.children || []).map(st => ({
-          title: st.title,
-          start_date: st.startDate || null,
-          due_date: st.endDate || null,
-          priority: "MEDIUM",
-          progress: 0,
-          assignee_ids: st.assignees,
-          subtasks: st.children || [],
-        })),
-      })),
+      tasks: serializeTasks(tasks), // ✅ 재귀 적용
     };
 
     try {
-      // ✅ full-create API 호출
       const res = await api.post("/projects/full-create", payload);
-      const projectId = res.data.project_id;
+      const pid = res.data.project_id;
+
+      // 첨부파일 업로드 (병렬)
+      if (attachments.length) {
+        await Promise.all(
+          attachments.map(f => {
+            const fd = new FormData();
+            fd.append("file", f);
+            return api.post(`/projects/${pid}/attachments`, fd, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+          }),
+        );
+      }
+
       toast.success("✅ 프로젝트가 등록되었습니다!");
 
-      // ✅ 첨부파일 업로드 (선택)
-      for (const file of attachments) {
-        const formData = new FormData();
-        formData.append("file", file);
-        await api.post(`/projects/${projectId}/attachments`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      }
+      // 🔄 전체 목록 새로고침
+      await fetchAllProjects();
+
+      // 🚪 Drawer 닫기
+      setUiState(prev => ({
+        ...prev,
+        drawer: { ...prev.drawer, project: false },
+      }));
 
       onClose?.();
     } catch (err) {
       console.error("❌ 등록 실패:", err);
       toast.error(`등록 중 오류: ${err.message}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -479,26 +305,14 @@ export default function TaskRegistration({ onClose }) {
       {/* 하위 업무 */}
       <div style={{ marginTop: 20 }}>
         <h3>📋 하위 업무</h3>
-        {tasks.map((task, index) => (
+        {tasks.map((t, i) => (
           <TaskNode
-            key={task.id}
-            task={task}
+            key={t.id}
+            task={t}
             employees={employees}
-            onUpdate={updated => handleTaskUpdate(index, updated)}
+            onUpdate={u => handleTaskUpdate(i, u)}
             depth={0}
-            onAddSibling={() => {
-              const newTasks = [...tasks];
-              const newTask = {
-                id: Date.now(),
-                title: "",
-                startDate: "",
-                endDate: "",
-                assignees: [],
-                children: [],
-              };
-              newTasks.splice(index + 1, 0, newTask);
-              setTasks(newTasks);
-            }}
+            onAddSibling={handleAddRootTask}
           />
         ))}
         {tasks.length === 0 && (
@@ -530,8 +344,32 @@ export default function TaskRegistration({ onClose }) {
           marginTop: 16,
         }}
       >
-        <button onClick={handleSubmit}>저장</button>
-        <button onClick={onClose}>취소</button>
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          style={{
+            background: saving ? "#999" : "#1976d2",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 12px",
+            cursor: saving ? "not-allowed" : "pointer",
+          }}
+        >
+          {saving ? "저장 중..." : "저장"}
+        </button>
+        <button
+          onClick={handleCancel}
+          style={{
+            background: "#eee",
+            border: "1px solid #ccc",
+            borderRadius: 6,
+            padding: "8px 12px",
+            cursor: "pointer",
+          }}
+        >
+          취소
+        </button>
       </div>
     </div>
   );

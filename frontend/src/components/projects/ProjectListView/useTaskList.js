@@ -3,11 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { useTaskActions } from "./useTaskActions";
 
-/**
- * ✅ useTaskList
- * - 프로젝트 + 업무 리스트뷰 통합 훅
- * - 필터링, 정렬, 접기/펼치기 상태 관리
- */
 export function useTaskList({ allTasks = [] }) {
   const { uiState, setUiState, setSelectedTask } = useProjectGlobal();
   const { handleStatusChange, handleDelete } = useTaskActions();
@@ -22,15 +17,12 @@ export function useTaskList({ allTasks = [] }) {
   // ✅ 담당자 이름 추출
   const extractAssigneeNames = useCallback(t => {
     if (!t) return [];
-
-    // 🏗 프로젝트 → owner_name 또는 members
     if (t.isProject) {
       if (t.owner_name) return [t.owner_name];
       if (Array.isArray(t.members))
         return t.members.map(m => m?.employee?.name ?? m?.name ?? "").filter(Boolean);
       return [];
     }
-    // 🧩 업무(Task) → assignees, members, assignee_name
     const names = [];
     if (Array.isArray(t.assignees)) {
       t.assignees.forEach(a => {
@@ -44,9 +36,7 @@ export function useTaskList({ allTasks = [] }) {
         else if (m?.name) names.push(m.name);
       });
     }
-    if (t.assignee_name && !names.includes(t.assignee_name)) {
-      names.push(t.assignee_name);
-    }
+    if (t.assignee_name && !names.includes(t.assignee_name)) names.push(t.assignee_name);
     return names.filter(Boolean);
   }, []);
 
@@ -105,26 +95,62 @@ export function useTaskList({ allTasks = [] }) {
     [sortBy, sortOrder],
   );
 
-  // ✅ 필터 + 정렬
+  // ✅ 하위 subtasks 중 특정 상태를 재귀적으로 검사
+  const hasMatchingSubtask = useCallback((task, targetStatus) => {
+    if (!Array.isArray(task.subtasks) || task.subtasks.length === 0) return false;
+    return task.subtasks.some(
+      sub => sub.status === targetStatus || hasMatchingSubtask(sub, targetStatus),
+    );
+  }, []);
+
+  // ✅ 재귀 필터링 (중복 없는 형태 유지)
+  const deepFilter = useCallback(
+    (nodes = []) => {
+      return nodes
+        .map(node => {
+          const filteredSubs = deepFilter(node.subtasks || []);
+
+          let statusOk = true;
+          if (status !== "ALL") {
+            if (node.isProject) {
+              statusOk = node.status === status || hasMatchingSubtask(node, status);
+            } else {
+              statusOk = node.status === status;
+            }
+          }
+
+          const assigneeOk =
+            assignee === "ALL" ||
+            (Array.isArray(node.assigneeNames) && node.assigneeNames.includes(assignee));
+
+          const keywordOk =
+            !keyword ||
+            node.title?.toLowerCase().includes(keyword.toLowerCase()) ||
+            node.project_name?.toLowerCase().includes(keyword.toLowerCase()) ||
+            node.description?.toLowerCase().includes(keyword.toLowerCase());
+
+          const selfMatch = statusOk && assigneeOk && keywordOk;
+
+          const keep = selfMatch || filteredSubs.length > 0;
+          return keep ? { ...node, subtasks: filteredSubs } : null;
+        })
+        .filter(Boolean);
+    },
+    [status, assignee, keyword, hasMatchingSubtask],
+  );
+
+  // ✅ 필터 + 정렬 + 중복 제거
   const filteredTasks = useMemo(() => {
-    // 🧩 최상위 노드(프로젝트 단위) 기준 필터링
-    const matches = tasks.filter(node => {
-      const statusOk = status === "ALL" || node.status === status;
-      const assigneeOk =
-        assignee === "ALL" ||
-        (Array.isArray(node.assigneeNames) && node.assigneeNames.includes(assignee));
-      const keywordOk =
-        !keyword ||
-        node.title?.toLowerCase().includes(keyword.toLowerCase()) ||
-        node.project_name?.toLowerCase().includes(keyword.toLowerCase()) ||
-        node.description?.toLowerCase().includes(keyword.toLowerCase());
+    const filteredTree = deepFilter(tasks);
 
-      return statusOk && assigneeOk && keywordOk;
-    });
+    const sortNodes = nodes =>
+      [...nodes].sort(sortCompare).map(n => ({
+        ...n,
+        subtasks: n.subtasks?.length ? sortNodes(n.subtasks) : [],
+      }));
 
-    // 정렬 후 반환
-    return matches.sort(sortCompare);
-  }, [tasks, keyword, status, assignee, sortCompare]);
+    return sortNodes(filteredTree);
+  }, [tasks, keyword, status, assignee, sortCompare, deepFilter]);
 
   // ✅ 정렬 핸들러
   const handleSort = useCallback(
@@ -142,7 +168,7 @@ export function useTaskList({ allTasks = [] }) {
     [sortBy],
   );
 
-  // ✅ 개별 접기 토글
+  // ✅ 접기 / 펼치기 관련
   const toggleCollapse = useCallback(id => {
     setCollapsedTasks(prev => {
       const next = new Set(prev);
@@ -151,28 +177,22 @@ export function useTaskList({ allTasks = [] }) {
     });
   }, []);
 
-  // ✅ 전체 접기/펼치기
   const toggleExpandAll = useCallback(
     expandAll => {
       setCollapsedTasks(() => {
-        if (expandAll) {
-          // 전체 펼치기 → 비움
-          return new Set();
-        } else {
-          // 전체 접기 → 모든 부모 노드 추가
-          const ids = new Set();
-          tasks.forEach(t => {
-            const id = t.isProject ? `proj-${t.project_id}` : `task-${t.task_id}`;
-            if (t.subtasks?.length) ids.add(id);
-          });
-          return ids;
-        }
+        if (expandAll) return new Set();
+        const ids = new Set();
+        tasks.forEach(t => {
+          const id = t.isProject ? `proj-${t.project_id}` : `task-${t.task_id}`;
+          if (t.subtasks?.length) ids.add(id);
+        });
+        return ids;
       });
     },
     [tasks],
   );
 
-  // ✅ 검색어 변경
+  // ✅ 필터링 유틸
   const setSearchKeyword = useCallback(
     newKeyword => {
       setUiState(prev => ({
@@ -184,7 +204,6 @@ export function useTaskList({ allTasks = [] }) {
     [setUiState],
   );
 
-  // ✅ 담당자 필터
   const setFilterAssignee = useCallback(
     newAssignee => {
       setUiState(prev => ({
@@ -195,7 +214,6 @@ export function useTaskList({ allTasks = [] }) {
     [setUiState],
   );
 
-  // ✅ 상태 필터
   const handleStatusFilter = useCallback(
     newStatus => {
       setUiState(prev => ({
@@ -209,7 +227,6 @@ export function useTaskList({ allTasks = [] }) {
     [setUiState],
   );
 
-  // ✅ 필터 초기화
   const resetFilters = useCallback(() => {
     setUiState(prev => ({
       ...prev,
@@ -239,7 +256,7 @@ export function useTaskList({ allTasks = [] }) {
     handleStatusChange,
     handleDelete,
     toggleCollapse,
-    toggleExpandAll, // ✅ 추가됨
+    toggleExpandAll,
     collapsedTasks,
     onTaskClick,
   };

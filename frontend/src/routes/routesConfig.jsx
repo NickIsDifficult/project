@@ -1,7 +1,9 @@
 // src/routes/routesConfig.js
 import { lazy } from "react";
 import LoginPage from "../pages/Login/Login";
-import SignupPage from "../pages/Signup/Signup";
+import Signup from "../pages/Signup/Signup";
+import DeptRoles from "../pages/admin/DeptRoles";
+import Account from "../pages/admin/Account";
 
 const Screen = lazy(() => import("../pages/screens/Screen"));
 const Calendar = lazy(() => import("../pages/calendar/CalendarView"));
@@ -16,7 +18,8 @@ const NotFoundPage = lazy(() => import("../pages/errors/NotFoundPage"));
 // ------------------------------------
 export const routesConfig = [
   { path: "/", element: <LoginPage />, isPrivate: false },
-  { path: "/signup", element: <SignupPage />, isPrivate: false },
+
+  { path: "/signup", element: <Signup />, isPrivate: true, adminOnly: true },
 
   // Private Routes
   { path: "/main", element: <Screen />, isPrivate: true },
@@ -45,5 +48,21 @@ export const routesConfig = [
     element: <TrashBin />,
     isPrivate: true,
   },
-  { path: "*", element: <NotFoundPage />, isPrivate: false },
+  {
+    path: "/admin/dept_roles",
+    element: <DeptRoles />,
+    isPrivate: true,
+    adminOnly: true
+  },
+  {
+    path: "/admin/account",
+    element: <Account />,
+    isPrivate: true,
+    adminOnly: true
+  },
+  { 
+    path: "*", 
+    element: <NotFoundPage />, 
+    isPrivate: false 
+  }, 
 ];

@@ -47,6 +47,7 @@ const Screen = () => {
   const nav = useNavigate();
   const [openSettings, setOpenSettings] = useState(false);
   const [me, setMe] = useState(null);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   // 모달 타입 → 임시 라우트 매핑
   const modalToPath = {
@@ -67,6 +68,7 @@ const Screen = () => {
       }
     })();
   }, [nav]);
+
 
   return (
     <div className="screen">
@@ -301,6 +303,101 @@ const Screen = () => {
             alt="Line"
             src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/line-2.svg"
           />
+
+          {/* ===== 관리자 구분선 (선택) ===== */}
+          <img
+            className="admin-line"
+            alt="Line"
+            src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/line-2.svg"
+          />
+
+          {/* ===== 관리자 섹션 ===== */}
+          <div className={`admin-group ${adminOpen ? "expanded" : "collapsed"}`}>
+            {/* 항목 3개: 계정생성 / 직원관리 / 부서 및 직급관리
+      내부 아이템은 기존 view-8/9/10 스타일을 재사용 (top 오프셋만 그 클래스들이 책임) */}
+
+            {/* 계정생성 */}
+            <div
+              className="view-8"
+              role="button"
+              tabIndex={0}
+              onClick={() => nav("/signup")}
+              onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/signup")}
+            >
+              <div className="rectangle-4" />
+              <div className="text-wrapper">계정생성</div>
+              <div className="frame-2">
+                <img
+                  className="vector-5"
+                  alt="Vector"
+                  src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68d62b16ff595e99e495402d/img/vector-2.svg"
+                />
+              </div>
+            </div>
+
+            {/* 계정관리 */}
+            <div
+              className="view-9"
+              role="button"
+              tabIndex={0}
+              onClick={() => nav("/admin/account")}
+              onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/admin/account")}
+            >
+              <div className="rectangle-4" />
+              <div className="text-wrapper">계정관리</div>
+              <div className="frame-2">
+                <img
+                  className="vector-6"
+                  alt="Vector"
+                  src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68d62b16ff595e99e495402d/img/vector-4.svg"
+                />
+              </div>
+            </div>
+
+            {/* 부서 및 직급관리 */}
+            <div
+              className="view-10"
+              role="button"
+              tabIndex={0}
+              onClick={() => nav("/admin/dept_roles")}
+              onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/admin/dept_roles")}
+            >
+              <div className="rectangle-4" />
+              <div className="text-wrapper">부서 및 직급관리</div>
+              <div className="frame-2">
+                <img
+                  className="vector-7"
+                  alt="Vector"
+                  src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68d62b16ff595e99e495402d/img/vector-3.svg"
+                />
+              </div>
+            </div>
+
+            {/* 관리자 헤더(토글) — 항상 맨 아래에 배치되는 기존 패턴 유지 */}
+            <div
+              className="view-11"
+              role="button"
+              tabIndex={0}
+              aria-expanded={adminOpen}
+              onClick={() => setAdminOpen(v => !v)}
+              onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setAdminOpen(v => !v);
+                }
+              }}
+            >
+              <div className="text-wrapper-2">관리자</div>
+              <div className="frame-3 arrow">
+                <img
+                  className="vector-8"
+                  alt="Vector"
+                  src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/vector-8.svg"
+                />
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -395,7 +492,7 @@ const Screen = () => {
         <div className="ellipse-2" />
       </div>
 
-      {/* 좌하단 고정: 설정 / 직원관리 */}
+      {/* 좌하단 고정: 설정 / 개인정보수정 */}
       <div className="view-bottom">
         <div
           className="nav-item settings-item"
@@ -409,7 +506,7 @@ const Screen = () => {
           <div className="frame" />
         </div>
 
-        <div
+        {/* <div
           className="nav-item employees-item"
           role="button"
           tabIndex={0}
@@ -419,7 +516,7 @@ const Screen = () => {
           <div className="rectangle-4" />
           <div className="text-wrapper">직원관리</div>
           <div className="frame" />
-        </div>
+        </div> */}
       </div>
       {/* ===== 개인정보 수정 팝업 (드래그 가능) ===== */}
       <PersonalInfoModal

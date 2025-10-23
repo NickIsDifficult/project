@@ -3,6 +3,7 @@ import React, { Suspense } from "react";
 import { BrowserRouter as Router } from "react-router-dom";
 import { Loader } from "./components/common/Loader";
 import AppRoutes from "./routes/AppRoutes";
+import DeptRoles from "./pages/admin/DeptRoles";
 
 // ------------------------------
 // ErrorBoundary (공용 예외처리)

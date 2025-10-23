@@ -10,6 +10,9 @@ export const signup = async payload => {
 export const login = async payload => {
   // POST /auth/login
   const { data } = await API.post("/auth/login", payload);
+  if (data?.access_token) {
+    localStorage.setItem("access_token", data.access_token);
+  }
   return data;
 };
 

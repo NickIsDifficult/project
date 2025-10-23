@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../../components/common/Button";
 import Popup from "../../components/common/Popup";
 import { getDepartments, getRoles, signup } from "../../services/api/auth";
+import "./Signup.css"; // ★ 추가
 
 export default function Signup() {
   const nav = useNavigate();
@@ -43,21 +44,18 @@ export default function Signup() {
     return "";
   };
 
-  const onSubmit = async e => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     const v = validate();
-    if (v) {
-      setError(v);
-      return;
-    }
+    if (v) return setError(v);
 
     const payload = {
       user_type: userType,
       name,
       email,
       mobile,
-      dept_id: userType === "EMPLOYEE" ? Number(deptId) : undefined,
-      role_id: userType === "EMPLOYEE" ? Number(roleId) : undefined,
+      dept_no: userType === "EMPLOYEE" ? deptId : undefined,
+      role_no: userType === "EMPLOYEE" ? roleId  : undefined,
       company: userType === "EXTERNAL" ? company : undefined,
     };
 
@@ -65,11 +63,11 @@ export default function Signup() {
       const res = await signup(payload);
       setPopup({
         open: true,
-        title: "회원가입 완료",
+        title: "계정생성 완료",
         msg: `아이디: ${res.login_id}\n초기 비밀번호: 0000\n\n확인을 누르면 로그인 화면으로 이동합니다.`,
-      });
+      }); 
     } catch (err) {
-      const msg = err?.response?.data?.detail || "회원가입 중 오류가 발생했습니다.";
+      const msg = err?.response?.data?.detail || "계정생성 중 오류가 발생했습니다.";
       setError(msg);
     }
   };
@@ -80,101 +78,109 @@ export default function Signup() {
   };
 
   return (
-    <div className="container">
-      <h1>회원가입</h1>
-      <small>유저 유형을 선택하고 필수 정보를 입력하세요.</small>
-      {error && <div className="error">{error}</div>}
-      <form onSubmit={onSubmit}>
-        <label>유저 유형</label>
-        <div className="row">
-          <label>
-            사내직원
-            <input
-              type="radio"
-              name="ut"
-              value="EMPLOYEE"
-              checked={userType === "EMPLOYEE"}
-              onChange={() => setUserType("EMPLOYEE")}
-            />
+    <div className="container signup-wrap" >
+      <h1 className="signup-title">계정생성</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-right", marginBottom: 16 }}>
+      <Button type="button" onClick={() => nav("/main")}>메인으로</Button></div>
+      <p className="signup-sub">유저 유형을 선택하고 필수 정보를 입력하세요.</p>
+
+      {error && <div className="signup-error">{error}</div>}
+
+      <form onSubmit={onSubmit} className="signup-form">
+        {/* 유저 유형 */}
+        <fieldset className="signup-section">
+          <legend className="section-title">회원 유형</legend> {/* ← 문구 개선 */}
+
+          <div className="radio-seg two-col" role="radiogroup" aria-label="가입 유형">
+            <label className={`seg ${userType === "EMPLOYEE" ? "active" : ""}`}>
+              <input
+                type="radio"
+                name="ut"
+                value="EMPLOYEE"
+                checked={userType === "EMPLOYEE"}
+                onChange={() => setUserType("EMPLOYEE")}
+              />
+              <span>사내 직원</span> {/* 가독성 위해 띄어쓰기 */}
+            </label>
+
+            <label className={`seg ${userType === "EXTERNAL" ? "active" : ""}`}>
+              <input
+                type="radio"
+                name="ut"
+                value="EXTERNAL"
+                checked={userType === "EXTERNAL"}
+                onChange={() => setUserType("EXTERNAL")}
+              />
+              <span>외부인</span>
+            </label>
+          </div>
+        </fieldset>
+
+        {/* 공통 정보 */}
+        <fieldset className="signup-section">
+          <legend className="section-title">기본 정보</legend>
+
+          <label className="fld">
+            <span className="lbl">이름 *</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="홍길동" />
           </label>
-          <label>
-            외부인
-            <input
-              type="radio"
-              name="ut"
-              value="EXTERNAL"
-              checked={userType === "EXTERNAL"}
-              onChange={() => setUserType("EXTERNAL")}
-            />
+
+          <label className="fld">
+            <span className="lbl">이메일 *</span>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
           </label>
-        </div>
 
-        <label>이름 *</label>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="홍길동" />
+          <label className="fld">
+            <span className="lbl">연락처(숫자만) *</span>
+            <input value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="01012345678" />
+          </label>
+        </fieldset>
 
-        <label>이메일 *</label>
-        <input
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="name@example.com"
-        />
-
-        <label>연락처(숫자만) *</label>
-        <input value={mobile} onChange={e => setMobile(e.target.value)} placeholder="01012345678" />
-
+        {/* ── 사내직원 전용 ─────────────────────────────── */}
         {userType === "EMPLOYEE" && (
-          <>
-            <label>부서 선택 *</label>
-            <select value={deptId} onChange={e => setDeptId(e.target.value)}>
-              <option value="">부서 선택</option>
-              {deptList.map(d => (
-                <option key={d.dept_id} value={d.dept_id}>
-                  {`${d.dept_id} ${d.dept_name}`}
-                </option>
-              ))}
-            </select>
+          <fieldset className="signup-section">
+            <legend className="section-title">사내직원 선택</legend>
+            <div className="grid-2">
+              <label className="fld">
+                <span className="lbl">부서 *</span>
+                <select value={deptId} onChange={(e) => setDeptId(e.target.value)}>
+                  <option value="">부서 선택</option>
+                  {deptList.map((d) => (
+                    <option key={d.dept_no} value={d.dept_no}>
+                      {`${d.dept_no} ${d.dept_name}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <label>직책 선택 *</label>
-            <select value={roleId} onChange={e => setRoleId(e.target.value)}>
-              <option value="">직책 선택</option>
-              {roleList.map(r => (
-                <option key={r.role_id} value={r.role_id}>
-                  {r.role_name}
-                </option>
-              ))}
-            </select>
-          </>
+              <label className="fld">
+                <span className="lbl">직책 *</span>
+                <select value={roleId} onChange={(e) => setRoleId(e.target.value)}>
+                  <option value="">직책 선택</option>
+                  {roleList.map((r) => (
+                    <option key={r.role_no} value={r.role_no}>
+                      {r.role_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </fieldset>
         )}
 
+        {/* ── 외부인 전용 ───────────────────────────────── */}
         {userType === "EXTERNAL" && (
-          <>
-            <label>회사명</label>
-            <input
-              value={company}
-              onChange={e => setCompany(e.target.value)}
-              placeholder="ABC 주식회사"
-            />
-          </>
+          <fieldset className="signup-section">
+            <legend className="section-title">외부인 정보</legend>
+            <label className="fld">
+              <span className="lbl">회사명</span>
+              <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="ABC 주식회사" />
+            </label>
+          </fieldset>
         )}
 
-        <Button type="submit">회원가입</Button>
+        <Button type="submit">계정생성</Button>
       </form>
-
-      <div style={{ marginTop: 14, textAlign: "center" }}>
-        <small>
-          이미 계정이 있나요?{" "}
-          <a
-            href="/"
-            onClick={e => {
-              e.preventDefault();
-              nav("/");
-            }}
-          >
-            로그인
-          </a>
-        </small>
-      </div>
-
       <Popup open={popup.open} title={popup.title} message={popup.msg} onClose={goLogin} />
     </div>
   );

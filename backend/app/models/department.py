@@ -13,6 +13,7 @@ class Department(Base):
     __tablename__ = "department"
 
     dept_id = Column(Integer, primary_key=True, index=True)
+    dept_no = Column(String(20), unique=True, nullable=False) 
     dept_name = Column(String(50), unique=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

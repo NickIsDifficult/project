@@ -427,6 +427,45 @@
   width: 31px;
 }
 
+/* /src/style.css */
+/* === 관리자 섹션: 업무(.view-7)와 분리된 전용 컨테이너 === */
+.screen .admin-group {
+  position: absolute;
+  left: 1px;
+  top: 380px;      /* ← 필요시 360~400 사이에서 미세조정 */
+  width: 290px;
+  height: 146px;
+  overflow: hidden;
+  transition: height 180ms ease, transform 180ms ease;
+}
+
+/* 접기/펼치기 */
+.screen .admin-group.expanded  { height: 146px; }
+.screen .admin-group.collapsed { height: 33px;  }
+
+/* 헤더를 버튼처럼 */
+.screen .admin-group .view-11 { cursor: pointer; }
+
+/* 화살표 회전 애니메이션 */
+.screen .admin-group .arrow { transition: transform 180ms ease; }
+.screen .admin-group.collapsed .arrow { transform: rotate(-90deg); }
+
+/* (선택) 관리자 섹션 위 구분선 */
+.screen .admin-line {
+  position: absolute;
+  left: 12px;
+  top: 375px;      /* admin-group 바로 위 */
+  width: 264px;
+  height: 1px;
+  object-fit: cover;
+}
+
+/* 업무를 접었을 때, 관리자 섹션도 위로 당겨 ‘빈 공간’을 줄이고 싶으면 */
+.screen .group.work-collapsed .admin-group,
+.screen .group.work-collapsed .admin-line {
+  transform: translateY(calc(-1 * var(--work-gap))); /* --work-gap은 기존 CSS에 정의 */
+}
+
 
 
 /* === 사이드 메뉴: 텍스트와 아이콘 세로 중앙 정렬 퀵 픽스 === */

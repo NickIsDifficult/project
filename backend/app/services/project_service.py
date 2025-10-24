@@ -50,8 +50,19 @@ def ensure_member(
         )
         .first()
     )
-    if not exists:
-        db.add(models.ProjectMember(project_id=project_id, emp_id=emp_id, role=role))
+    if exists:
+        if role == MemberRole.OWNER and exists.role != MemberRole.OWNER:
+            exists.role = MemberRole.OWNER
+        return exists
+
+    member = models.ProjectMember(
+        project_id=project_id,
+        emp_id=emp_id,
+        role=role,
+    )
+    db.add(member)
+    db.flush()  # 즉시 task_member 등에서 참조 가능하도록
+    return member
 
 
 # =====================================================

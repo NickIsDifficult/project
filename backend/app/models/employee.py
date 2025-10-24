@@ -21,13 +21,44 @@ class Employee(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    # ✅ Relations
     department = relationship("Department", back_populates="employees")
     role = relationship("Role")
-    attachment = relationship("Attachment", back_populates="uploader", cascade="all, delete-orphan", lazy="selectin")
-    projectmember = relationship("ProjectMember", back_populates="employee")
-    tasks = relationship("Task", secondary="task_member", back_populates="employee", lazy="selectin")
-    taskmember = relationship("TaskMember", back_populates="employee", lazy="selectin")
+
+    attachment = relationship(
+        "Attachment", back_populates="uploader", cascade="all, delete-orphan", lazy="selectin"
+    )
+    projectmember = relationship("ProjectMember", back_populates="employee", lazy="selectin")
+
+    # ✅ Task / TaskMember 관계 정리
+    tasks = relationship(
+        "Task",
+        secondary="task_member",
+        back_populates="employee",
+        lazy="selectin",
+        overlaps="taskmember"
+    )
+    taskmember = relationship(
+        "TaskMember",
+        back_populates="employee",
+        lazy="selectin",
+        overlaps="tasks,task"
+    )
+
     comments = relationship("TaskComment", back_populates="employee")
-    notification_received = relationship("Notification", back_populates="recipient", foreign_keys="Notification.recipient_emp_id", cascade="all, delete-orphan", lazy="selectin")
-    notification_sent = relationship("Notification", back_populates="actor", foreign_keys="Notification.actor_emp_id", lazy="selectin")
-    activitylog = relationship("ActivityLog", back_populates="employee", cascade="all, delete-orphan", lazy="selectin")
+    notification_received = relationship(
+        "Notification",
+        back_populates="recipient",
+        foreign_keys="Notification.recipient_emp_id",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    notification_sent = relationship(
+        "Notification",
+        back_populates="actor",
+        foreign_keys="Notification.actor_emp_id",
+        lazy="selectin",
+    )
+    activitylog = relationship(
+        "ActivityLog", back_populates="employee", cascade="all, delete-orphan", lazy="selectin"
+    )

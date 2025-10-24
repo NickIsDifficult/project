@@ -34,69 +34,44 @@ from app.models.enums import (
 class Project(Base):
     __tablename__ = "project"
 
-    project_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
+    project_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     project_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date)
-    status: Mapped[ProjectStatus] = mapped_column(
-        Enum(ProjectStatus), default=ProjectStatus.PLANNED, nullable=False
-    )
+    status: Mapped[ProjectStatus] = mapped_column(Enum(ProjectStatus), default=ProjectStatus.PLANNED, nullable=False)
 
     owner_emp_id: Mapped[int | None] = mapped_column(
         ForeignKey("employee.emp_id", ondelete="SET NULL")
     )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # ✅ Relations
     employee = relationship(
         "Employee", backref="project", foreign_keys=[owner_emp_id], lazy="selectin"
     )
     projectmember = relationship(
-        "ProjectMember",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "ProjectMember", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
     task = relationship(
         "Task", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
     milestone = relationship(
-        "Milestone",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "Milestone", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
-
     taskcomment = relationship(
-        "TaskComment",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "TaskComment", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
     attachment = relationship(
-        "Attachment",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "Attachment", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
     activitylog = relationship(
-        "ActivityLog",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "ActivityLog", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
     notification = relationship(
-        "Notification",
-        back_populates="project",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "Notification", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
 
     def __repr__(self):
@@ -108,20 +83,12 @@ class Project(Base):
 # ============================================================
 class ProjectMember(Base):
     __tablename__ = "project_member"
-    __table_args__ = (
-        UniqueConstraint("project_id", "emp_id", name="uq_project_member"),
-    )
+    __table_args__ = (UniqueConstraint("project_id", "emp_id", name="uq_project_member"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    project_id: Mapped[int] = mapped_column(
-        ForeignKey("project.project_id", ondelete="CASCADE")
-    )
-    emp_id: Mapped[int] = mapped_column(
-        ForeignKey("employee.emp_id", ondelete="CASCADE")
-    )
-    role: Mapped[MemberRole] = mapped_column(
-        Enum(MemberRole), default=MemberRole.MEMBER, nullable=False
-    )
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.project_id", ondelete="CASCADE"))
+    emp_id: Mapped[int] = mapped_column(ForeignKey("employee.emp_id", ondelete="CASCADE"))
+    role: Mapped[MemberRole] = mapped_column(Enum(MemberRole), default=MemberRole.MEMBER, nullable=False)
 
     project = relationship("Project", back_populates="projectmember", lazy="selectin")
     employee = relationship("Employee", back_populates="projectmember", lazy="selectin")
@@ -137,29 +104,19 @@ class Task(Base):
     __tablename__ = "task"
 
     task_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    project_id: Mapped[int] = mapped_column(
-        ForeignKey("project.project_id", ondelete="CASCADE")
-    )
-    parent_task_id: Mapped[int | None] = mapped_column(
-        ForeignKey("task.task_id", ondelete="CASCADE"), nullable=True
-    )
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.project_id", ondelete="CASCADE"))
+    parent_task_id: Mapped[int | None] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"), nullable=True)
 
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
-    status: Mapped[TaskStatus] = mapped_column(
-        Enum(TaskStatus), default=TaskStatus.PLANNED, nullable=False
-    )
-    priority: Mapped[TaskPriority] = mapped_column(
-        Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False
-    )
+    status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), default=TaskStatus.PLANNED, nullable=False)
+    priority: Mapped[TaskPriority] = mapped_column(Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False)
     start_date: Mapped[date | None] = mapped_column(Date)
     due_date: Mapped[date | None] = mapped_column(Date)
     estimate_hours: Mapped[float] = mapped_column(Float, default=0.0)
     progress: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime, onupdate=datetime.utcnow
-    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=datetime.utcnow)
 
     # ✅ Relations
     project = relationship("Project", back_populates="task", lazy="selectin")
@@ -167,64 +124,52 @@ class Task(Base):
         "Task", remote_side="Task.task_id", back_populates="subtask", lazy="selectin"
     )
     subtask = relationship(
-        "Task",
-        back_populates="parenttask",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "Task", back_populates="parenttask", cascade="all, delete-orphan", lazy="selectin"
     )
+
     taskmember = relationship(
         "TaskMember",
         back_populates="task",
         cascade="all, delete-orphan",
         lazy="selectin",
+        overlaps="employees,employee"
     )
+
     taskcomment = relationship(
-        "TaskComment",
-        back_populates="task",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "TaskComment", back_populates="task", cascade="all, delete-orphan", lazy="selectin"
     )
     taskhistory = relationship(
-        "TaskHistory",
-        back_populates="task",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "TaskHistory", back_populates="task", cascade="all, delete-orphan", lazy="selectin"
     )
     attachment = relationship(
-        "Attachment",
-        back_populates="task",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "Attachment", back_populates="task", cascade="all, delete-orphan", lazy="selectin"
     )
     activitylog = relationship(
-        "ActivityLog",
-        back_populates="task",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "ActivityLog", back_populates="task", cascade="all, delete-orphan", lazy="selectin"
     )
     notification = relationship(
-        "Notification",
-        back_populates="task",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        "Notification", back_populates="task", cascade="all, delete-orphan", lazy="selectin"
     )
+
+    # ✅ Many-to-Many (Task ↔ Employee)
     employee = relationship(
         "Employee",
-        secondary="task_member",         # 중간 테이블명
-        back_populates="tasks",          # Employee 쪽 대응 이름
-        lazy="selectin"
+        secondary="task_member",
+        back_populates="tasks",
+        lazy="selectin",
+        overlaps="taskmember"
     )
 
     @hybrid_property
     def assignee_ids(self):
-        return [m.emp_id for m in self.TaskMember] if self.TaskMember else []
+        return [m.emp_id for m in self.taskmember] if self.taskmember else []
 
     def __repr__(self):
         return f"<Task {self.task_id} P{self.project_id} {self.title}>"
 
 
 # ============================================================
-# 🔗 TaskMember (N:N: Task ↔ Employee)
+# 🔗 TaskMember
 # ============================================================
 class TaskMember(Base):
     __tablename__ = "task_member"
@@ -232,16 +177,25 @@ class TaskMember(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"))
-    emp_id: Mapped[int] = mapped_column(
-        ForeignKey("employee.emp_id", ondelete="CASCADE")
-    )
+    emp_id: Mapped[int] = mapped_column(ForeignKey("employee.emp_id", ondelete="CASCADE"))
     assigned_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    task = relationship("Task", back_populates="taskmember", lazy="selectin")
-    employee = relationship("Employee", back_populates="taskmember", lazy="selectin")
+    task = relationship(
+        "Task",
+        back_populates="taskmember",
+        lazy="selectin",
+        overlaps="employee,employees,tasks"
+    )
+    employee = relationship(
+        "Employee",
+        back_populates="taskmember",
+        lazy="selectin",
+        overlaps="task,employee,tasks"
+    )
 
     def __repr__(self):
         return f"<TaskMember T{self.task_id} E{self.emp_id}>"
+
 
 
 # ============================================================

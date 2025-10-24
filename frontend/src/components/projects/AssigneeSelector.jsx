@@ -15,12 +15,22 @@ function AssigneeSelector({ employees = [], selected = [], setSelected }) {
   }, [employees, safeSelected, query]);
 
   const handleAdd = id => {
-    setSelected(prev => (Array.isArray(prev) ? [...prev, id] : [id]));
-    setQuery("");
-  };
+    if (typeof setSelected === "function") {
+      if (Array.isArray(selected)) {
+        setSelected([...selected, id]);
+        } else {
+          setSelected([id]);
+        }
+      }
+      setQuery("");
+    };
 
-  const handleRemove = id =>
-    setSelected(prev => (Array.isArray(prev) ? prev.filter(s => s !== id) : []));
+
+  const handleRemove = id =>{
+    if (typeof setSelected === "function") {
+      const safe = Array.isArray(selected) ? selected.filter(s => s !== id) : [];
+      setSelected(safe);
+  }};
 
   return (
     <div style={{ marginTop: 6, position: "relative" }}>
@@ -85,9 +95,11 @@ function AssigneeSelector({ employees = [], selected = [], setSelected }) {
             overflowY: "auto",
             background: "#fff",
             position: "absolute",
-            zIndex: 1000,
-            width: "100%",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+            zIndex: 999999,
+            top :"100%",
+            left : 0,
+            right : 0,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
           }}
         >
           {filtered.map(emp => (

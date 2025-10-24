@@ -29,7 +29,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
     const newChildren = [...task.children];
     if (updated === null) newChildren.splice(index, 1);
     else newChildren[index] = updated;
-    onUpdate({ ...task, children: newChildren });
+    onUpdate({ ...task, children: [...newChildren] });
   };
 
   const handleDelete = () => onUpdate(null);
@@ -116,7 +116,10 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
             <AssigneeSelector
               employees={employees}
               selected={task.assignees}
-              setSelected={newList => handleFieldChange("assignees", newList)}
+              setSelected={newList => {
+                console.log("✅ 선택됨:", newList);
+                handleFieldChange("assignees", newList);
+              }}
             />
           </div>
         </div>

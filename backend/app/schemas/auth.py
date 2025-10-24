@@ -23,14 +23,9 @@ class SignupRequest(BaseModel):
 class LoginResponse(BaseModel):
     success: bool
     message: str
-
+    token: Optional[str] = None
 
 class SignupResponse(BaseModel):
     success: bool
     message: str
 
-
-class LoginResponse(BaseModel):
-    success: bool
-    message: str
-    token: Optional[str] = None

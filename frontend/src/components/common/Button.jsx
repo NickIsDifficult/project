@@ -1,4 +1,10 @@
-// src/components/common/Button.jsx
+/**
+ * 공용 버튼 컴포넌트
+ * ----------------------------
+ * variant: 'primary' | 'success' | 'secondary' | 'outline' | 'login'
+ * size: 'sm' | 'md' | 'lg'
+ * fullWidth: boolean (true일 경우 width: 100%)
+ */
 export default function Button({
   children,
   onClick,
@@ -47,13 +53,22 @@ export default function Button({
       color: "#333",
       border: "1px solid #ccc",
     },
+    login: {
+      background: "#2d6cdf",
+      color: "#fff",
+      fontWeight: 700,
+      borderRadius: "12px",
+      borderColor: "#2d6cdf",
+    },
   };
 
+  // ✅ hover 시 색상 맵핑
   const hoverMap = {
     primary: "#0056b3",
     success: "#1e7e34",
     secondary: "#545b62",
     outline: "#f8f9fa",
+    login: "#1e5adf",
   };
 
   return (
@@ -67,15 +82,22 @@ export default function Button({
         ...style,
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.background =
-          variant === "outline" ? hoverMap[variant] : hoverMap[variant];
-        e.currentTarget.style.borderColor = hoverMap[variant];
+        const hoverColor = hoverMap[variant];
+        if (variant === "outline") {
+          e.currentTarget.style.background = hoverColor;
+          e.currentTarget.style.color = "#111";
+        } else {
+          e.currentTarget.style.background = hoverColor;
+          e.currentTarget.style.borderColor = hoverColor;
+        }
       }}
       onMouseLeave={e => {
         const bg = variants[variant]?.background ?? "#fff";
         const border = variants[variant]?.borderColor ?? "#ccc";
+        const color = variants[variant]?.color ?? "#333";
         e.currentTarget.style.background = bg;
         e.currentTarget.style.borderColor = border;
+        e.currentTarget.style.color = color;
       }}
       {...props}
     >

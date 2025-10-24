@@ -1,4 +1,63 @@
 /* =======================
+   기본 폰트 및 셀 스타일
+   ======================= */
+.fc {
+  font-family: "Inter", "Noto Sans KR", sans-serif;
+}
+
+/* 셀 */
+.fc-daygrid-day {
+  border-color: #f0f0f0 !important;
+  vertical-align: top;
+}
+
+/* 오늘 강조 */
+.fc-daygrid-day.fc-day-today {
+  background: #fff3e0 !important;
+}
+
+/* 빈 셀 높이 균일화 */
+.fc-daygrid-day-frame {
+  min-height: 95px !important;
+}
+
+/* =======================
+   툴바 / 버튼
+   ======================= */
+.fc-toolbar-title {
+  font-weight: 600;
+  color: #333;
+  font-size: 18px;
+}
+
+.fc-button {
+  border-radius: 6px !important;
+  padding: 5px 10px !important;
+  font-size: 13px !important;
+  background: #f8f9fa !important;
+  color: #333 !important;
+  border: 1px solid #ddd !important;
+  transition: 0.2s ease;
+}
+
+.fc-button:hover {
+  background: #e8f0ff !important;
+  border-color: #3b82f6 !important;
+}
+
+/* =======================
+   일정 블록
+   ======================= */
+.custom-event {
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 2px 4px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =======================
    상태별 색상 (이벤트 공통)
    ======================= */
 .fc .fc-event {
@@ -30,8 +89,8 @@
 }
 
 /* =======================
-     툴팁 (data-tooltip 기반)
-     ======================= */
+   툴팁 (data-tooltip 기반)
+   ======================= */
 .fc .fc-daygrid-event,
 .fc .fc-event {
   position: relative;

@@ -208,6 +208,12 @@ class Task(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    employee = relationship(
+        "Employee",
+        secondary="task_member",         # 중간 테이블명
+        back_populates="tasks",          # Employee 쪽 대응 이름
+        lazy="selectin"
+    )
 
     @hybrid_property
     def assignee_ids(self):

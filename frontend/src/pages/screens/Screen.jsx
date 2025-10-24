@@ -1,6 +1,9 @@
 // src/screens/Screen.jsx
+import { changePassword, getMe, logout, updateProfile } from "../../services/api/auth";
+
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
 import useTheme from "../../theme/useTheme";
 import PersonalInfoModal from "./Setting/PersonalInfoModal";
 import "./style.css";
@@ -43,6 +46,8 @@ const Screen = () => {
   const { theme, toggleTheme } = useTheme();
   const nav = useNavigate();
   const [openSettings, setOpenSettings] = useState(false);
+  const [me, setMe] = useState(null);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   // 모달 타입 → 임시 라우트 매핑
   const modalToPath = {
@@ -51,6 +56,18 @@ const Screen = () => {
     noti: "/alerts",
     cal: "/calendar",
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getMe(); // {member} or user object
+        setMe(data?.member ?? data);
+      } catch (e) {
+        console.error("getMe failed:", e);
+        nav("/"); // 401 등 토큰 만료 시
+      }
+    })();
+  }, [nav]);
 
   return (
     <div className="screen">
@@ -285,6 +302,100 @@ const Screen = () => {
             alt="Line"
             src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/line-2.svg"
           />
+
+          {/* ===== 관리자 구분선 (선택) ===== */}
+          <img
+            className="admin-line"
+            alt="Line"
+            src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/line-2.svg"
+          />
+
+          {/* ===== 관리자 섹션 ===== */}
+          <div className={`admin-group ${adminOpen ? "expanded" : "collapsed"}`}>
+            {/* 항목 3개: 계정생성 / 직원관리 / 부서 및 직급관리
+      내부 아이템은 기존 view-8/9/10 스타일을 재사용 (top 오프셋만 그 클래스들이 책임) */}
+
+            {/* 계정생성 */}
+            <div
+              className="view-8"
+              role="button"
+              tabIndex={0}
+              onClick={() => nav("/signup")}
+              onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/signup")}
+            >
+              <div className="rectangle-4" />
+              <div className="text-wrapper">계정생성</div>
+              <div className="frame-2">
+                <img
+                  className="vector-5"
+                  alt="Vector"
+                  src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68d62b16ff595e99e495402d/img/vector-2.svg"
+                />
+              </div>
+            </div>
+
+            {/* 계정관리 */}
+            <div
+              className="view-9"
+              role="button"
+              tabIndex={0}
+              onClick={() => nav("/admin/account")}
+              onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/admin/account")}
+            >
+              <div className="rectangle-4" />
+              <div className="text-wrapper">계정관리</div>
+              <div className="frame-2">
+                <img
+                  className="vector-6"
+                  alt="Vector"
+                  src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68d62b16ff595e99e495402d/img/vector-4.svg"
+                />
+              </div>
+            </div>
+
+            {/* 부서 및 직급관리 */}
+            <div
+              className="view-10"
+              role="button"
+              tabIndex={0}
+              onClick={() => nav("/admin/dept_roles")}
+              onKeyDown={e => (e.key === "Enter" || e.key === " ") && nav("/admin/dept_roles")}
+            >
+              <div className="rectangle-4" />
+              <div className="text-wrapper">부서 및 직급관리</div>
+              <div className="frame-2">
+                <img
+                  className="vector-7"
+                  alt="Vector"
+                  src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68d62b16ff595e99e495402d/img/vector-3.svg"
+                />
+              </div>
+            </div>
+
+            {/* 관리자 헤더(토글) — 항상 맨 아래에 배치되는 기존 패턴 유지 */}
+            <div
+              className="view-11"
+              role="button"
+              tabIndex={0}
+              aria-expanded={adminOpen}
+              onClick={() => setAdminOpen(v => !v)}
+              onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setAdminOpen(v => !v);
+                }
+              }}
+            >
+              <div className="text-wrapper-2">관리자</div>
+              <div className="frame-3 arrow">
+                <img
+                  className="vector-8"
+                  alt="Vector"
+                  src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/vector-8.svg"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -379,7 +490,7 @@ const Screen = () => {
         <div className="ellipse-2" />
       </div>
 
-      {/* 좌하단 고정: 설정 / 직원관리 */}
+      {/* 좌하단 고정: 설정 / 개인정보수정 */}
       <div className="view-bottom">
         <div
           className="nav-item settings-item"
@@ -389,11 +500,11 @@ const Screen = () => {
           onKeyDown={e => (e.key === "Enter" || e.key === " ") && setOpenSettings(true)}
         >
           <div className="rectangle-4" />
-          <div className="text-wrapper">설정</div>
+          <div className="text-wrapper">개인정보수정</div>
           <div className="frame" />
         </div>
 
-        <div
+        {/* <div
           className="nav-item employees-item"
           role="button"
           tabIndex={0}
@@ -403,16 +514,39 @@ const Screen = () => {
           <div className="rectangle-4" />
           <div className="text-wrapper">직원관리</div>
           <div className="frame" />
-        </div>
+        </div> */}
       </div>
       {/* ===== 개인정보 수정 팝업 (드래그 가능) ===== */}
       <PersonalInfoModal
         open={openSettings}
-        initial={{ status: "WORKING", name: "홍길동", email: "test@example.com" }}
+        initial={{
+          status: "WORKING",
+          name: me?.name ?? "",
+          email: me?.email ?? "",
+        }}
         onClose={() => setOpenSettings(false)}
-        onSave={payload => {
-          console.log("settings save:", payload); // TODO: 백엔드 연동
-          setOpenSettings(false);
+        onSave={async payload => {
+          try {
+            const updated = await updateProfile({ name: payload.name, email: payload.email });
+            setMe(prev => ({
+              ...(prev || {}),
+              ...(updated?.member ?? updated), // {member} 또는 평평한 객체 모두 지원
+            }));
+
+            if (payload.password?.current && payload.password?.next) {
+              await changePassword({
+                current: payload.password.current,
+                next: payload.password.next,
+              });
+              alert("설정이 저장되어 로그아웃되었습니다. 다시 로그인해주세요.");
+            }
+            await logout();
+
+            setOpenSettings(false);
+          } catch (e) {
+            const msg = e?.response?.data?.detail || e?.message || "수정 실패";
+            alert(msg);
+          }
         }}
       />
     </div>

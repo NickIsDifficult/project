@@ -9,6 +9,7 @@ class Role(Base):
     __tablename__ = "role"
 
     role_id = Column(Integer, primary_key=True, autoincrement=True)
+    role_no = Column(String(20), unique=True, nullable=False)
     role_name = Column(String(50), unique=True, nullable=False)
     created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
     updated_at = Column(

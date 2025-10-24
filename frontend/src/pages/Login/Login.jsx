@@ -45,20 +45,6 @@ export default function Login() {
           로그인
         </Button>
       </form>
-      <div style={{ marginTop: 14, textAlign: "center" }}>
-        <small>
-          계정이 없나요?{" "}
-          <a
-            href="/signup"
-            onClick={e => {
-              e.preventDefault();
-              nav("/signup");
-            }}
-          >
-            회원가입
-          </a>
-        </small>
-      </div>
     </div>
   );
 }

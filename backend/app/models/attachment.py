@@ -64,7 +64,7 @@ class Attachment(Base):
     # -----------------------------------------------------------------
     project = relationship("Project", back_populates="attachment", lazy="selectin")
     task = relationship("Task", back_populates="attachment", lazy="selectin")
-    employee = relationship("Employee", back_populates="attachment", lazy="selectin")
+    uploader = relationship("Employee", back_populates="attachment", foreign_keys=[uploaded_by], lazy="selectin")
 
     # -----------------------------------------------------------------
     # 표현

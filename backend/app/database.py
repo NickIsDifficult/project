@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # ✅ mysql-connector-python 드라이버 사용
-DATABASE_URL = "mysql+mysqlconnector://crony:crony@127.0.0.1:3306/projectdb"
+DATABASE_URL = "mysql+mysqlconnector://root:1234@127.0.0.1:3306/colink"
 
 engine = create_engine(
     DATABASE_URL,

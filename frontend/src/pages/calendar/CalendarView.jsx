@@ -5,28 +5,26 @@ import { ko } from "date-fns/locale";
 import parse from "date-fns/parse";
 import startOfWeek from "date-fns/startOfWeek";
 import { useEffect, useState } from "react";
-import { Calendar, dateFnsLocalizer } from "react-big-calendar";
+import { Calendar as RBCalendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import AppShell from "../../layout/AppShell";
 import API from "../../services/api/http";
 
-// ✅ 한국어 로컬 설정
 const locales = { ko: ko };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
-export default function CalendarView({ token, projectId }) {
+export default function CalendarView({ projectId = 1 }) {
   const [events, setEvents] = useState([]);
-  const [status, setStatus] = useState([]);
+  const [status, setStatus] = useState([]); // 필요 시 사용
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // 📌 프로젝트 일정 불러오기
   async function loadEvents() {
-    const data = await API(`/events?project_id=${projectId}`, { method: "GET", token });
+    const { data } = await API.get("/events", { params: { project_id: projectId } });
     return data.map(ev => ({
       id: `event-${ev.id}`,
       type: "event",
@@ -36,9 +34,8 @@ export default function CalendarView({ token, projectId }) {
     }));
   }
 
-  // 📌 개인 상태 불러오기
   async function loadStatus() {
-    const data = await API(`/status`, { method: "GET", token });
+    const { data } = await API.get("/status");
     return data.map(s => ({
       id: `status-${s.id}`,
       type: "status",
@@ -48,7 +45,6 @@ export default function CalendarView({ token, projectId }) {
     }));
   }
 
-  // 📌 일정 + 상태 합치기
   async function loadAll() {
     const ev = await loadEvents();
     const st = await loadStatus();
@@ -56,66 +52,58 @@ export default function CalendarView({ token, projectId }) {
   }
 
   useEffect(() => {
-    loadAll(); /* eslint-disable-next-line */
+    loadAll();
   }, []);
 
-  // 📌 프로젝트 일정 추가
   async function addEvent(e) {
     e.preventDefault();
     if (!title.trim()) return alert("제목을 입력하세요!");
 
-    await API("/events", {
-      method: "POST",
-      token,
-      body: {
-        project_id: projectId,
-        title,
-        description: "",
-        start_date: formatDateTime(startDate),
-        end_date: formatDateTime(endDate),
-      },
+    await API.post("/events", {
+      project_id: projectId,
+      title,
+      description: "",
+      start_date: formatDateTime(startDate),
+      end_date: formatDateTime(endDate),
     });
 
     setTitle("");
     setStartDate(new Date());
     setEndDate(new Date());
-    await loadAll();
+    await loadAll(); // 추가 후 즉시 반영
   }
 
-  // 📌 일정 수정
   async function editEvent() {
     if (!selectedEvent || selectedEvent.type !== "event")
       return alert("프로젝트 일정만 수정 가능합니다.");
     const newTitle = prompt("새 제목:", selectedEvent.title);
     if (!newTitle) return;
 
-    await API(`/events/${selectedEvent.id.replace("event-", "")}`, {
-      method: "PUT",
-      token,
-      body: {
-        title: newTitle,
-        start_date: formatDateTime(selectedEvent.start),
-        end_date: formatDateTime(selectedEvent.end),
-      },
+    const id = selectedEvent.id.replace("event-", "");
+    await API.put(`/events/${id}`, {
+      title: newTitle,
+      start_date: formatDateTime(selectedEvent.start),
+      end_date: formatDateTime(selectedEvent.end),
     });
 
     setSelectedEvent(null);
-    await loadAll();
+    await loadAll(); // 수정 후 즉시 반영
   }
 
-  // 📌 일정/상태 삭제
   async function deleteEvent() {
     if (!selectedEvent) return;
     if (!window.confirm("삭제하시겠습니까?")) return;
 
     if (selectedEvent.type === "event") {
-      await API(`/events/${selectedEvent.id.replace("event-", "")}`, { method: "DELETE", token });
+      const id = selectedEvent.id.replace("event-", "");
+      await API.delete(`/events/${id}`);
     } else if (selectedEvent.type === "status") {
-      await API(`/status/${selectedEvent.id.replace("status-", "")}`, { method: "DELETE", token });
+      const id = selectedEvent.id.replace("status-", "");
+      await API.delete(`/status/${id}`);
     }
 
     setSelectedEvent(null);
-    await loadAll();
+    await loadAll(); // 삭제 후 즉시 반영
   }
 
   return (
@@ -123,7 +111,7 @@ export default function CalendarView({ token, projectId }) {
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
         <h2>📅 프로젝트 {projectId} 캘린더</h2>
 
-        {/* 프로젝트 일정 추가 */}
+        {/* 일정 등록 */}
         <form onSubmit={addEvent} style={{ marginBottom: "20px" }}>
           <h4>➕ 프로젝트 일정 등록</h4>
           <input
@@ -157,7 +145,7 @@ export default function CalendarView({ token, projectId }) {
         </form>
 
         {/* 캘린더 */}
-        <Calendar
+        <RBCalendar
           localizer={localizer}
           events={events}
           startAccessor="start"
@@ -182,7 +170,7 @@ export default function CalendarView({ token, projectId }) {
           })}
         />
 
-        {/* 선택된 일정/상태 관리 */}
+        {/* 선택 항목 관리 */}
         {selectedEvent && (
           <div style={{ marginTop: "20px", padding: "10px", border: "1px solid #ccc" }}>
             <h4>선택된 항목: {selectedEvent.title}</h4>
@@ -200,7 +188,6 @@ export default function CalendarView({ token, projectId }) {
   );
 }
 
-// 📌 날짜 포맷 함수
 function formatDateTime(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

@@ -4,42 +4,35 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import API from "../../services/api/http";
 
-export default function StatusBoard({ token }) {
+export default function StatusBoard() {
   const [items, setItems] = useState([]);
   const [type, setType] = useState("휴가");
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
 
-  // 상태 불러오기
   async function load() {
-    const data = await API("/status", { method: "GET", token });
+    const { data } = await API.get("/status");
     setItems(data);
   }
 
   useEffect(() => {
-    load(); /* eslint-disable-next-line */
+    load();
   }, []);
 
-  // 새 상태 등록
   async function addStatus(e) {
     e.preventDefault();
-    await API("/status", {
-      method: "POST",
-      token,
-      body: {
-        type,
-        start_date: formatDateTime(startDate),
-        end_date: formatDateTime(endDate),
-      },
+    await API.post("/status", {
+      type,
+      start_date: formatDateTime(startDate),
+      end_date: formatDateTime(endDate),
     });
-    await load();
+    await load(); // 등록 후 즉시 반영
   }
 
   return (
     <div>
       <h2>📝 내 휴가/근태 상태</h2>
 
-      {/* 상태 등록 */}
       <form onSubmit={addStatus}>
         <select value={type} onChange={e => setType(e.target.value)}>
           <option value="휴가">휴가</option>
@@ -62,7 +55,6 @@ export default function StatusBoard({ token }) {
         <button type="submit">+ 등록</button>
       </form>
 
-      {/* 목록 */}
       <ul style={{ marginTop: 20 }}>
         {items.map(s => (
           <li key={s.id}>

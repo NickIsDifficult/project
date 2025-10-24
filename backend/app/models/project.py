@@ -73,6 +73,7 @@ class Project(Base):
     notification = relationship(
         "Notification", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
+    events = relationship("Event", back_populates="project", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Project {self.project_id} {self.project_name}>"

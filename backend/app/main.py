@@ -19,6 +19,9 @@ from app.routers import (
 from app.routers.auth import login, signup, me as me_router
 from app.routers.admin import dept_role as admin_dept_role
 from app.routers.admin import account as admin_account
+from app.routers.events_router import router as events_router
+from app.routers.status_router import router as status_router
+from app.routers.trash_router import router as trash_router
 
 from passlib.hash import bcrypt
 from sqlalchemy import select
@@ -67,6 +70,9 @@ app.include_router(activity_router.router)  # ✅ 프로젝트 활동 피드
 app.include_router(me_router.router)
 app.include_router(admin_dept_role.router)
 app.include_router(admin_account.router)
+app.include_router(events_router)
+app.include_router(status_router)
+app.include_router(trash_router)
 
 # ---------------------------
 # 헬스 체크

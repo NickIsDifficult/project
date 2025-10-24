@@ -1,21 +1,9 @@
 // src/screens/Setting/PersonalInfoModal.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./personal-modal.css";
 import vector from "./vector.svg";
 
 export default function PersonalInfoModal({ open, onClose, onSave, initial = {} }) {
-  // ✅ PersonalInfoModal.jsx 내부
-const STATUS_OPTIONS = useMemo(
-  () => [
-    { value: "업무상태변경", label: "업무상태변경" }, // 새 항목
-    { value: "WORKING", label: "업무중" },
-    { value: "FIELD", label: "외근" },
-    { value: "AWAY", label: "자리비움" },
-    { value: "OFF", label: "퇴근" },
-  ],
-  []
-);
-  const [status, setStatus] = useState(initial.status || "WORKING");
   const [name, setName] = useState(initial.name || "");
   const [email, setEmail] = useState(initial.email || "");
   const [curPw, setCurPw] = useState("");
@@ -25,12 +13,11 @@ const STATUS_OPTIONS = useMemo(
 
   // === 드래그 관련 ===
   const cardRef = useRef(null);
-  const [pos, setPos] = useState({ x: null, y: null }); // 처음엔 null로 두고 open 시 중앙 배치
+  const [pos, setPos] = useState({ x: null, y: null });
   const dragState = useRef({ dragging: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
 
   useEffect(() => {
     if (open) {
-      setStatus(initial.status || "WORKING");
       setName(initial.name || "");
       setEmail(initial.email || "");
       setCurPw("");
@@ -38,9 +25,9 @@ const STATUS_OPTIONS = useMemo(
       setNextPw2("");
       setErrors({});
 
-      // 팝업 중앙 정렬 초기 위치 계산
+      // 중앙 배치
       requestAnimationFrame(() => {
-        const width = 420; // 카드 폭 (CSS와 일치)
+        const width = 420;
         const left = Math.max(12, (window.innerWidth - width) / 2);
         const top = Math.max(24, window.innerHeight * 0.18);
         setPos({ x: left, y: top });
@@ -56,7 +43,6 @@ const STATUS_OPTIONS = useMemo(
       let nextLeft = dragState.current.startLeft + dx;
       let nextTop = dragState.current.startTop + dy;
 
-      // 화면 경계 내로 제한
       const cardEl = cardRef.current;
       const cardW = cardEl?.offsetWidth ?? 420;
       const cardH = cardEl?.offsetHeight ?? 300;
@@ -76,7 +62,6 @@ const STATUS_OPTIONS = useMemo(
   }, []);
 
   const beginDrag = (e) => {
-    // 헤더 부분에서만 드래그 시작
     const cardEl = cardRef.current;
     if (!cardEl) return;
     dragState.current.dragging = true;
@@ -109,44 +94,29 @@ const STATUS_OPTIONS = useMemo(
   const handleSave = (e) => {
     e.preventDefault();
     if (!validate()) return;
-    // ✅ 저장할 payload 구성
-    const payload = { status, name: name.trim(), email: email.trim() };
+
+    const payload = { name: name.trim(), email: email.trim() };
     if (curPw || nextPw || nextPw2) {
       payload.password = { current: curPw, next: nextPw };
     }
 
-    // ✅ 1) 상위 컴포넌트(AppShell/Screen)로 저장 요청
     onSave?.(payload);
 
-    // ✅ 2) localStorage에도 즉시 반영 (화면 갱신 지연 방지)
     const stored = JSON.parse(localStorage.getItem("user") || "{}");
     const merged = {
       ...stored,
       name: payload.name ?? stored.name,
       email: payload.email ?? stored.email,
-      current_state: payload.status
-        ? (payload.status === "업무상태변경"
-            ? stored.current_state
-            : (payload.status || stored.current_state).toUpperCase())
-        : stored.current_state,
     };
     localStorage.setItem("user", JSON.stringify(merged));
-
-    // ✅ 3) 전역 동기화 이벤트 발행 (AppShell, Screen 즉시 반영)
     window.dispatchEvent(new Event("userDataChanged"));
   };
 
   return (
     <div className="pmodal-overlay" role="dialog" aria-modal="true" aria-labelledby="pmodal-title">
-      {/* pos.x/pos.y를 고정 좌표로 사용 */}
-      <div
-        ref={cardRef}
-        className="pmodal-card"
-        style={{ left: pos.x ?? 0, top: pos.y ?? 0 }}
-      >
+      <div ref={cardRef} className="pmodal-card" style={{ left: pos.x ?? 0, top: pos.y ?? 0 }}>
         <button className="pmodal-close" aria-label="닫기" onClick={onClose}>✕</button>
 
-        {/* 드래그 핸들: 헤더 */}
         <header className="pmodal-header" onMouseDown={beginDrag}>
           <div className="pmodal-avatar-frame">
             <img src={vector} alt="profile" className="pmodal-avatar" />
@@ -155,20 +125,6 @@ const STATUS_OPTIONS = useMemo(
         </header>
 
         <form className="pmodal-form" onSubmit={handleSave}>
-          {/* 개인 상태 */}
-          <label className="pmodal-label">
-            개인 상태
-            <select
-              className="pmodal-input"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </label>
-
           {/* 이름 */}
           <label className="pmodal-label">
             이름
@@ -197,7 +153,7 @@ const STATUS_OPTIONS = useMemo(
             {errors.email && <span className="pmodal-error">{errors.email}</span>}
           </label>
 
-          {/* 비밀번호 변경(선택) */}
+          {/* 비밀번호 변경 */}
           <fieldset className="pmodal-fieldset">
             <legend className="pmodal-legend">로그인 비밀번호 변경 (선택)</legend>
 

@@ -1,0 +1,109 @@
+.profile-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+}
+
+.profile-avatar img {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-name {
+    font-weight: 600;
+    color: #fff;
+}
+
+.profile-email {
+    font-size: 0.8rem;
+    color: #ccc;
+}
+
+/* === 상태 점 === */
+.status-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.2s ease;
+}
+
+.status-dot:hover {
+    transform: scale(1.2);
+}
+
+/* 퇴근 상태: 이중 원 */
+.status-dot--off {
+    background-color: #bdbdbd;
+    /* 바깥 회색 */
+}
+
+.status-dot-inner {
+    width: 6px;
+    height: 6px;
+    background-color: #616161;
+    /* 진한 회색 */
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* === 상태 선택 메뉴 === */
+.status-menu {
+    position: absolute;
+    right: 0;
+    top: 50px;
+    background: #1f1f1f;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 6px 0;
+    width: 130px;
+    z-index: 100;
+}
+
+.status-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    color: #ddd;
+    transition: background 0.15s ease;
+}
+
+.status-option:hover {
+    background: #2b2b2b;
+}
+
+/* 메뉴 내 색상 표시 */
+.status-sample {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    position: relative;
+}
+
+.status-sample--off {
+    background-color: #bdbdbd;
+}
+
+.status-sample-inner {
+    width: 5px;
+    height: 5px;
+    background-color: #616161;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}

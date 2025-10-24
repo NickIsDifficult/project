@@ -5,6 +5,15 @@ import useTheme from "../../theme/useTheme";
 import PersonalInfoModal from "./Setting/PersonalInfoModal";
 import "./style.css";
 
+// ✅ 상태 변경용 Enum 매핑
+const STATE_LABELS = {
+  WORKING: "업무중",
+  FIELD: "외근",
+  AWAY: "자리비움",
+  OFF: "퇴근",
+};
+
+
 // 간단 모달 컴포넌트 (더블클릭 핸들러 onDouble 추가)
 function Modal({ open, title, onClose, onDouble, children }) {
   useEffect(() => {
@@ -43,6 +52,7 @@ const Screen = () => {
   const { theme, toggleTheme } = useTheme();
   const nav = useNavigate();
   const [openSettings, setOpenSettings] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
    // ✅ 프로필 데이터 상태 선언
  const [profile, setProfile] = useState({
@@ -51,6 +61,35 @@ const Screen = () => {
   email: "",
   current_state: "WORKING",
 });
+
+// ✅ 상태 변경 핸들러 (AppShell과 동일한 로직)
+const handleStatusChange = async (newStatus) => {
+  // UI 즉시 반영
+  setProfile((prev) => ({ ...prev, current_state: newStatus }));
+  setShowMenu(false);
+  try {
+    const token = localStorage.getItem("accessToken");
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const memberId = storedUser?.member_id ?? 1;
+    if (token) {
+      await fetch(`http://localhost:8000/api/member/update-status/${memberId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ current_state: newStatus }),
+      });
+    }
+    // localStorage 동기화 + 브로드캐스트
+    const merged = { ...storedUser, current_state: newStatus };
+    localStorage.setItem("user", JSON.stringify(merged));
+    window.dispatchEvent(new Event("userDataChanged"));
+  } catch (err) {
+    console.error("상태 변경 실패:", err);
+  }
+};
+
 
   // ✅ 로그인 사용자 정보 가져오기
   useEffect(() => {
@@ -486,26 +525,87 @@ useEffect(() => {
           />
         </div>
 
-        {/* 작은 원 (상태 표시) */}
+       {/* ✅ 상태 점 (클릭 시 상태 변경 메뉴 표시) */}
         <div
-          className="ellipse-2"
+          className={`ellipse-2 ${profile.current_state}`}
+          title={STATE_LABELS[profile.current_state]}
+          onClick={() => setShowMenu((prev) => !prev)}
           style={{
-            backgroundColor: {
-              WORKING: "#2ecc71", // 초록
-              AWAY: "#f1c40f",    // 노랑
-              FIELD: "#e74c3c",   // 빨강
-              OFF: "#9e9e9e",     // 회색
-            }[profile.current_state],
+            backgroundColor:
+              profile.current_state === "OFF"
+                ? "#9e9e9e"
+                : {
+                    WORKING: "#2ecc71",
+                    FIELD: "#e74c3c",
+                    AWAY: "#f1c40f",
+                  }[profile.current_state],
+            cursor: "pointer",
+            position: "relative",
           }}
-          title={
-            {
-              WORKING: "업무중",
-              AWAY: "자리비움",
-              FIELD: "외근",
-              OFF: "퇴근",
-            }[profile.current_state]
-          }
-        />
+        >
+          {profile.current_state === "OFF" && (
+            <div
+              style={{
+                width: "6px",
+                height: "6px",
+                backgroundColor: "#616161",
+                borderRadius: "50%",
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+          )}
+        </div>
+
+        {/* ✅ 상태 변경 메뉴 */}
+        {showMenu && (
+          <div className="status-menu">
+            {Object.entries(STATE_LABELS).map(([key, label]) => (
+              <div
+                key={key}
+                className="status-option"
+                onClick={() => handleStatusChange(key)}
+              >
+                <div
+                  className="status-dot"
+                  style={{
+                    backgroundColor:
+                      key === "OFF"
+                        ? "#9e9e9e"
+                        : {
+                            WORKING: "#2ecc71",
+                            FIELD: "#e74c3c",
+                            AWAY: "#f1c40f",
+                          }[key],
+                    borderRadius: "50%",
+                    width: "12px",
+                    height: "12px",
+                    marginRight: "8px",
+                    position: "relative",
+                  }}
+                >
+                  {key === "OFF" && (
+                    <div
+                      style={{
+                        width: "4px",
+                        height: "4px",
+                        backgroundColor: "#616161",
+                        borderRadius: "50%",
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    />
+                  )}
+                </div>
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 이름 / 직급 텍스트 */}
         <div className="profile-info">
@@ -581,7 +681,7 @@ useEffect(() => {
         body.password = {
           current: payload.password.current,
           next: payload.password.next,
-        };
+        };d
       }
 
       // ✅ 정보 업데이트 요청

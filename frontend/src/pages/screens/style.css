@@ -1139,4 +1139,45 @@ body.theme-dark .modal-list-skel {
   /* 기본값: 퇴근 */
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
   transition: background-color 0.3s ease;
+  z-index: 15;
+  cursor: pointer;
+}
+
+/* ✅ 상태 변경 메뉴 (프로필 카드 안, 상태점 우측 아래) */
+.status-menu {
+  position: absolute;
+  top: 90px;
+  /* 프로필 카드 기준으로 자연스러운 위치 */
+  left: 105px;
+  width: 120px;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 6px 0;
+  z-index: 200;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  color: #ddd;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+
+.status-option:hover {
+  background: #2b2b2b;
+}
+
+.status-dot {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 메뉴가 카드 밖으로 잘리지 않도록 */
+.screen .view-16 {
+  overflow: visible;
 }

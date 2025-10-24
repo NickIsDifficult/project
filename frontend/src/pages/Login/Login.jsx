@@ -9,7 +9,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const onSubmit = async e => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -22,6 +22,24 @@ export default function Login() {
       localStorage.setItem("user", JSON.stringify(data.member));
 
       console.log("✅ 로그인 성공:", data.member);
+
+      // ✅ 로그인 직후 상태 초기화 로직 추가
+      const token = data.access_token;
+      const memberId = data.member.member_id;
+
+      // 🔹 1) 서버에 상태 초기화 요청 (업무중으로 변경)
+      await fetch(`http://localhost:8000/api/member/reset-state/${memberId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // 🔹 2) localStorage의 user.current_state를 'WORKING'으로 덮어쓰기
+      const updatedUser = { ...data.member, current_state: "WORKING" };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      console.log("🟢 로그인 후 상태 초기화 완료:", updatedUser);
 
       // ✅ 메인 페이지로 이동
       nav("/main");
@@ -40,14 +58,14 @@ export default function Login() {
         <label>아이디</label>
         <input
           value={loginId}
-          onChange={e => setLoginId(e.target.value)}
+          onChange={(e) => setLoginId(e.target.value)}
           placeholder="예: 110001 / 100001"
         />
         <label>비밀번호</label>
         <input
           type="password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           placeholder="0000"
         />
         <Button type="submit" fullWidth variant="login">
@@ -59,7 +77,7 @@ export default function Login() {
           계정이 없나요?{" "}
           <a
             href="/signup"
-            onClick={e => {
+            onClick={(e) => {
               e.preventDefault();
               nav("/signup");
             }}

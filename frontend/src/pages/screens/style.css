@@ -1181,3 +1181,30 @@ body.theme-dark .modal-list-skel {
 .screen .view-16 {
   overflow: visible;
 }
+
+/* ============================= */
+/* ✅ 상태별 점 색상 정의 추가 */
+/* ============================= */
+.ellipse-2.WORKING,
+.profile-dot.WORKING {
+  background-color: #2ecc71;
+  /* 초록 - 업무중 */
+}
+
+.ellipse-2.FIELD,
+.profile-dot.FIELD {
+  background-color: #e74c3c;
+  /* 빨강 - 외근 */
+}
+
+.ellipse-2.AWAY,
+.profile-dot.AWAY {
+  background-color: #f1c40f;
+  /* 노랑 - 자리비움 */
+}
+
+.ellipse-2.OFF,
+.profile-dot.OFF {
+  background-color: #9e9e9e;
+  /* 회색 - 퇴근 */
+}

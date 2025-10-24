@@ -96,14 +96,29 @@ const handleStatusChange = async (newStatus) => {
   const storedUser = localStorage.getItem("user");
   const token = localStorage.getItem("accessToken");
 
-  if (storedUser) {
+   if (storedUser) {
     const userData = JSON.parse(storedUser);
+
+    // ✅ 로그인 시 항상 WORKING으로 초기화
+    userData.current_state = "WORKING";
+    localStorage.setItem("user", JSON.stringify(userData));
+
     setProfile({
-    name: userData.name || "이름 없음",
-    role_name: userData.role_name || `직급 ID: ${userData.role_id ?? "?"}`,
-    email: userData.email || "이메일 없음",
-    current_state: userData.current_state || "WORKING", // ✅ localStorage 값 우선
-  });
+      name: userData.name || "이름 없음",
+      role_name: userData.role_name || `직급 ID: ${userData.role_id ?? "?"}`,
+      email: userData.email || "이메일 없음",
+      current_state: "WORKING",
+    });
+
+    // ✅ 백엔드에도 즉시 반영
+    if (token && userData.member_id) {
+      fetch(`http://localhost:8000/api/member/reset-state/${userData.member_id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }).catch(err => console.error("상태 초기화 실패:", err));
+    }
   }
 
   if (token) {
@@ -187,7 +202,38 @@ window.dispatchEvent(new Event("userDataChanged"));
       }
     })();
   }
+const stored = localStorage.getItem("user");
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    if (!parsed.current_state || parsed.current_state === "undefined" || parsed.current_state === "") {
+      parsed.current_state = "WORKING";
+      localStorage.setItem("user", JSON.stringify(parsed));
+      setProfile((prev) => ({
+        ...prev,
+        current_state: "WORKING",
+      }));
+      console.log("🟢 상태 초기화: WORKING");
+    }
+  } else {
+    // 로그인 직후 localStorage가 비어있을 경우
+    localStorage.setItem("user", JSON.stringify({ current_state: "WORKING" }));
+    setProfile((prev) => ({ ...prev, current_state: "WORKING" }));
+    console.log("🟢 첫 로그인 기본 상태 적용");
+  }
+
 }, []);
+// ✅ 렌더 이후 보정 로직 (상태점 색 초기화용)
+useEffect(() => {
+  if (
+    !profile.current_state ||
+    profile.current_state === "undefined" ||
+    profile.current_state === ""
+  ) {
+    console.warn("⚠️ 상태값이 비어 있어 WORKING으로 보정합니다.");
+    setProfile(prev => ({ ...prev, current_state: "WORKING" }));
+  }
+}, [profile.current_state]);
+
 
 // ✅ localStorage 변경 시 자동 동기화
 useEffect(() => {

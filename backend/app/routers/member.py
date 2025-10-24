@@ -108,3 +108,13 @@ def update_status(member_id: int, payload: dict, db: Session = Depends(get_db)):
         "current_state": member.current_state.value,
         "updated_at": member.updated_at,
     }
+@router.put("/reset-state/{member_id}")
+def reset_member_state(member_id: int, db: Session = Depends(get_db)):
+    """로그인 시 강제로 업무중(working) 상태로 초기화"""
+    member = db.query(Member).filter(Member.member_id == member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    member.current_state = "WORKING"
+    db.commit()
+    db.refresh(member)
+    return {"message": "상태 초기화 완료", "current_state": member.current_state}

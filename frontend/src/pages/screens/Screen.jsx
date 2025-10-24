@@ -514,9 +514,7 @@ useEffect(() => {
         <div className="modal-list-skel">일정 데이터를 불러오세요. (더블클릭 시 이동)</div>
       </Modal>
 
-      {/* 프로필 카드 */}
       <div className="view-16">
-        {/* 큰 원 (프로필 이미지) */}
         <div className="ellipse">
           <img
             src="https://cdn-icons-png.flaticon.com/512/847/847969.png"
@@ -524,42 +522,11 @@ useEffect(() => {
             className="profile-img"
           />
         </div>
-
-       {/* ✅ 상태 점 (클릭 시 상태 변경 메뉴 표시) */}
         <div
           className={`ellipse-2 ${profile.current_state}`}
           title={STATE_LABELS[profile.current_state]}
-          onClick={() => setShowMenu((prev) => !prev)}
-          style={{
-            backgroundColor:
-              profile.current_state === "OFF"
-                ? "#9e9e9e"
-                : {
-                    WORKING: "#2ecc71",
-                    FIELD: "#e74c3c",
-                    AWAY: "#f1c40f",
-                  }[profile.current_state],
-            cursor: "pointer",
-            position: "relative",
-          }}
-        >
-          {profile.current_state === "OFF" && (
-            <div
-              style={{
-                width: "6px",
-                height: "6px",
-                backgroundColor: "#616161",
-                borderRadius: "50%",
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-              }}
-            />
-          )}
-        </div>
-
-        {/* ✅ 상태 변경 메뉴 */}
+          onClick={() => setShowMenu((v) => !v)}
+        />
         {showMenu && (
           <div className="status-menu">
             {Object.entries(STATE_LABELS).map(([key, label]) => (
@@ -606,14 +573,11 @@ useEffect(() => {
             ))}
           </div>
         )}
-
-        {/* 이름 / 직급 텍스트 */}
         <div className="profile-info">
-          <div className="profile-name">{profile.name || "이름 없음"}</div>
-          <div className="profile-role">{profile.role_name || "직급 없음"}</div>
+          <div className="profile-name">{profile.name}</div>
+          <div className="profile-role">{profile.role_name}</div>
         </div>
-      </div>
-
++      </div>
       {/* 좌하단 고정: 설정 / 직원관리 */}
       <div className="view-bottom">
         <div

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
@@ -18,3 +18,6 @@ class MemberResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class StatusUpdate(BaseModel):
+    current_state: str = Field(..., pattern="^(WORKING|FIELD|AWAY|OFF)$")

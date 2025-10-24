@@ -113,12 +113,34 @@ const handleStatusChange = async (newStatus) => {
       const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
       const memberId = storedUser?.member_id ?? 1;
 
-      const res = await fetch(`http://localhost:8000/api/member/update-info/${memberId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("데이터 요청 실패");
-        const data = await res.json();
-        console.log("📥 로그인 사용자 정보:", data);
+      const res = await fetch("http://localhost:8000/api/member/me", {
+  headers: { Authorization: `Bearer ${token}` },
+});
+if (!res.ok) throw new Error("데이터 요청 실패");
+const data = await res.json();
+console.log("📥 로그인 사용자 정보:", data);
+
+// ✅ null 방어 및 fallback
+setProfile((prev) => ({
+  ...prev,
+  name: data.name ?? prev.name ?? "이름 없음",
+  role_name: data.role_name ?? prev.role_name ?? "직급 미지정",
+  email: data.email ?? prev.email ?? "이메일 없음",
+  current_state: (data.current_state ?? prev.current_state ?? "WORKING").toUpperCase(),
+}));
+
+// ✅ 현재 상태(profile) 기반 저장
+localStorage.setItem(
+  "user",
+  JSON.stringify({
+    name: data.name ?? profile.name ?? "이름 없음",
+    role_name: data.role_name ?? profile.role_name ?? "직급 미지정",
+    email: data.email ?? profile.email ?? "이메일 없음",
+    current_state: (data.current_state ?? profile.current_state ?? "WORKING").toUpperCase(),
+    member_id: data.member_id ?? 1,
+  })
+);
+window.dispatchEvent(new Event("userDataChanged"));
 
         // ✅ localStorage 즉시 저장 및 반영
         const updated = {
@@ -133,22 +155,22 @@ const handleStatusChange = async (newStatus) => {
 
         // ✅ 상태를 즉시 반영
         setProfile((prev) => ({
-          name: newData.name ?? prev.name,
-          role_name: newData.role_name ?? prev.role_name,
-          email: newData.email ?? prev.email,
+          name: data.name ?? prev.name,
+          role_name: data.role_name ?? prev.role_name,
+          email: data.email ?? prev.email,
           current_state:
-            (newData.current_state ?? body.current_state ?? prev.current_state).toUpperCase(),
+            (data.current_state ?? body.current_state ?? prev.current_state).toUpperCase(),
         }));
 
         // ✅ localStorage 재동기화 (최신 상태 보존)
         const stored = localStorage.getItem("user");
         if (stored) {
           const parsed = JSON.parse(stored);
-          parsed.name = newData.name ?? parsed.name;
-          parsed.email = newData.email ?? parsed.email;
-          parsed.role_name = newData.role_name ?? parsed.role_name;
+          parsed.name = data.name ?? parsed.name;
+          parsed.email = data.email ?? parsed.email;
+          parsed.role_name = data.role_name ?? parsed.role_name;
           parsed.current_state =
-            (newData.current_state ?? body.current_state ?? parsed.current_state).toUpperCase();
+            (data.current_state ?? body.current_state ?? parsed.current_state).toUpperCase();
           localStorage.setItem("user", JSON.stringify(parsed));
         }
         setProfile(updated);
@@ -166,8 +188,8 @@ const handleStatusChange = async (newStatus) => {
     })();
   }
 }, []);
-+
-+// ✅ localStorage 변경 시 자동 동기화
+
+// ✅ localStorage 변경 시 자동 동기화
 useEffect(() => {
   const syncUser = () => {
     const stored = localStorage.getItem("user");
@@ -574,10 +596,14 @@ useEffect(() => {
           </div>
         )}
         <div className="profile-info">
-          <div className="profile-name">{profile.name}</div>
-          <div className="profile-role">{profile.role_name}</div>
+          <div className="profile-name">
+          {profile.name && profile.name.trim() !== "" ? profile.name : "이름 없음"}
         </div>
-+      </div>
+        <div className="profile-role">
+          {profile.role_name && profile.role_name.trim() !== "" ? profile.role_name : "직급 없음"}
+         </div>
+        </div>
+       </div>
       {/* 좌하단 고정: 설정 / 직원관리 */}
       <div className="view-bottom">
         <div
@@ -645,7 +671,7 @@ useEffect(() => {
         body.password = {
           current: payload.password.current,
           next: payload.password.next,
-        };d
+        };
       }
 
       // ✅ 정보 업데이트 요청
@@ -678,35 +704,35 @@ useEffect(() => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (reload.ok) {
-        const newData = await reload.json();
-        console.log("📥 갱신된 내 정보:", newData);
+        const data = await reload.json();
+        console.log("📥 갱신된 내 정보:", data);
 
         // ✅ localStorage 저장 및 다른 컴포넌트로 이벤트 송출
         const updated = {
-            ...newData,
-         role_name: newData.role_name ?? stored.role_name ?? prev.role_name, // ✅ 직급 보존
-         current_state: (newData.current_state ?? body.current_state ?? prev.current_state).toUpperCase(),
+            ...data,
+         role_name: data.role_name ?? stored.role_name ?? prev.role_name, // ✅ 직급 보존
+         current_state: (data.current_state ?? body.current_state ?? prev.current_state).toUpperCase(),
         };
         localStorage.setItem("user", JSON.stringify(updated));
         window.dispatchEvent(new Event("userDataChanged"));
 
         setProfile((prev) => ({
-          name: newData.name ?? prev.name,
-          role_name: newData.role_name ?? prev.role_name,
-          email: newData.email ?? prev.email,
+          name: data.name ?? prev.name,
+          role_name: data.role_name ?? prev.role_name,
+          email: data.email ?? prev.email,
           current_state:
-            (newData.current_state ?? body.current_state ?? prev.current_state).toUpperCase(),
+            (data.current_state ?? body.current_state ?? prev.current_state).toUpperCase(),
         }));
 
         // ✅ localStorage 동기화
         const stored = localStorage.getItem("user");
         if (stored) {
           const parsed = JSON.parse(stored);
-          parsed.name = newData.name ?? parsed.name;
-          parsed.email = newData.email ?? parsed.email;
-          parsed.role_name = newData.role_name ?? parsed.role_name;
+          parsed.name = data.name ?? parsed.name;
+          parsed.email = data.email ?? parsed.email;
+          parsed.role_name = data.role_name ?? parsed.role_name;
           parsed.current_state =
-            (newData.current_state ?? body.current_state ?? parsed.current_state).toUpperCase();
+            (data.current_state ?? body.current_state ?? parsed.current_state).toUpperCase();
           localStorage.setItem("user", JSON.stringify(parsed));
         }
       }

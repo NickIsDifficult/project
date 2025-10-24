@@ -77,7 +77,7 @@ export default function AppShell({ children }) {
           const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
           const memberId = storedUser?.member_id ?? 1;
 
-          const res = await fetch(`http://localhost:8000/api/member/update-info/${memberId}`, {
+          const res = await fetch(`http://localhost:8000/api/member/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!res.ok) throw new Error("데이터 요청 실패");
@@ -145,20 +145,20 @@ export default function AppShell({ children }) {
       });
 
       if (reload.ok) {
-        const newData = await reload.json();
+        const data = await reload.json();
         setUserInfo({
-          name: newData.name ?? body.name ?? "이름 없음",
-          email: newData.email ?? body.email ?? "이메일 없음",
-          role_name: newData.role_name ?? userInfo.role_name,
+          name: data.name ?? body.name ?? "이름 없음",
+          email: data.email ?? body.email ?? "이메일 없음",
+          role_name: data.role_name ?? userInfo.role_name,
         });
-        setUserStatus((newData.current_state ?? body.current_state ?? userStatus).toUpperCase());
+        setUserStatus((data.current_state ?? body.current_state ?? userStatus).toUpperCase());
 
         const stored = JSON.parse(localStorage.getItem("user") || "{}");
-        stored.name = newData.name ?? stored.name;
-        stored.email = newData.email ?? stored.email;
-        stored.role_name = newData.role_name ?? stored.role_name;
+        stored.name = data.name ?? stored.name;
+        stored.email = data.email ?? stored.email;
+        stored.role_name = data.role_name ?? stored.role_name;
         stored.current_state =
-          (newData.current_state ?? body.current_state ?? stored.current_state).toUpperCase();
+          (data.current_state ?? body.current_state ?? stored.current_state).toUpperCase();
         localStorage.setItem("user", JSON.stringify(stored));
 
         window.dispatchEvent(new Event("userDataChanged"));

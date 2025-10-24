@@ -39,7 +39,7 @@ class Member(Base):
 
     user_type = Column(Enum(UserType), nullable=False)
     status = Column(Enum(MemberStatus), server_default="ACTIVE")
-    current_state = Column(Enum(WorkState), server_default="WORKING")
+    current_state = Column(Enum(WorkState), default=WorkState.WORKING, nullable=False)
 
     emp_id = Column(Integer, ForeignKey("employee.emp_id"), nullable=True)
     ext_id = Column(Integer, ForeignKey("external_person.ext_id"), nullable=True)

@@ -43,6 +43,29 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
         _error("프로젝트를 찾을 수 없습니다.", status.HTTP_404_NOT_FOUND)
     return proj
 
+def get_project_by_id(db: Session, project_id: int):
+    project = db.query(Project).filter(Project.project_id == project_id).first()
+    if not project:
+        return None
+
+    tasks = db.query(Task).filter(Task.project_id == project_id).all()
+
+    task_dict = {t.task_id: t for t in tasks}
+    root_tasks = []
+
+    for task in tasks:
+        if task.parent_task_id:
+            parent = task_dict.get(task.parent_task_id)
+            if parent:
+                if not hasattr(parent, "subtask"):
+                    parent.subtask = []
+                parent.subtask.append(task)
+        else:
+            root_tasks.append(task)
+
+    # ✅ 부모가 있는 task는 루트 리스트에서 제거 (중복 방지)
+    project.task = [t for t in tasks if t.parent_task_id is None]
+    return project
 
 # =====================================================
 # ✅ 프로젝트 생성

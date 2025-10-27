@@ -2,6 +2,7 @@
 import { memo, useCallback, useState } from "react";
 import AssigneeSelector from "./AssigneeSelector";
 
+
 /**
  * 재귀형 하위 업무 입력
  */
@@ -126,28 +127,30 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
       )}
 
       {/* 재귀 하위업무 */}
-      {task.children.map((child, i) => (
-        <TaskNode
-          key={child.id}
-          task={child}
-          employees={employees}
-          onUpdate={u => handleChildUpdate(i, u)}
-          depth={depth + 1}
-          onAddSibling={() => {
-            const newChildren = [...task.children];
-            const newTask = {
-              id: Date.now(),
-              title: "",
-              startDate: "",
-              endDate: "",
-              assignees: [],
-              children: [],
-            };
-            newChildren.splice(i + 1, 0, newTask);
-            onUpdate({ ...task, children: newChildren });
-          }}
-        />
-      ))}
+      {task.subtask && task.subtask.length > 0 && (
+  task.subtask.map((child, i) => (
+    <TaskNode
+      key={child.task_id ?? i}
+      task={child}
+      employees={employees}
+      onUpdate={u => handleChildUpdate(i, u)}
+      depth={depth + 1}
+      onAddSibling={() => {
+        const newSubtasks = [...task.subtask];
+        const newTask = {
+          task_id: Date.now(),
+          title: "",
+          start_date: "",
+          end_date: "",
+          assignees: [],
+          subtask: [], // ✅ children → subtask
+        };
+        newSubtasks.splice(i + 1, 0, newTask);
+        onUpdate({ ...task, subtask: newSubtasks });
+      }}
+    />
+  ))
+)}
     </div>
   );
 }

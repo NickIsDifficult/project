@@ -42,6 +42,9 @@ function ProjectDetailContent({ projectId }) {
   if (loading) return <Loader text="데이터 불러오는 중..." />;
   if (!project) return <div className="p-6">❌ 프로젝트를 찾을 수 없습니다.</div>;
 
+  /* -------------------------------------------------
+   * ✅ 메인 렌더링
+   * ------------------------------------------------- */
   return (
     <AppShell>
       <div className="p-6">

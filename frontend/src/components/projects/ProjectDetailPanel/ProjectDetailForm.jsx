@@ -12,12 +12,14 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
   const [query, setQuery] = useState("");
 
   const filtered = employees.filter(
-    emp => emp.name.toLowerCase().includes(query.toLowerCase()) && !selected.includes(emp.emp_id),
+    emp =>
+      emp.name.toLowerCase().includes(query.toLowerCase()) &&
+      !selected.includes(emp.emp_id),
   );
 
   return (
     <div style={{ marginTop: 6, position: "relative" }}>
-      {/* 선택된 담당자 목록 */}
+      {/* 선택된 담당자 */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {selected.map(id => {
           const emp = employees.find(e => e.emp_id === id);
@@ -101,22 +103,27 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
 }
 
 /* =========================================
- ✅ 재귀형 업무 노드 (기존 유지)
+ ✅ 재귀형 업무 노드
 ========================================= */
 function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
-  const [showDetails, setShowDetails] = useState(false);
+  const toggleDetails = () => {
+    onUpdate({ ...task, isOpen: !task.isOpen });
+  };
 
   const handleAddChild = () => {
     const newChild = {
-      id: Date.now(),
+      task_id: Date.now(),
       title: "",
       start_date: "",
       end_date: "",
       assignees: [],
-      children: [],
+      subtask: [],
+      isOpen: false,
     };
-    const newChildren = [...(task.children || []), newChild];
-    onUpdate({ ...task, children: newChildren });
+    onUpdate({
+      ...task,
+      subtask: [...(task.subtask || []), newChild],
+    });
   };
 
   const handleDelete = () => {
@@ -126,10 +133,10 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
   };
 
   const handleChildUpdate = (index, updated) => {
-    const newChildren = [...task.children];
+    const newChildren = [...(task.subtask || [])];
     if (updated === null) newChildren.splice(index, 1);
     else newChildren[index] = updated;
-    onUpdate({ ...task, children: newChildren });
+    onUpdate({ ...task, subtask: newChildren });
   };
 
   return (
@@ -137,12 +144,13 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
       style={{
         marginLeft: depth * 20,
         borderLeft: depth > 0 ? "2px solid #ddd" : "none",
-        paddingLeft: depth > 0 ? 8 : 0,
+        paddingLeft: depth > 0 ? 10 : 0,
         marginTop: 10,
       }}
     >
       {/* 제목 + 버튼 */}
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        {depth > 0 && <span style={{ color: "#aaa" }}>└─</span>}
         <input
           placeholder="업무 제목"
           value={task.title || ""}
@@ -191,9 +199,9 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
         )}
 
         <button
-          onClick={() => setShowDetails(!showDetails)}
+          onClick={toggleDetails}
           style={{
-            background: showDetails ? "#555" : "#1976d2",
+            background: task.isOpen ? "#555" : "#1976d2",
             color: "white",
             border: "none",
             borderRadius: 6,
@@ -201,12 +209,12 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
             cursor: "pointer",
           }}
         >
-          {showDetails ? "▲ 닫기" : "▼ 상세"}
+          {task.isOpen ? "▲ 닫기" : "▼ 상세"}
         </button>
       </div>
 
-      {/* 상세 */}
-      {showDetails && (
+      {/* 상세정보 */}
+      {task.isOpen && (
         <div
           style={{
             background: "#f9f9f9",
@@ -245,19 +253,22 @@ function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
             <AssigneeSelector
               employees={employees}
               selected={task.assignees || []}
-              setSelected={newList => onUpdate({ ...task, assignees: newList })}
+              setSelected={newList =>
+                onUpdate({ ...task, assignees: newList })
+              }
               disabled={disabled}
             />
           </div>
         </div>
       )}
 
-      {task.children?.map((child, index) => (
+      {/* 하위업무 */}
+      {(task.subtask || []).map((child, i) => (
         <TaskNode
-          key={child.id ?? `${depth}-${index}-${task.title ?? "child"}`}
+          key={child.task_id ?? `${depth}-${i}`}
           task={child}
           employees={employees}
-          onUpdate={updated => handleChildUpdate(index, updated)}
+          onUpdate={updated => handleChildUpdate(i, updated)}
           depth={depth + 1}
           disabled={disabled}
         />
@@ -274,8 +285,8 @@ export default function ProjectDetailForm({ projectId, onClose }) {
   const [isEditing, setIsEditing] = useState(false);
   const [project, setProject] = useState(null);
   const [employees, setEmployees] = useState([]);
-  const [showDetails, setShowDetails] = useState(false);
   const [mainAssignees, setMainAssignees] = useState([]);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -290,22 +301,54 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         setMainAssignees(projectData?.main_assignees || []);
       } catch (err) {
         console.error("❌ 데이터 로드 실패:", err);
-        alert("데이터를 불러오지 못했습니다.");
+        toast.error("데이터를 불러오지 못했습니다.");
       }
     };
     fetchData();
   }, [projectId]);
 
+  if (!project) return <p style={{ padding: 20 }}>⏳ 로딩 중...</p>;
+
+  // ✅ 중복 제거: subtask에 포함된 ID는 제외
+  const allTasks = project.task || [];
+  const childIds = new Set();
+  const collectChildIds = tasks => {
+    for (const t of tasks) {
+      if (t.subtask?.length) {
+        for (const st of t.subtask) {
+          childIds.add(st.task_id);
+          collectChildIds([st]);
+        }
+      }
+    }
+  };
+  collectChildIds(allTasks);
+  const rootTasks = allTasks.filter(t => !childIds.has(t.task_id));
+
+  const handleAddRootTask = () => {
+    const newTask = {
+      task_id: Date.now(),
+      title: "",
+      start_date: "",
+      end_date: "",
+      assignees: [],
+      subtask: [],
+      isOpen: false,
+    };
+    setProject({
+      ...project,
+      task: [...(project.task || []), newTask],
+    });
+  };
+
   const handleSave = async () => {
     try {
-      const { tasks, ...projectData } = project;
-      projectData.main_assignees = mainAssignees;
-      await updateProject(projectId, projectData);
-      alert("✅ 수정 완료!");
+      await updateProject(projectId, project);
+      toast.success("수정 완료!");
       setIsEditing(false);
     } catch (err) {
       console.error("❌ 수정 실패:", err);
-      alert("수정 중 오류가 발생했습니다.");
+      toast.error("수정 중 오류가 발생했습니다.");
     }
   };
 
@@ -314,11 +357,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
     try {
       await deleteProject(projectId);
       toast.success("프로젝트가 삭제되었습니다.");
-
-      // 전역 상태에서 제거 (즉시 반영)
       setProjects(prev => prev.filter(p => p.project_id !== projectId));
-
-      // 패널 닫기
       onClose?.();
     } catch (err) {
       console.error("❌ 삭제 실패:", err);
@@ -326,39 +365,11 @@ export default function ProjectDetailForm({ projectId, onClose }) {
     }
   };
 
-  const handleTaskUpdate = (index, updated) => {
-    if (updated === null) {
-      const newTasks = [...project.tasks];
-      newTasks.splice(index, 1);
-      setProject({ ...project, tasks: newTasks });
-    } else {
-      const newTasks = [...project.tasks];
-      newTasks[index] = updated;
-      setProject({ ...project, tasks: newTasks });
-    }
-  };
-
-  const handleAddRootTask = () => {
-    const newTask = {
-      id: Date.now(),
-      title: "",
-      start_date: "",
-      end_date: "",
-      assignees: [],
-      children: [],
-    };
-    setProject({
-      ...project,
-      tasks: [...(project.tasks || []), newTask],
-    });
-  };
-
-  if (!project) return <p style={{ padding: 20 }}>⏳ 로딩 중...</p>;
-
   return (
     <div style={{ padding: 16 }}>
       <h2>📌 프로젝트 상세정보</h2>
 
+      {/* 기본 정보 */}
       <label>프로젝트 이름</label>
       <input
         value={project.project_name || ""}
@@ -386,6 +397,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         }}
       />
 
+      {/* 상세입력 */}
       <button
         onClick={() => setShowDetails(!showDetails)}
         style={{
@@ -416,7 +428,9 @@ export default function ProjectDetailForm({ projectId, onClose }) {
               type="date"
               value={project.start_date || ""}
               disabled={!isEditing}
-              onChange={e => setProject({ ...project, start_date: e.target.value })}
+              onChange={e =>
+                setProject({ ...project, start_date: e.target.value })
+              }
               style={{
                 marginLeft: 8,
                 background: !isEditing ? "#f6f6f6" : "white",
@@ -427,7 +441,9 @@ export default function ProjectDetailForm({ projectId, onClose }) {
               type="date"
               value={project.end_date || ""}
               disabled={!isEditing}
-              onChange={e => setProject({ ...project, end_date: e.target.value })}
+              onChange={e =>
+                setProject({ ...project, end_date: e.target.value })
+              }
               style={{
                 marginLeft: 8,
                 background: !isEditing ? "#f6f6f6" : "white",
@@ -447,17 +463,23 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         </div>
       )}
 
+      {/* 업무 목록 */}
       <div style={{ marginTop: 20 }}>
-        <h3>📋 하위 업무</h3>
-        {project.tasks?.map((task, i) => (
-          <TaskNode
-            key={task.id ?? `root-${i}-${projectId}`}
-            task={task}
-            employees={employees}
-            onUpdate={u => handleTaskUpdate(i, u)}
-            disabled={!isEditing}
-          />
-        ))}
+        <h3>📋 업무 목록</h3>
+        {rootTasks.length > 0 ? (
+          rootTasks.map((task, i) => (
+            <TaskNode
+              key={task.task_id ?? `root-${i}`}
+              task={task}
+              employees={employees}
+              onUpdate={() => {}}
+              disabled={!isEditing}
+              depth={0}
+            />
+          ))
+        ) : (
+          <p style={{ color: "#999" }}>등록된 업무가 없습니다.</p>
+        )}
 
         {isEditing && (
           <button
@@ -477,6 +499,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         )}
       </div>
 
+      {/* 하단 버튼 */}
       <div
         style={{
           borderTop: "1px solid #eee",
@@ -530,8 +553,6 @@ export default function ProjectDetailForm({ projectId, onClose }) {
             >
               ✏️ 수정
             </button>
-
-            {/* 🔹 삭제 버튼 추가 */}
             <button
               onClick={handleDelete}
               style={{

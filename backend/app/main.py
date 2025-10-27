@@ -15,6 +15,7 @@ from app.routers import (
     notification_router,
     project_router,
     task_router,
+    ai_router,
 )
 from app.routers.auth import login, signup, me as me_router
 from app.routers.admin import dept_role as admin_dept_role
@@ -25,12 +26,6 @@ from app.routers.trash_router import router as trash_router
 
 from passlib.hash import bcrypt
 from sqlalchemy import select
-
-logging.basicConfig(level=logging.INFO)
-
-logging.info("🚀 DB 연결 시도 중...")
-Base.metadata.create_all(bind=engine)
-logging.info("✅ DB 테이블 생성 완료")
 
 # ---------------------------
 # FastAPI 앱 생성
@@ -54,6 +49,16 @@ app.add_middleware(
 )
 
 # ---------------------------
+# DB 초기화 및 로그
+# ---------------------------
+
+logging.basicConfig(level=logging.INFO)
+
+logging.info("🚀 DB 연결 시도 중...")
+Base.metadata.create_all(bind=engine)
+logging.info("✅ DB 테이블 생성 완료")
+
+# ---------------------------
 # 라우터 등록
 # ---------------------------
 app.include_router(login.router)
@@ -73,6 +78,7 @@ app.include_router(admin_account.router)
 app.include_router(events_router)
 app.include_router(status_router)
 app.include_router(trash_router)
+app.include_router(ai_router.router)
 
 # ---------------------------
 # 헬스 체크

@@ -22,7 +22,6 @@ export function useAuth() {
 
         // ✅ 토큰 기반 유저정보 요청
         const data = await getMe();
-        console.log("🧩 getMe response:", data);
         const member = data?.member ?? data;
 
         if (member) {

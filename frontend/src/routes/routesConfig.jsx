@@ -43,7 +43,7 @@ export const routesConfig = [
     isPrivate: true,
   },
   {
-    path: "/trash-bin",
+    path: "/trashbin",
     element: <TrashBin />,
     isPrivate: true,
   },

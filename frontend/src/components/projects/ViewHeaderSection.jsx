@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
+import AiCommandBar from "../ai/AiCommandBar";
 import Button from "../common/Button";
 import { STATUS_LABELS } from "./constants/statusMaps";
 
@@ -195,6 +196,7 @@ export default function ViewHeaderSection({
 
         {/* 오른쪽: 버튼 그룹 */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+          <AiCommandBar /> {/* 🎯 AI 명령창 추가 */}
           {/* ✅ 뷰 타입별 다른 버튼 */}
           {viewType === "list" ? (
             <Button
@@ -229,7 +231,6 @@ export default function ViewHeaderSection({
               )}
             </Button>
           )}
-
           <Button
             variant="outline"
             onClick={resetFilters}

@@ -1,5 +1,4 @@
 // src/components/common/Loader.jsx
-
 export function Loader({ message = "로딩 중..." }) {
   return (
     <div

@@ -18,6 +18,9 @@ from app.models.project import (
 from app.models.attachment import Attachment
 from app.models.activity_log import ActivityLog
 
+# ✅ 새로 추가된 공지/참조 모델
+from app.models.notices import Notice, NoticeReference
+
 __all__ = [
     # enums
     "MemberRole",
@@ -45,4 +48,8 @@ __all__ = [
     "TaskHistory",
     "Attachment",
     "ActivityLog",
+
+    # ✅ notices
+    "Notice",
+    "NoticeReference",
 ]

@@ -11,7 +11,7 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
       { value: "AWAY", label: "자리비움" },
       { value: "OFF", label: "퇴근" },
     ],
-    []
+    [],
   );
 
   const [status, setStatus] = useState(initial.status || "WORKING");
@@ -48,7 +48,7 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
   }, [open, initial]);
 
   useEffect(() => {
-    const onMouseMove = (e) => {
+    const onMouseMove = e => {
       if (!dragState.current.dragging) return;
       const dx = e.clientX - dragState.current.startX;
       const dy = e.clientY - dragState.current.startY;
@@ -74,7 +74,7 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
     };
   }, []);
 
-  const beginDrag = (e) => {
+  const beginDrag = e => {
     // 헤더 부분에서만 드래그 시작
     const cardEl = cardRef.current;
     if (!cardEl) return;
@@ -91,7 +91,8 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
     const e = {};
     if (!name.trim()) e.name = "이름을 입력하세요.";
     if (!email.trim()) e.email = "이메일을 입력하세요.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "이메일 형식이 올바르지 않습니다.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      e.email = "이메일 형식이 올바르지 않습니다.";
 
     if (curPw || nextPw || nextPw2) {
       if (!curPw) e.curPw = "현재 비밀번호를 입력하세요.";
@@ -105,7 +106,7 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = (e) => {
+  const handleSave = e => {
     e.preventDefault();
     if (!validate()) return;
     const payload = { status, name: name.trim(), email: email.trim() };
@@ -116,19 +117,19 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
   return (
     <div className="pmodal-overlay" role="dialog" aria-modal="true" aria-labelledby="pmodal-title">
       {/* pos.x/pos.y를 고정 좌표로 사용 */}
-      <div
-        ref={cardRef}
-        className="pmodal-card"
-        style={{ left: pos.x ?? 0, top: pos.y ?? 0 }}
-      >
-        <button className="pmodal-close" aria-label="닫기" onClick={onClose}>✕</button>
+      <div ref={cardRef} className="pmodal-card" style={{ left: pos.x ?? 0, top: pos.y ?? 0 }}>
+        <button className="pmodal-close" aria-label="닫기" onClick={onClose}>
+          ✕
+        </button>
 
         {/* 드래그 핸들: 헤더 */}
         <header className="pmodal-header" onMouseDown={beginDrag}>
           <div className="pmodal-avatar-frame">
             <img src={vector} alt="profile" className="pmodal-avatar" />
           </div>
-          <h2 id="pmodal-title" className="pmodal-title">개인정보 수정</h2>
+          <h2 id="pmodal-title" className="pmodal-title">
+            개인정보 수정
+          </h2>
         </header>
 
         <form className="pmodal-form" onSubmit={handleSave}>
@@ -138,10 +139,12 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
             <select
               className="pmodal-input"
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={e => setStatus(e.target.value)}
             >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              {STATUS_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
               ))}
             </select>
           </label>
@@ -153,7 +156,7 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
               className={`pmodal-input ${errors.name ? "pmodal-input--error" : ""}`}
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={e => setName(e.target.value)}
               required
               maxLength={50}
             />
@@ -167,7 +170,7 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
               className={`pmodal-input ${errors.email ? "pmodal-input--error" : ""}`}
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               required
               placeholder="name@example.com"
             />
@@ -184,7 +187,7 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
                 className={`pmodal-input ${errors.curPw ? "pmodal-input--error" : ""}`}
                 type="password"
                 value={curPw}
-                onChange={(e) => setCurPw(e.target.value)}
+                onChange={e => setCurPw(e.target.value)}
               />
               {errors.curPw && <span className="pmodal-error">{errors.curPw}</span>}
             </label>
@@ -195,7 +198,7 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
                 className={`pmodal-input ${errors.nextPw ? "pmodal-input--error" : ""}`}
                 type="password"
                 value={nextPw}
-                onChange={(e) => setNextPw(e.target.value)}
+                onChange={e => setNextPw(e.target.value)}
               />
               {errors.nextPw && <span className="pmodal-error">{errors.nextPw}</span>}
             </label>
@@ -206,15 +209,19 @@ export default function PersonalInfoModal({ open, onClose, onSave, initial = {} 
                 className={`pmodal-input ${errors.nextPw2 ? "pmodal-input--error" : ""}`}
                 type="password"
                 value={nextPw2}
-                onChange={(e) => setNextPw2(e.target.value)}
+                onChange={e => setNextPw2(e.target.value)}
               />
               {errors.nextPw2 && <span className="pmodal-error">{errors.nextPw2}</span>}
             </label>
           </fieldset>
 
           <div className="pmodal-actions">
-            <button type="button" className="pmodal-btn pmodal-btn--ghost" onClick={onClose}>취소</button>
-            <button type="submit" className="pmodal-btn pmodal-btn--primary">저장</button>
+            <button type="button" className="pmodal-btn pmodal-btn--ghost" onClick={onClose}>
+              취소
+            </button>
+            <button type="submit" className="pmodal-btn pmodal-btn--primary">
+              저장
+            </button>
           </div>
         </form>
       </div>

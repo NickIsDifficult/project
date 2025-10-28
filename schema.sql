@@ -1,11 +1,54 @@
+-- Table: activity_log
+
+CREATE TABLE activity_log (
+	log_id INTEGER NOT NULL AUTO_INCREMENT, 
+	emp_id INTEGER NOT NULL, 
+	project_id INTEGER, 
+	task_id INTEGER, 
+	action ENUM('commented','comment_edited','comment_deleted','mentioned','task_created','task_updated','task_deleted','status_changed','assignee_changed','due_date_changed','progress_changed','attachment_added','attachment_removed','project_created','project_deleted','unknown') NOT NULL, 
+	detail TEXT, 
+	created_at DATETIME NOT NULL DEFAULT now(), 
+	PRIMARY KEY (log_id), 
+	FOREIGN KEY(emp_id) REFERENCES employee (emp_id) ON DELETE CASCADE, 
+	FOREIGN KEY(project_id) REFERENCES project (project_id) ON DELETE SET NULL, 
+	FOREIGN KEY(task_id) REFERENCES task (task_id) ON DELETE SET NULL
+)
+
+;
+--------------------------------------------------------------------------------
+
+-- Table: attachment
+
+CREATE TABLE attachment (
+	attachment_id INTEGER NOT NULL AUTO_INCREMENT, 
+	project_id INTEGER, 
+	task_id INTEGER, 
+	uploaded_by INTEGER, 
+	file_name VARCHAR(255) NOT NULL, 
+	file_path VARCHAR(1024) NOT NULL, 
+	file_size BIGINT, 
+	file_type VARCHAR(100), 
+	is_deleted BOOL NOT NULL, 
+	uploaded_at DATETIME NOT NULL DEFAULT now(), 
+	PRIMARY KEY (attachment_id), 
+	FOREIGN KEY(project_id) REFERENCES project (project_id) ON DELETE CASCADE, 
+	FOREIGN KEY(task_id) REFERENCES task (task_id) ON DELETE CASCADE, 
+	FOREIGN KEY(uploaded_by) REFERENCES employee (emp_id) ON DELETE SET NULL
+)
+
+;
+--------------------------------------------------------------------------------
+
 -- Table: department
 
 CREATE TABLE department (
 	dept_id INTEGER NOT NULL AUTO_INCREMENT, 
+	dept_no VARCHAR(20) NOT NULL, 
 	dept_name VARCHAR(50) NOT NULL, 
 	created_at DATETIME, 
 	updated_at DATETIME, 
 	PRIMARY KEY (dept_id), 
+	UNIQUE (dept_no), 
 	UNIQUE (dept_name)
 )
 
@@ -26,13 +69,42 @@ CREATE TABLE department_permission (
 ;
 --------------------------------------------------------------------------------
 
+-- Table: employee
+
+CREATE TABLE employee (
+	emp_id INTEGER NOT NULL AUTO_INCREMENT, 
+	emp_no VARCHAR(20) NOT NULL, 
+	dept_id INTEGER NOT NULL, 
+	role_id INTEGER NOT NULL, 
+	dept_no VARCHAR(20) NOT NULL, 
+	role_no VARCHAR(20) NOT NULL, 
+	name VARCHAR(50) NOT NULL, 
+	email VARCHAR(100) NOT NULL, 
+	mobile VARCHAR(20) NOT NULL, 
+	hire_date DATE, 
+	birthday DATE, 
+	created_at DATETIME DEFAULT now(), 
+	updated_at DATETIME DEFAULT now(), 
+	PRIMARY KEY (emp_id), 
+	UNIQUE (emp_no), 
+	FOREIGN KEY(dept_id) REFERENCES department (dept_id), 
+	FOREIGN KEY(role_id) REFERENCES `role` (role_id), 
+	UNIQUE (email), 
+	UNIQUE (mobile)
+)
+
+;
+--------------------------------------------------------------------------------
+
 -- Table: external
 
 CREATE TABLE external (
 	ext_id INTEGER NOT NULL AUTO_INCREMENT, 
 	ext_no VARCHAR(20) NOT NULL, 
-	dept_id INTEGER, 
+	dept_id INTEGER NOT NULL, 
 	role_id INTEGER NOT NULL, 
+	dept_no VARCHAR(20) NOT NULL, 
+	role_no VARCHAR(20) NOT NULL, 
 	name VARCHAR(50) NOT NULL, 
 	email VARCHAR(100) NOT NULL, 
 	mobile VARCHAR(20) NOT NULL, 
@@ -42,7 +114,9 @@ CREATE TABLE external (
 	PRIMARY KEY (ext_id), 
 	UNIQUE (ext_no), 
 	FOREIGN KEY(dept_id) REFERENCES department (dept_id), 
-	FOREIGN KEY(role_id) REFERENCES `role` (role_id)
+	FOREIGN KEY(role_id) REFERENCES `role` (role_id), 
+	UNIQUE (email), 
+	UNIQUE (mobile)
 )
 
 ;
@@ -57,6 +131,8 @@ CREATE TABLE `member` (
 	emp_id INTEGER, 
 	ext_id INTEGER, 
 	user_type ENUM('EMPLOYEE','EXTERNAL') NOT NULL, 
+	dept_no VARCHAR(20), 
+	role_no VARCHAR(20), 
 	last_login_at DATETIME, 
 	failed_attempts INTEGER NOT NULL DEFAULT '0', 
 	locked_until DATETIME, 
@@ -71,15 +147,36 @@ CREATE TABLE `member` (
 ;
 --------------------------------------------------------------------------------
 
--- Table: role
+-- Table: notice
 
-CREATE TABLE `role` (
-	role_id INTEGER NOT NULL AUTO_INCREMENT, 
-	role_name VARCHAR(50) NOT NULL, 
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
-	PRIMARY KEY (role_id), 
-	UNIQUE (role_name)
+CREATE TABLE notice (
+	id INTEGER NOT NULL AUTO_INCREMENT, 
+	title VARCHAR(200) NOT NULL, 
+	body TEXT NOT NULL, 
+	scope VARCHAR(20) NOT NULL, 
+	created_at DATETIME NOT NULL, 
+	updated_at DATETIME NOT NULL, 
+	author_id INTEGER NOT NULL, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(author_id) REFERENCES `member` (member_id)
+)
+
+;
+--------------------------------------------------------------------------------
+
+-- Table: notice_reference
+
+CREATE TABLE notice_reference (
+	id INTEGER NOT NULL AUTO_INCREMENT, 
+	notice_id INTEGER NOT NULL, 
+	ref_type VARCHAR(20), 
+	ref_id INTEGER, 
+	ref_notice_id INTEGER, 
+	created_at DATETIME NOT NULL, 
+	PRIMARY KEY (id), 
+	CONSTRAINT uq_notice_ref_generic UNIQUE (notice_id, ref_type, ref_id), 
+	CONSTRAINT uq_notice_ref_notice UNIQUE (notice_id, ref_notice_id), 
+	FOREIGN KEY(notice_id) REFERENCES notice (id) ON DELETE CASCADE
 )
 
 ;
@@ -103,29 +200,6 @@ CREATE TABLE notification (
 	FOREIGN KEY(actor_emp_id) REFERENCES employee (emp_id) ON DELETE CASCADE, 
 	FOREIGN KEY(project_id) REFERENCES project (project_id) ON DELETE CASCADE, 
 	FOREIGN KEY(task_id) REFERENCES task (task_id) ON DELETE CASCADE
-)
-
-;
---------------------------------------------------------------------------------
-
--- Table: employee
-
-CREATE TABLE employee (
-	emp_id INTEGER NOT NULL AUTO_INCREMENT, 
-	emp_no VARCHAR(20) NOT NULL, 
-	dept_id INTEGER NOT NULL, 
-	role_id INTEGER NOT NULL, 
-	name VARCHAR(50) NOT NULL, 
-	email VARCHAR(100) NOT NULL, 
-	mobile VARCHAR(20) NOT NULL, 
-	hire_date DATE, 
-	birthday DATE, 
-	created_at DATETIME NOT NULL DEFAULT now(), 
-	updated_at DATETIME NOT NULL DEFAULT now(), 
-	PRIMARY KEY (emp_id), 
-	UNIQUE (emp_no), 
-	FOREIGN KEY(dept_id) REFERENCES department (dept_id), 
-	FOREIGN KEY(role_id) REFERENCES `role` (role_id)
 )
 
 ;
@@ -258,42 +332,31 @@ CREATE TABLE task_history (
 ;
 --------------------------------------------------------------------------------
 
--- Table: attachment
+-- Table: role
 
-CREATE TABLE attachment (
-	attachment_id INTEGER NOT NULL AUTO_INCREMENT, 
-	project_id INTEGER, 
-	task_id INTEGER, 
-	uploaded_by INTEGER, 
-	file_name VARCHAR(255) NOT NULL, 
-	file_path VARCHAR(1024) NOT NULL, 
-	file_size BIGINT, 
-	file_type VARCHAR(100), 
-	is_deleted BOOL NOT NULL, 
-	uploaded_at DATETIME NOT NULL DEFAULT now(), 
-	PRIMARY KEY (attachment_id), 
-	FOREIGN KEY(project_id) REFERENCES project (project_id) ON DELETE CASCADE, 
-	FOREIGN KEY(task_id) REFERENCES task (task_id) ON DELETE CASCADE, 
-	FOREIGN KEY(uploaded_by) REFERENCES employee (emp_id) ON DELETE SET NULL
+CREATE TABLE `role` (
+	role_id INTEGER NOT NULL AUTO_INCREMENT, 
+	role_no VARCHAR(20) NOT NULL, 
+	role_name VARCHAR(50) NOT NULL, 
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, 
+	PRIMARY KEY (role_id), 
+	UNIQUE (role_no), 
+	UNIQUE (role_name)
 )
 
 ;
 --------------------------------------------------------------------------------
 
--- Table: activity_log
+-- Table: status
 
-CREATE TABLE activity_log (
-	log_id INTEGER NOT NULL AUTO_INCREMENT, 
-	emp_id INTEGER NOT NULL, 
-	project_id INTEGER, 
-	task_id INTEGER, 
-	action ENUM('commented','comment_edited','comment_deleted','mentioned','task_created','task_updated','task_deleted','status_changed','assignee_changed','due_date_changed','progress_changed','attachment_added','attachment_removed','project_created','project_deleted','unknown') NOT NULL, 
-	detail TEXT, 
-	created_at DATETIME NOT NULL DEFAULT now(), 
-	PRIMARY KEY (log_id), 
-	FOREIGN KEY(emp_id) REFERENCES employee (emp_id) ON DELETE CASCADE, 
-	FOREIGN KEY(project_id) REFERENCES project (project_id) ON DELETE SET NULL, 
-	FOREIGN KEY(task_id) REFERENCES task (task_id) ON DELETE SET NULL
+CREATE TABLE status (
+	id INTEGER NOT NULL AUTO_INCREMENT, 
+	type VARCHAR(50) NOT NULL, 
+	start_date DATETIME NOT NULL, 
+	end_date DATETIME NOT NULL, 
+	username VARCHAR(100), 
+	PRIMARY KEY (id)
 )
 
 ;

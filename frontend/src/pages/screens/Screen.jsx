@@ -6,6 +6,14 @@ import { changePassword, getMe, logout, updateProfile } from "../../services/api
 import PersonalInfoModal from "./Setting/PersonalInfoModal";
 import "./style.css";
 
+// ✅ 상태 변경용 Enum 매핑
+const STATE_LABELS = {
+  WORKING: "업무중",
+  FIELD: "외근",
+  AWAY: "자리비움",
+  OFF: "퇴근",
+};
+
 // 간단 모달 컴포넌트
 function Modal({ open, title, onClose, onDouble, children }) {
   useEffect(() => {

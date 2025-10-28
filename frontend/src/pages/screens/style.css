@@ -1,28 +1,31 @@
 .screen {
-  position: fixed;  /* 화면에 고정 */
-  inset: 0;         /* top:0; right:0; bottom:0; left:0; 와 동일 */
+  position: fixed; /* 화면에 고정 */
+  inset: 0; /* top:0; right:0; bottom:0; left:0; 와 동일 */
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  border: none;     /* 혹시 남아있던 테두리 제거 */
+  border: none; /* 혹시 남아있던 테두리 제거 */
 }
 
 /* 배경 레이어가 꼭 (0,0)부터 채우도록 */
 .UI {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   margin: 0;
   padding: 0;
 }
 
 .screen {
   background-color: #ffffff;
-  border: none;              /* 1px 테두리 제거 */
+  border: none; /* 1px 테두리 제거 */
   overflow: hidden;
-  position: fixed;           /* 화면에 고정 */
-  inset: 0;                  /* 상하좌우 0 */
-  width: 100vw;              /* 뷰포트 기준 */
+  position: fixed; /* 화면에 고정 */
+  inset: 0; /* 상하좌우 0 */
+  width: 100vw; /* 뷰포트 기준 */
   height: 100vh;
 }
 .screen .UI {
@@ -218,7 +221,7 @@
 }
 
 .screen .vector-4 {
-  height: 89.20%;
+  height: 89.2%;
   left: 4.12%;
   position: absolute;
   top: 7.24%;
@@ -300,10 +303,10 @@
 
 .screen .vector-7 {
   height: 91.67%;
-  left: 12.50%;
+  left: 12.5%;
   position: absolute;
   top: 4.17%;
-  width: 75.00%;
+  width: 75%;
 }
 
 .screen .view-11 {
@@ -432,29 +435,41 @@
 .screen .admin-group {
   position: absolute;
   left: 1px;
-  top: 380px;      /* ← 필요시 360~400 사이에서 미세조정 */
+  top: 380px; /* ← 필요시 360~400 사이에서 미세조정 */
   width: 290px;
   height: 146px;
   overflow: hidden;
-  transition: height 180ms ease, transform 180ms ease;
+  transition:
+    height 180ms ease,
+    transform 180ms ease;
 }
 
 /* 접기/펼치기 */
-.screen .admin-group.expanded  { height: 146px; }
-.screen .admin-group.collapsed { height: 33px;  }
+.screen .admin-group.expanded {
+  height: 146px;
+}
+.screen .admin-group.collapsed {
+  height: 33px;
+}
 
 /* 헤더를 버튼처럼 */
-.screen .admin-group .view-11 { cursor: pointer; }
+.screen .admin-group .view-11 {
+  cursor: pointer;
+}
 
 /* 화살표 회전 애니메이션 */
-.screen .admin-group .arrow { transition: transform 180ms ease; }
-.screen .admin-group.collapsed .arrow { transform: rotate(-90deg); }
+.screen .admin-group .arrow {
+  transition: transform 180ms ease;
+}
+.screen .admin-group.collapsed .arrow {
+  transform: rotate(-90deg);
+}
 
 /* (선택) 관리자 섹션 위 구분선 */
 .screen .admin-line {
   position: absolute;
   left: 12px;
-  top: 375px;      /* admin-group 바로 위 */
+  top: 375px; /* admin-group 바로 위 */
   width: 264px;
   height: 1px;
   object-fit: cover;
@@ -465,8 +480,6 @@
 .screen .group.work-collapsed .admin-line {
   transform: translateY(calc(-1 * var(--work-gap))); /* --work-gap은 기존 CSS에 정의 */
 }
-
-
 
 /* === 사이드 메뉴: 텍스트와 아이콘 세로 중앙 정렬 퀵 픽스 === */
 /* 각 아이템은 높이 39px. 텍스트/아이콘을 50% 기준으로 올려 세로 중앙에 맞춘다. */
@@ -480,9 +493,9 @@
 .view-10 .text-wrapper {
   top: 50% !important;
   transform: translateY(-50%) !important;
-  line-height: 1 !important;        /* 폰트로 인한 들뜸 방지 */
-  text-align: left !important;       /* 가운데정렬이면 어색할 수 있어 좌측 정렬 */
-  width: auto !important;            /* 필요 시 폭 제약 해제 */
+  line-height: 1 !important; /* 폰트로 인한 들뜸 방지 */
+  text-align: left !important; /* 가운데정렬이면 어색할 수 있어 좌측 정렬 */
+  width: auto !important; /* 필요 시 폭 제약 해제 */
 }
 
 /* 아이콘(wrapper/frames)도 세로 중앙으로 정렬 */
@@ -536,15 +549,15 @@
 .view-9 .text-wrapper,
 .view-10 .text-wrapper,
 .view-11 .text-wrapper-2 {
-  left: calc(70px + 10px) !important;  /* 기존 70px에서 2px 더 오른쪽 */
+  left: calc(70px + 10px) !important; /* 기존 70px에서 2px 더 오른쪽 */
 }
 /* === 좌하단 고정 컨테이너 === */
 .screen .view-bottom {
   position: absolute;
-  left: 1px;           /* 기존 사이드바 아이템 정렬에 맞춤 */
-  bottom: 12px;        /* 사이드바 하단 여백 */
-  width: 290px;        /* 다른 view-*들과 동일 폭 */
-  height: 90px;        /* 39px*2 + 간격 */
+  left: 1px; /* 기존 사이드바 아이템 정렬에 맞춤 */
+  bottom: 12px; /* 사이드바 하단 여백 */
+  width: 290px; /* 다른 view-*들과 동일 폭 */
+  height: 90px; /* 39px*2 + 간격 */
 }
 
 /* 공통 아이템 박스 (행 높이 39px) */
@@ -556,13 +569,17 @@
 }
 
 /* 각 행 위치 */
-.screen .settings-item { top: 0; }
-.screen .employees-item { top: 45px; } /* 39px + 6px 간격 느낌 */
+.screen .settings-item {
+  top: 0;
+}
+.screen .employees-item {
+  top: 45px;
+} /* 39px + 6px 간격 느낌 */
 
 /* 아이콘(24px)과 텍스트 수직 중앙 정렬 */
 .screen .nav-item .frame {
   position: absolute;
-  left: 46px;          /* 기존 아이콘 X 좌표와 통일 */
+  left: 46px; /* 기존 아이콘 X 좌표와 통일 */
   top: 50%;
   width: 24px;
   height: 24px;
@@ -571,7 +588,7 @@
 
 .screen .nav-item .text-wrapper {
   position: absolute;
-  left: 72px;          /* 기존 70px + 2px(오른쪽 미세 이동) */
+  left: 72px; /* 기존 70px + 2px(오른쪽 미세 이동) */
   top: 50%;
   transform: translateY(-50%);
   line-height: 1;
@@ -591,8 +608,8 @@
 /* 사이드바 아이템 기본/호버/액티브 색 변수 */
 :root {
   --sidebar-item-bg: #ffffff;
-  --sidebar-item-hover-bg: #e3e7ee;      /* 살짝 진한 정도 */
-  --sidebar-item-active-bg: #eef2ff;     /* 활성(현재 경로) */
+  --sidebar-item-hover-bg: #e3e7ee; /* 살짝 진한 정도 */
+  --sidebar-item-active-bg: #eef2ff; /* 활성(현재 경로) */
   --sidebar-item-active-hover-bg: #e4ebff;
 }
 
@@ -600,7 +617,9 @@
 .screen .group .rectangle-4,
 .screen .nav-item .rectangle-4 {
   background-color: var(--sidebar-item-bg);
-  transition: background-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 /* 호버: 사이드바의 각 항목 컨테이너가 hover되면 내부 박스 배경만 살짝 진하게 */
@@ -612,7 +631,7 @@
 /* NavLink로 활성된 항목(예: .nav-item.active) 유지 + 호버 시 더 진하게 */
 .screen .group .nav-item.active > .rectangle-4 {
   background-color: var(--sidebar-item-active-bg);
-  box-shadow: inset 3px 0 0 #3071ea;  /* 좌측 포커스바 */
+  box-shadow: inset 3px 0 0 #3071ea; /* 좌측 포커스바 */
 }
 .screen .group .nav-item.active:hover > .rectangle-4 {
   background-color: var(--sidebar-item-active-hover-bg);
@@ -713,15 +732,22 @@
 }
 /* === 업무 섹션 접기/펼치기 변수(그대로 유지/사용) === */
 .screen .group {
-  --work-expanded: 146px;       /* .view-7 펼친 높이 */
-  --work-collapsed: 33px;       /* .view-7 접힌 높이 */
+  --work-expanded: 146px; /* .view-7 펼친 높이 */
+  --work-collapsed: 33px; /* .view-7 접힌 높이 */
   --work-gap: calc(var(--work-expanded) - var(--work-collapsed)); /* 113px */
 }
 
 /* .view-7 자체 높이 트랜지션(이미 있으시면 유지) */
-.screen .view-7 { transition: height 180ms ease; overflow: hidden; }
-.screen .view-7.expanded  { height: var(--work-expanded); }
-.screen .view-7.collapsed { height: var(--work-collapsed); }
+.screen .view-7 {
+  transition: height 180ms ease;
+  overflow: hidden;
+}
+.screen .view-7.expanded {
+  height: var(--work-expanded);
+}
+.screen .view-7.collapsed {
+  height: var(--work-collapsed);
+}
 
 /* === 핵심: '업무' 아래의 구분선(line)과 그 밑 항목들을 함께 위로 당김 === */
 /* 대상: .view 컨테이너 안의 줄(.line) + 아래 항목들(view-6~view-2) */
@@ -759,14 +785,17 @@
   top: 12px;
   right: 16px;
   z-index: 9999;
-  width: 38px; height: 38px;
+  width: 38px;
+  height: 38px;
   border-radius: 999px;
   border: 1px solid #e5e7eb;
   background: #ffffff;
-  box-shadow: 0 4px 10px rgba(0,0,0,.12);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
   cursor: pointer;
 }
-.theme-toggle-fab:hover { transform: translateY(-1px); }
+.theme-toggle-fab:hover {
+  transform: translateY(-1px);
+}
 
 /* ===========================
    다크 모드 오버라이드
@@ -786,7 +815,7 @@ body.theme-dark .screen {
 
 /* 상단 파란 배경(.rectangle) 톤 다운 */
 body.theme-dark .screen .rectangle {
-  background-color: #182a52;  /* 기존 #3071ea의 다크 톤 */
+  background-color: #182a52; /* 기존 #3071ea의 다크 톤 */
   border-color: #2b3a59;
 }
 
@@ -808,13 +837,13 @@ body.theme-dark .screen .view-12,
 body.theme-dark .screen .view-13,
 body.theme-dark .screen .view-14,
 body.theme-dark .screen .view-15 {
-  background-color: #111827;            /* 어두운 서피스 */
-  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  background-color: #111827; /* 어두운 서피스 */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
 /* 프로필 카드(푸른 박스) */
 body.theme-dark .screen .view-16 {
-  background-color: #1e3b4f;            /* 기존 #99cae2의 어두운 톤 */
+  background-color: #1e3b4f; /* 기존 #99cae2의 어두운 톤 */
 }
 
 /* 작은/큰 원(필요 시 조정) */
@@ -823,7 +852,7 @@ body.theme-dark .screen .ellipse {
 }
 body.theme-dark .screen .ellipse-2 {
   /* 상태 점은 기존 변수/클래스(dot-*)로 제어됨 */
-  box-shadow: 0 0 0 2px rgba(0,0,0,.3) inset;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3) inset;
 }
 
 /* 텍스트류 */
@@ -852,10 +881,13 @@ body.theme-dark .screen .line-2 {
   opacity: 1; /* 필요 시 0.8~1 사이로 조절 */
 }
 
-
 /* 링크 색상 유지(밝은 회색 → 호버 시 가볍게) */
-body.theme-dark a { color: #e5e7eb; }
-body.theme-dark a:hover { color: #ffffff; }
+body.theme-dark a {
+  color: #e5e7eb;
+}
+body.theme-dark a:hover {
+  color: #ffffff;
+}
 
 /* 다크모드: 프레임 안의 아이콘 이미지를 '흰색'으로 보이게 */
 body.theme-dark .screen .frame img,
@@ -874,7 +906,8 @@ body.theme-dark .screen .colink {
 body.theme-dark .screen .frame img,
 body.theme-dark .screen .frame-2 img,
 body.theme-dark .screen .vector-wrapper img,
-body.theme-dark .screen .img-wrapper img {   /* ← 이 줄 추가! */
+body.theme-dark .screen .img-wrapper img {
+  /* ← 이 줄 추가! */
   filter: grayscale(1) brightness(0) invert(1);
 }
 
@@ -889,76 +922,105 @@ body.theme-dark .screen .view-7 .vector-8 {
   filter: grayscale(1) brightness(0) invert(1);
 }
 /* 클릭 가능 느낌 + 살짝 강조 */
-.view-12.box-click, .view-13.box-click, .view-14.box-click, .view-15.box-click {
+.view-12.box-click,
+.view-13.box-click,
+.view-14.box-click,
+.view-15.box-click {
   cursor: pointer;
 }
 .view-12.box-click:hover,
 .view-13.box-click:hover,
 .view-14.box-click:hover,
 .view-15.box-click:hover {
-  box-shadow: 0 6px 20px rgba(0,0,0,.12);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 
 /* 모달 기본 */
-.modal-overlay{
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.35);
-  display:flex; align-items:center; justify-content:center;
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 9999;
 }
-.modal-panel{
+.modal-panel {
   width: min(880px, 90vw);
   max-height: min(80vh, 880px);
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   overflow: hidden;
-  display:flex; flex-direction:column;
+  display: flex;
+  flex-direction: column;
 }
-.modal-header{
-  display:flex; align-items:center; justify-content:space-between;
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 14px 16px;
   border-bottom: 1px solid #e5e7eb;
   background: #f8fafc;
 }
-.modal-title{ font-weight:700; }
-.modal-close{
-  border:0; background:transparent; font-size:18px; cursor:pointer; line-height:1;
+.modal-title {
+  font-weight: 700;
 }
-.modal-body{
+.modal-close {
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+.modal-body {
   padding: 16px;
-  overflow:auto;
+  overflow: auto;
 }
 
 /* 스켈레톤/가이드 텍스트 */
-.modal-list-skel{ color:#475569; }
+.modal-list-skel {
+  color: #475569;
+}
 
 /* 다크 모드 대응 */
-body.theme-dark .modal-panel{
-  background:#0f172a; color:#e5e7eb;
-  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+body.theme-dark .modal-panel {
+  background: #0f172a;
+  color: #e5e7eb;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
 }
-body.theme-dark .modal-header{
-  background:#111827; border-color:#1f2937;
+body.theme-dark .modal-header {
+  background: #111827;
+  border-color: #1f2937;
 }
-body.theme-dark .modal-list-skel{ color:#cbd5e1; }
+body.theme-dark .modal-list-skel {
+  color: #cbd5e1;
+}
 
 /* 링크 공통: 텍스트 장식 제거, 블록화 */
-.logo-link { display: block; text-decoration: none; }
+.logo-link {
+  display: block;
+  text-decoration: none;
+}
 
 /* 마우스 커서 */
 .logo-link .img,
 .logo-link .colink,
-.logo-link .colink-icon { cursor: pointer; }
+.logo-link .colink-icon {
+  cursor: pointer;
+}
 
 /* (선택) 탭 포커스 링 */
-.logo-link:focus-visible { outline: 2px solid #3071ea; outline-offset: 2px; }
+.logo-link:focus-visible {
+  outline: 2px solid #3071ea;
+  outline-offset: 2px;
+}
 /* 사이드바 항목 전체를 덮는 투명 링크 */
 .screen .nav-item-link {
   position: absolute;
-  inset: 0;           /* top/right/bottom/left: 0 */
+  inset: 0; /* top/right/bottom/left: 0 */
   display: block;
   text-decoration: none;
-  z-index: 5;         /* 내부 아이콘/텍스트 위에 올라오도록 */
+  z-index: 5; /* 내부 아이콘/텍스트 위에 올라오도록 */
   cursor: pointer;
 }

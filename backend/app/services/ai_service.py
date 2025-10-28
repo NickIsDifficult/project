@@ -1,17 +1,20 @@
 # app/services/ai_service.py
-import os
 import json
+import os
 from datetime import datetime, timedelta
+
 from openai import OpenAI
+
 from app import models
 
 # =========================================================
 # 🧩 OpenAI 클라이언트 초기화
 # =========================================================
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-)
+# client = OpenAI(
+#     api_key=os.getenv("OPENAI_API_KEY"),
+#     base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+# )
+
 
 # =========================================================
 # 🧩 자연어 → Task 자동 생성
@@ -107,18 +110,22 @@ def summarize_all_projects(db):
 
     project_data = []
     for p in projects:
-        tasks = db.query(models.Task).filter(models.Task.project_id == p.project_id).all()
+        tasks = (
+            db.query(models.Task).filter(models.Task.project_id == p.project_id).all()
+        )
         total = len(tasks)
         done = len([t for t in tasks if getattr(t, "status", "") == "DONE"])
         progress = (done / total * 100) if total else 0
 
-        project_data.append({
-            "project_name": p.project_name,
-            "status": p.status.name if hasattr(p.status, "name") else str(p.status),
-            "progress": f"{progress:.1f}%",
-            "total_tasks": total,
-            "done_tasks": done,
-        })
+        project_data.append(
+            {
+                "project_name": p.project_name,
+                "status": p.status.name if hasattr(p.status, "name") else str(p.status),
+                "progress": f"{progress:.1f}%",
+                "total_tasks": total,
+                "done_tasks": done,
+            }
+        )
 
     summary_prompt = f"""
     다음은 전체 프로젝트 목록과 상태입니다:

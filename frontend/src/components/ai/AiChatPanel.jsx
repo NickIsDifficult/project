@@ -1,3 +1,4 @@
+// src/components/ai/AiChatPanel.jsx
 import { useState } from "react";
 import API from "../../services/api/http";
 

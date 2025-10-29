@@ -1,4 +1,4 @@
-// src/components/project/ProjectDetailPanel/useTaskDetail.js
+// ✅ src/components/project/ProjectDetailPanel/useTaskDetail.js
 import { debounce } from "lodash";
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -18,11 +18,14 @@ import {
   uploadAttachment,
 } from "../../../services/api/task";
 
-/**
- * ✅ useTaskDetail (전역형)
- * - 업무(taskId) + 프로젝트(projectId) 통합 지원
- * - ProjectDetailPanel, Drawer에서 사용
- */
+/* ===========================================================
+ ✅ useTaskDetail (프로젝트/업무 공용 상세 Hook)
+--------------------------------------------------------------
+ - projectId, taskId를 함께 받아 업무 상세 or 프로젝트 상세를 자동 처리
+ - 댓글, 첨부파일, 상태변경, 진행률, 수정 모두 포함
+ - 전역 ProjectGlobalContext와 연동됨
+=========================================================== */
+
 export function useTaskDetail(projectId, taskId) {
   const { fetchTasksByProject, updateTaskLocal } = useProjectGlobal();
 
@@ -32,36 +35,42 @@ export function useTaskDetail(projectId, taskId) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ 직원 캐싱 방지용 ref
+  // 직원 목록 캐싱용
   const employeeCache = useRef(null);
 
   /* ------------------------------------
-   * ✅ 상세 데이터 불러오기 (업무 or 프로젝트)
+   * ✅ 상세 데이터 불러오기
    * ------------------------------------ */
   const fetchData = useCallback(async () => {
-    if (!projectId) return;
+    // ✅ projectId 유효성 검사
+    if (!projectId) {
+      console.warn("⚠️ useTaskDetail: projectId가 없습니다.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      let result;
+      let result = null;
 
       if (taskId) {
-        // 🟢 업무 상세
+        // 🟢 업무 상세 조회
         result = await getTask(projectId, taskId);
         const [c, a] = await Promise.all([
           getComments(projectId, taskId),
           getAttachments(projectId, taskId),
         ]);
-        setComments(c);
-        setAttachments(a);
+        setComments(c || []);
+        setAttachments(a || []);
       } else {
-        // 🟡 프로젝트 상세
+        // 🟡 프로젝트 상세 조회
         result = await getProject(projectId);
+        result.isProject = true;
         setComments([]);
         setAttachments([]);
-        result.isProject = true;
       }
 
-      // ✅ 직원 목록 (캐시 사용)
+      // ✅ 직원 목록 캐시 사용
       if (!employeeCache.current) {
         employeeCache.current = await getEmployees();
       }
@@ -98,7 +107,9 @@ export function useTaskDetail(projectId, taskId) {
     if (!taskId) return;
     try {
       const updated = await updateComment(projectId, taskId, commentId, { content });
-      setComments(prev => prev.map(c => (c.comment_id === commentId ? updated : c)));
+      setComments(prev =>
+        prev.map(c => (c.comment_id === commentId ? updated : c)),
+      );
       toast.success("댓글 수정 완료");
     } catch {
       toast.error("댓글 수정 실패");
@@ -120,7 +131,7 @@ export function useTaskDetail(projectId, taskId) {
    * 📎 첨부파일 관리
    * ------------------------------------ */
   const handleUploadFile = async file => {
-    if (!taskId) return;
+    if (!taskId || !projectId) return;
     try {
       await uploadAttachment(projectId, taskId, file);
       toast.success("파일 업로드 완료");
@@ -132,7 +143,7 @@ export function useTaskDetail(projectId, taskId) {
   };
 
   const handleDeleteFile = async attachmentId => {
-    if (!taskId) return;
+    if (!taskId || !projectId) return;
     try {
       await deleteAttachment(projectId, taskId, attachmentId);
       toast.success("파일 삭제 완료");
@@ -157,6 +168,7 @@ export function useTaskDetail(projectId, taskId) {
       toast.success("상태 변경 완료");
       await fetchTasksByProject(projectId);
     } catch (err) {
+      console.error("❌ 상태 변경 실패:", err);
       toast.error("상태 변경 실패");
       setTask(prev => ({ ...prev, status: prevStatus }));
       updateTaskLocal(taskId, prev => ({ ...prev, status: prevStatus }));
@@ -166,7 +178,7 @@ export function useTaskDetail(projectId, taskId) {
   // ✅ 진행률 변경 (1초 디바운스)
   const debouncedUpdate = useCallback(
     debounce(async progress => {
-      if (!taskId) return;
+      if (!taskId || !projectId) return;
       try {
         await updateTask(projectId, taskId, { progress });
         toast.success("진행률 저장 완료", { id: "progress" });
@@ -190,7 +202,7 @@ export function useTaskDetail(projectId, taskId) {
    * ✏️ 업무 수정
    * ------------------------------------ */
   const handleSaveEdit = async payload => {
-    if (!taskId) return;
+    if (!taskId || !projectId) return;
     try {
       const updated = await updateTask(projectId, taskId, payload);
       setTask(updated);
@@ -206,7 +218,7 @@ export function useTaskDetail(projectId, taskId) {
   };
 
   /* ------------------------------------
-   * 📤 반환
+   * ✅ 반환
    * ------------------------------------ */
   return {
     task,
@@ -222,5 +234,6 @@ export function useTaskDetail(projectId, taskId) {
     handleStatusChange,
     handleProgressChange,
     handleSaveEdit,
+    refresh: fetchData, // ✅ 외부에서 재호출할 수 있게 추가
   };
 }

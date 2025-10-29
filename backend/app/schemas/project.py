@@ -155,6 +155,7 @@ class Milestone(MilestoneBase):
 # 🧩 Project 기본
 # ============================================================
 class ProjectBase(BaseModel):
+    project_id: Optional[int] = None
     project_name: str
     description: Optional[str] = None
     start_date: Optional[date] = None

@@ -1,28 +1,48 @@
-// src/components/projects/ProjectDetailPanel/ProjectDetailForm.jsx
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { ProjectDetailProvider } from "../../../context/ProjectDetailContext";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { getEmployees } from "../../../services/api/employee";
 import { deleteProject, getProject, updateProject } from "../../../services/api/project";
-
+import TaskNode from "../TaskNode"; // ✅ 외부 TaskNode 가져오기
+import TaskDetailPanel from "./TaskInfoView"; // ✅ 패널 컴포넌트 연결
 /* =========================================
  ✅ 담당자 선택 컴포넌트
 ========================================= */
+
 function AssigneeSelector({ employees, selected, setSelected, disabled }) {
   const [query, setQuery] = useState("");
 
-  const filtered = employees.filter(
-    emp =>
-      emp.name.toLowerCase().includes(query.toLowerCase()) &&
-      !selected.includes(emp.emp_id),
-  );
+  const findEmployee = id => {
+    const numId = Number(id);
+    return (
+      employees.find(
+        e =>
+          Number(e.emp_id) === numId ||
+          Number(e.id) === numId ||
+          Number(e.employee?.emp_id) === numId ||
+          Number(e.employee?.id) === numId
+      ) || null
+    );
+  };
+
+  const selectedEmployees = selected.map(id => findEmployee(id)).filter(Boolean);
+  const filtered = employees.filter(e => {
+    const name = e.name || e.employee?.name || e.employee?.employee_name || "";
+    const id = e.emp_id || e.id || e.employee?.emp_id || e.employee?.id;
+    return (
+      name.toLowerCase().includes(query.toLowerCase()) &&
+      !selected.some(sid => Number(sid) === Number(id))
+    );
+  });
 
   return (
     <div style={{ marginTop: 6, position: "relative" }}>
-      {/* 선택된 담당자 */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {selected.map(id => {
-          const emp = employees.find(e => e.emp_id === id);
+        {selectedEmployees.map(emp => {
+          const id = emp?.emp_id || emp?.id || emp?.employee?.emp_id || emp?.employee?.id;
+          const name =
+            emp?.name || emp?.employee?.name || emp?.employee?.employee_name || `ID:${id}`;
           return (
             <span
               key={id}
@@ -36,10 +56,12 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
                 gap: 6,
               }}
             >
-              {emp?.name}
+              {name}
               {!disabled && (
                 <button
-                  onClick={() => setSelected(selected.filter(sid => sid !== id))}
+                  onClick={() =>
+                    setSelected(selected.filter(sid => Number(sid) !== Number(id)))
+                  }
                   style={{
                     border: "none",
                     background: "transparent",
@@ -75,25 +97,30 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
                 position: "absolute",
                 zIndex: 1000,
                 width: "100%",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
               }}
             >
-              {filtered.map(emp => (
-                <div
-                  key={`emp-${emp.emp_id}`}
-                  onClick={() => {
-                    setSelected([...selected, emp.emp_id]);
-                    setQuery("");
-                  }}
-                  style={{
-                    padding: 8,
-                    cursor: "pointer",
-                    borderBottom: "1px solid #eee",
-                  }}
-                >
-                  {emp.name}
-                </div>
-              ))}
+              {filtered.map(e => {
+                const name =
+                  e.name || e.employee?.name || e.employee?.employee_name;
+                const id =
+                  e.emp_id || e.id || e.employee?.emp_id || e.employee?.id;
+                return (
+                  <div
+                    key={id}
+                    onClick={() => {
+                      setSelected([...selected, Number(id)]);
+                      setQuery("");
+                    }}
+                    style={{
+                      padding: 8,
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee",
+                    }}
+                  >
+                    {name} ({id})
+                  </div>
+                );
+              })}
             </div>
           )}
         </>
@@ -103,185 +130,10 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
 }
 
 /* =========================================
- ✅ 재귀형 업무 노드
-========================================= */
-function TaskNode({ task, onUpdate, employees, depth = 0, disabled }) {
-  const toggleDetails = () => {
-    onUpdate({ ...task, isOpen: !task.isOpen });
-  };
-
-  const handleAddChild = () => {
-    const newChild = {
-      task_id: Date.now(),
-      title: "",
-      start_date: "",
-      end_date: "",
-      assignees: [],
-      subtask: [],
-      isOpen: false,
-    };
-    onUpdate({
-      ...task,
-      subtask: [...(task.subtask || []), newChild],
-    });
-  };
-
-  const handleDelete = () => {
-    if (window.confirm("이 업무를 삭제하시겠습니까?")) {
-      onUpdate(null);
-    }
-  };
-
-  const handleChildUpdate = (index, updated) => {
-    const newChildren = [...(task.subtask || [])];
-    if (updated === null) newChildren.splice(index, 1);
-    else newChildren[index] = updated;
-    onUpdate({ ...task, subtask: newChildren });
-  };
-
-  return (
-    <div
-      style={{
-        marginLeft: depth * 20,
-        borderLeft: depth > 0 ? "2px solid #ddd" : "none",
-        paddingLeft: depth > 0 ? 10 : 0,
-        marginTop: 10,
-      }}
-    >
-      {/* 제목 + 버튼 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {depth > 0 && <span style={{ color: "#aaa" }}>└─</span>}
-        <input
-          placeholder="업무 제목"
-          value={task.title || ""}
-          disabled={disabled}
-          onChange={e => onUpdate({ ...task, title: e.target.value })}
-          style={{
-            flex: 1,
-            padding: "4px 8px",
-            borderRadius: 6,
-            border: "1px solid #ccc",
-            background: disabled ? "#f6f6f6" : "white",
-          }}
-        />
-
-        {!disabled && (
-          <>
-            <button
-              onClick={handleAddChild}
-              style={{
-                background: "#2196f3",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                padding: "4px 8px",
-                cursor: "pointer",
-              }}
-            >
-              ＋ 하위 추가
-            </button>
-            {depth > 0 && (
-              <button
-                onClick={handleDelete}
-                style={{
-                  background: "#f44336",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "4px 8px",
-                  cursor: "pointer",
-                }}
-              >
-                ✕ 삭제
-              </button>
-            )}
-          </>
-        )}
-
-        <button
-          onClick={toggleDetails}
-          style={{
-            background: task.isOpen ? "#555" : "#1976d2",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            padding: "4px 8px",
-            cursor: "pointer",
-          }}
-        >
-          {task.isOpen ? "▲ 닫기" : "▼ 상세"}
-        </button>
-      </div>
-
-      {/* 상세정보 */}
-      {task.isOpen && (
-        <div
-          style={{
-            background: "#f9f9f9",
-            borderRadius: 8,
-            padding: 8,
-            marginTop: 8,
-          }}
-        >
-          <div style={{ marginBottom: 6 }}>
-            <label>시작일</label>
-            <input
-              type="date"
-              disabled={disabled}
-              value={task.start_date || ""}
-              onChange={e => onUpdate({ ...task, start_date: e.target.value })}
-              style={{
-                marginLeft: 8,
-                background: disabled ? "#f6f6f6" : "white",
-              }}
-            />
-            <label style={{ marginLeft: 12 }}>종료일</label>
-            <input
-              type="date"
-              disabled={disabled}
-              value={task.end_date || ""}
-              onChange={e => onUpdate({ ...task, end_date: e.target.value })}
-              style={{
-                marginLeft: 8,
-                background: disabled ? "#f6f6f6" : "white",
-              }}
-            />
-          </div>
-
-          <div>
-            <strong>담당자:</strong>
-            <AssigneeSelector
-              employees={employees}
-              selected={task.assignees || []}
-              setSelected={newList =>
-                onUpdate({ ...task, assignees: newList })
-              }
-              disabled={disabled}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 하위업무 */}
-      {(task.subtask || []).map((child, i) => (
-        <TaskNode
-          key={child.task_id ?? `${depth}-${i}`}
-          task={child}
-          employees={employees}
-          onUpdate={updated => handleChildUpdate(i, updated)}
-          depth={depth + 1}
-          disabled={disabled}
-        />
-      ))}
-    </div>
-  );
-}
-
-/* =========================================
  ✅ 메인: 프로젝트 상세 폼
 ========================================= */
 export default function ProjectDetailForm({ projectId, onClose }) {
-  const { setProjects } = useProjectGlobal();
+  const { setProjects, uiState, setUiState } = useProjectGlobal();
   const [isEditing, setIsEditing] = useState(false);
   const [project, setProject] = useState(null);
   const [employees, setEmployees] = useState([]);
@@ -289,27 +141,40 @@ export default function ProjectDetailForm({ projectId, onClose }) {
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    if (!projectId) return;
-    const fetchData = async () => {
-      try {
-        const [projectData, employeeData] = await Promise.all([
-          getProject(projectId),
-          getEmployees(),
-        ]);
-        setProject(projectData);
-        setEmployees(employeeData);
-        setMainAssignees(projectData?.main_assignees || []);
-      } catch (err) {
-        console.error("❌ 데이터 로드 실패:", err);
-        toast.error("데이터를 불러오지 못했습니다.");
-      }
-    };
-    fetchData();
-  }, [projectId]);
+  if (projectId) {
+    console.log("🧾 Project DetailForm check:", {
+      project_id: project?.project_id,
+      name: project?.project_name,
+      raw: project,
+    });
+  } else {
+    console.warn("⚠️ ProjectDetailForm: projectId가 없습니다!");
+  }
+
+  const fetchData = async () => {
+    if (!projectId) return; // projectId 없으면 호출하지 않음
+    try {
+      console.log("📡 getProject 호출:", projectId);
+      const [projectData, employeeData] = await Promise.all([
+        getProject(projectId),
+        getEmployees(),
+      ]);
+      console.log("📦 getProject 응답:", projectData);
+      setProject(projectData);
+      setEmployees(employeeData);
+      const ownerIds = projectData?.projectmember?.map(pm => pm.emp_id) || [];
+      setMainAssignees(ownerIds);
+    } catch (err) {
+      console.error("❌ 데이터 로드 실패:", err);
+      toast.error("데이터를 불러오지 못했습니다.");
+    }
+  };
+  fetchData();
+}, [projectId]);
+
 
   if (!project) return <p style={{ padding: 20 }}>⏳ 로딩 중...</p>;
 
-  // ✅ 중복 제거: subtask에 포함된 ID는 제외
   const allTasks = project.task || [];
   const childIds = new Set();
   const collectChildIds = tasks => {
@@ -369,7 +234,6 @@ export default function ProjectDetailForm({ projectId, onClose }) {
     <div style={{ padding: 16 }}>
       <h2>📌 프로젝트 상세정보</h2>
 
-      {/* 기본 정보 */}
       <label>프로젝트 이름</label>
       <input
         value={project.project_name || ""}
@@ -397,7 +261,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         }}
       />
 
-      {/* 상세입력 */}
+      {/* 상세입력 버튼 */}
       <button
         onClick={() => setShowDetails(!showDetails)}
         style={{
@@ -472,9 +336,16 @@ export default function ProjectDetailForm({ projectId, onClose }) {
               key={task.task_id ?? `root-${i}`}
               task={task}
               employees={employees}
-              onUpdate={() => {}}
+              onUpdate={updatedTask => {
+                const newTasks = [...project.task];
+                const index = newTasks.findIndex(t => t.task_id === task.task_id);
+                if (updatedTask === null) newTasks.splice(index, 1);
+                else newTasks[index] = updatedTask;
+                setProject({ ...project, task: newTasks });
+              }}
               disabled={!isEditing}
               depth={0}
+              projectId={project?.project_id ?? projectId}
             />
           ))
         ) : (
@@ -569,6 +440,23 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           </>
         )}
       </div>
+
+      {/* ✅ Task 패널 연결 */}
+      {uiState?.panel?.selectedTask && uiState?.panel?.projectId && (
+  <ProjectDetailProvider>
+    <TaskDetailPanel
+      taskId={uiState.panel.selectedTask}
+      projectId={uiState.panel.projectId}
+      onClose={() =>
+        setUiState(prev => ({
+          ...prev,
+          drawer: { ...prev.drawer, task: false },
+          panel: { ...prev.panel, selectedTask: null, projectId: null }, // ✅ null로 초기화
+        }))
+      }
+    />
+  </ProjectDetailProvider>
+)}
     </div>
   );
 }

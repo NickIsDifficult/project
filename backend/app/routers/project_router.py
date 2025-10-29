@@ -44,14 +44,24 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
     return proj
 
 def get_project_by_id(db: Session, project_id: int):
-    project = db.query(Project).filter(Project.project_id == project_id).first()
+    """프로젝트 + 업무 계층 트리 구조로 조회"""
+    project = (
+        db.query(ProjectModel)
+        .filter(ProjectModel.project_id == project_id)
+        .first()
+    )
     if not project:
         return None
 
-    tasks = db.query(Task).filter(Task.project_id == project_id).all()
+    # ✅ 프로젝트 내 모든 task 조회
+    tasks = (
+        db.query(TaskModel)
+        .filter(TaskModel.project_id == project_id)
+        .all()
+    )
 
+    # ✅ 트리 구성
     task_dict = {t.task_id: t for t in tasks}
-    root_tasks = []
 
     for task in tasks:
         if task.parent_task_id:
@@ -60,11 +70,11 @@ def get_project_by_id(db: Session, project_id: int):
                 if not hasattr(parent, "subtask"):
                     parent.subtask = []
                 parent.subtask.append(task)
-        else:
-            root_tasks.append(task)
 
-    # ✅ 부모가 있는 task는 루트 리스트에서 제거 (중복 방지)
+    # ✅ 루트 태스크만 남기기
     project.task = [t for t in tasks if t.parent_task_id is None]
+
+    # ✅ FastAPI 직렬화를 위해 반드시 반환은 ORM 객체 그대로 (ProjectModel)
     return project
 
 # =====================================================

@@ -33,7 +33,9 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(data: dict, expires_minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> str:
+def create_access_token(
+    data: dict, expires_minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES
+) -> str:
     """JWT 액세스 토큰 생성"""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=expires_minutes)
@@ -55,7 +57,9 @@ def get_current_user(Authorization: str = Header(None), db=Depends(get_db)):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         login_id = payload.get("login_id")  # ✅ login_id 기반으로 변경
         if not login_id:
-            raise HTTPException(status_code=401, detail="토큰에 사용자 정보가 없습니다.")
+            raise HTTPException(
+                status_code=401, detail="토큰에 사용자 정보가 없습니다."
+            )
     except JWTError:
         raise HTTPException(status_code=401, detail="토큰이 유효하지 않습니다.")
 

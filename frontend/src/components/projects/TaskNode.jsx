@@ -1,90 +1,162 @@
-// src/components/projects/TaskNode.jsx
+// ✅ src/components/projects/TaskNode.jsx
 import { memo, useCallback, useState } from "react";
+import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 import AssigneeSelector from "./AssigneeSelector";
 
 /**
- * 재귀형 하위 업무 입력
+ * ✅ TaskNode
+ * - 업무 / 하위업무 재귀 컴포넌트
+ * - 담당자 선택, 시작일/종료일, 세부정보 토글, 자세히 보기 기능 포함
  */
-function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
+function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
   const [showDetails, setShowDetails] = useState(false);
+  const { setUiState } = useProjectGlobal();
 
+  /* ✅ 필드 변경 */
   const handleFieldChange = useCallback(
-    (key, value) => onUpdate({ ...task, [key]: value }),
-    [task, onUpdate],
+    (key, value) => onUpdate?.({ ...task, [key]: value }),
+    [task, onUpdate]
   );
 
+  /* ✅ 하위업무 추가 */
   const handleAddChild = () => {
     const newChild = {
-      id: Date.now(),
+      task_id: Date.now(),
       title: "",
-      startDate: "",
-      endDate: "",
+      start_date: "",
+      end_date: "",
       assignees: [],
-      children: [],
+      subtask: [],
+      isOpen: false,
     };
-    onUpdate({ ...task, children: [...task.children, newChild] });
+    onUpdate?.({ ...task, subtask: [...(task.subtask || []), newChild] });
   };
 
+  /* ✅ 하위업무 수정/삭제 */
   const handleChildUpdate = (index, updated) => {
-    const newChildren = [...task.children];
-    if (updated === null) newChildren.splice(index, 1);
-    else newChildren[index] = updated;
-    onUpdate({ ...task, children: newChildren });
+    const next = [...(task.subtask || [])];
+    if (updated === null) next.splice(index, 1);
+    else next[index] = updated;
+    onUpdate?.({ ...task, subtask: next });
   };
 
-  const handleDelete = () => onUpdate(null);
+  /* ✅ 삭제 */
+  const handleDelete = () => onUpdate?.(null);
+
+  /* ✅ 자세히 보기 (우측 패널 이동) */
+  const openTaskPanel = () => {
+    if (!task?.task_id) {
+      console.warn("⚠️ task_id 누락");
+      return;
+    }
+    setUiState(prev => ({
+      ...prev,
+      drawer: { ...prev.drawer, project: false, task: true },
+      panel: {
+        ...prev.panel,
+        selectedTask: { ...task, project_id: projectId },
+        projectId: projectId ?? task.project_id, // ✅ 반드시 포함
+      },
+    }));
+  };
 
   return (
     <div
       style={{
         marginLeft: depth * 20,
-        borderLeft: depth > 0 ? "2px solid #ddd" : "none",
-        paddingLeft: depth > 0 ? 8 : 0,
+        borderLeft: depth ? "2px solid #ddd" : "none",
+        paddingLeft: depth ? 8 : 0,
         marginTop: 10,
       }}
     >
-      {/* 제목줄 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {/* ================================ */}
+      {/* 🧱 제목 + 버튼 그룹 */}
+      {/* ================================ */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          flexWrap: "wrap",
+        }}
+      >
         <input
-          placeholder="업무 제목"
-          value={task.title}
+          type="text"
+          value={task.title || ""}
           onChange={e => handleFieldChange("title", e.target.value)}
+          placeholder="업무 제목"
           style={{
             flex: 1,
-            padding: "4px 8px",
-            borderRadius: 6,
             border: "1px solid #ccc",
+            borderRadius: 6,
+            padding: "6px 8px",
+            background: "#fff",
           }}
         />
-        <button
-          onClick={() => setShowDetails(!showDetails)}
-          style={{
-            background: showDetails ? "#555" : "#1976d2",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            padding: "4px 8px",
-            cursor: "pointer",
-          }}
-        >
-          {showDetails ? "▲ 닫기" : "▼ 상세"}
-        </button>
-        <button onClick={onAddSibling}>➕ 형제</button>
-        <button onClick={handleAddChild}>↳ 하위</button>
-        <button
-          onClick={handleDelete}
-          style={{
-            color: "crimson",
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-          }}
-        >
-          ✕
-        </button>
+
+        {/* ✅ 버튼 그룹 */}
+        <div style={{ display: "flex", gap: 4 }}>
+          <button
+            onClick={() => setShowDetails(prev => !prev)}
+            style={{
+              background: "#757575",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "6px 10px",
+              cursor: "pointer",
+            }}
+          >
+            {showDetails ? "▲" : "▼"}
+          </button>
+
+          <button
+            onClick={openTaskPanel}
+            style={{
+              background: "#1976d2",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "6px 10px",
+              cursor: "pointer",
+            }}
+          >
+            자세히
+          </button>
+
+          <button
+            onClick={handleAddChild}
+            style={{
+              background: "#4caf50",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "6px 10px",
+              cursor: "pointer",
+            }}
+          >
+            ＋
+          </button>
+
+          <button
+            onClick={handleDelete}
+            style={{
+              background: "#f44336",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "6px 10px",
+              cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
-      {/* 상세입력 */}
+      {/* ================================ */}
+      {/* 🧩 상세입력 토글 */}
+      {/* ================================ */}
       {showDetails && (
         <div
           style={{
@@ -98,15 +170,15 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
             <label>시작일</label>
             <input
               type="date"
-              value={task.startDate}
-              onChange={e => handleFieldChange("startDate", e.target.value)}
+              value={task.start_date || ""}
+              onChange={e => handleFieldChange("start_date", e.target.value)}
               style={{ marginLeft: 8 }}
             />
             <label style={{ marginLeft: 12 }}>종료일</label>
             <input
               type="date"
-              value={task.endDate}
-              onChange={e => handleFieldChange("endDate", e.target.value)}
+              value={task.end_date || ""}
+              onChange={e => handleFieldChange("end_date", e.target.value)}
               style={{ marginLeft: 8 }}
             />
           </div>
@@ -115,34 +187,24 @@ function TaskNode({ task, onUpdate, employees, depth = 0, onAddSibling }) {
             <strong>담당자:</strong>
             <AssigneeSelector
               employees={employees}
-              selected={task.assignees}
+              selected={task.assignees ?? []}
               setSelected={newList => handleFieldChange("assignees", newList)}
             />
           </div>
         </div>
       )}
 
-      {/* 재귀 하위업무 */}
-      {task.children.map((child, i) => (
+      {/* ================================ */}
+      {/* 🔁 하위업무 재귀 렌더링 */}
+      {/* ================================ */}
+      {(task.subtask || []).map((child, i) => (
         <TaskNode
-          key={child.id}
+          key={child.task_id ?? i}
           task={child}
           employees={employees}
           onUpdate={u => handleChildUpdate(i, u)}
           depth={depth + 1}
-          onAddSibling={() => {
-            const newChildren = [...task.children];
-            const newTask = {
-              id: Date.now(),
-              title: "",
-              startDate: "",
-              endDate: "",
-              assignees: [],
-              children: [],
-            };
-            newChildren.splice(i + 1, 0, newTask);
-            onUpdate({ ...task, children: newChildren });
-          }}
+          projectId={projectId} // ✅ 전달 유지
         />
       ))}
     </div>

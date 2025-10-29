@@ -79,7 +79,7 @@ class TaskMember(BaseModel):
 # 🧩 Task (기본 모델)
 # ============================================================
 class TaskBase(BaseModel):
-    title: str
+    title: Optional[str] = None
     description: Optional[str] = None
     status: TaskStatus = TaskStatus.PLANNED
     priority: TaskPriority = TaskPriority.MEDIUM
@@ -133,7 +133,7 @@ class TaskStatusUpdate(BaseModel):
 # 🧩 Milestone
 # ============================================================
 class MilestoneBase(BaseModel):
-    name: str
+    name: Optional[str] = None
     description: Optional[str] = None
     due_date: Optional[date] = None
     status: MilestoneStatus = MilestoneStatus.PLANNED
@@ -155,6 +155,7 @@ class Milestone(MilestoneBase):
 # 🧩 Project 기본
 # ============================================================
 class ProjectBase(BaseModel):
+    project_id: Optional[int] = None
     project_name: str
     description: Optional[str] = None
     start_date: Optional[date] = None
@@ -173,7 +174,7 @@ class ProjectCreate(ProjectBase):
 
 
 class ProjectUpdate(BaseModel):
-    project_name: Optional[str] = None
+    title: Optional[str] = None
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None

@@ -43,6 +43,39 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
         _error("프로젝트를 찾을 수 없습니다.", status.HTTP_404_NOT_FOUND)
     return proj
 
+def get_project_by_id(db: Session, project_id: int):
+    """프로젝트 + 업무 계층 트리 구조로 조회"""
+    project = (
+        db.query(ProjectModel)
+        .filter(ProjectModel.project_id == project_id)
+        .first()
+    )
+    if not project:
+        return None
+
+    # ✅ 프로젝트 내 모든 task 조회
+    tasks = (
+        db.query(TaskModel)
+        .filter(TaskModel.project_id == project_id)
+        .all()
+    )
+
+    # ✅ 트리 구성
+    task_dict = {t.task_id: t for t in tasks}
+
+    for task in tasks:
+        if task.parent_task_id:
+            parent = task_dict.get(task.parent_task_id)
+            if parent:
+                if not hasattr(parent, "subtask"):
+                    parent.subtask = []
+                parent.subtask.append(task)
+
+    # ✅ 루트 태스크만 남기기
+    project.task = [t for t in tasks if t.parent_task_id is None]
+
+    # ✅ FastAPI 직렬화를 위해 반드시 반환은 ORM 객체 그대로 (ProjectModel)
+    return project
 
 # =====================================================
 # ✅ 프로젝트 생성

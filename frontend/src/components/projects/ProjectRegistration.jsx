@@ -222,7 +222,7 @@ export default function ProjectRegistration({ onClose }) {
           </select>
 
           <div style={{ marginTop: 12 }}>
-            <strong>상위업무 담당자:</strong>
+            <strong>업무 담당자:</strong>
             <AssigneeSelector
               employees={employees}
               selected={mainAssignees}

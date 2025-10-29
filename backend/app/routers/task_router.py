@@ -2,7 +2,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
 from app.database import get_db
@@ -34,15 +34,16 @@ def get_task_tree(
         .filter(
             models.Task.project_id == project_id, models.Task.parent_task_id.is_(None)
         )
-        .all()
+        .filter(models.Project.project_id == project_id)
+        .first()
     )
 
     def build_tree(task):
         return {
             "task_id": task.task_id,
             "project_id": task.project_id,
-            "title": task.title,
-            "description": task.description,
+            "title": task.title or "(제목 없음)",
+            "description": task.description or "",
             "status": task.status,
             "priority": task.priority,
             "start_date": task.start_date,

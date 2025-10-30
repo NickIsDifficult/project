@@ -1,5 +1,3 @@
-// src/components/common/Button.jsx
-
 /**
  * 공용 버튼 컴포넌트
  * ----------------------------
@@ -20,8 +18,8 @@ export default function Button({
   const base = {
     display: "inline-block",
     fontWeight: 600,
-    border: "1px solid transparent",
     borderRadius: "8px",
+    border: "1px solid transparent",
     cursor: "pointer",
     transition: "all 0.2s",
     textAlign: "center",
@@ -35,9 +33,21 @@ export default function Button({
   };
 
   const variants = {
-    primary: { background: "#007bff", color: "#fff" },
-    success: { background: "#28a745", color: "#fff" },
-    secondary: { background: "#6c757d", color: "#fff" },
+    primary: {
+      background: "#007bff",
+      color: "#fff",
+      borderColor: "#007bff",
+    },
+    success: {
+      background: "#28a745",
+      color: "#fff",
+      borderColor: "#28a745",
+    },
+    secondary: {
+      background: "#6c757d",
+      color: "#fff",
+      borderColor: "#6c757d",
+    },
     outline: {
       background: "#fff",
       color: "#333",
@@ -48,7 +58,17 @@ export default function Button({
       color: "#fff",
       fontWeight: 700,
       borderRadius: "12px",
+      borderColor: "#2d6cdf",
     },
+  };
+
+  // ✅ hover 시 색상 맵핑
+  const hoverMap = {
+    primary: "#0056b3",
+    success: "#1e7e34",
+    secondary: "#545b62",
+    outline: "#f8f9fa",
+    login: "#1e5adf",
   };
 
   return (
@@ -60,6 +80,24 @@ export default function Button({
         ...sizes[size],
         ...variants[variant],
         ...style,
+      }}
+      onMouseEnter={e => {
+        const hoverColor = hoverMap[variant];
+        if (variant === "outline") {
+          e.currentTarget.style.background = hoverColor;
+          e.currentTarget.style.color = "#111";
+        } else {
+          e.currentTarget.style.background = hoverColor;
+          e.currentTarget.style.borderColor = hoverColor;
+        }
+      }}
+      onMouseLeave={e => {
+        const bg = variants[variant]?.background ?? "#fff";
+        const border = variants[variant]?.borderColor ?? "#ccc";
+        const color = variants[variant]?.color ?? "#333";
+        e.currentTarget.style.background = bg;
+        e.currentTarget.style.borderColor = border;
+        e.currentTarget.style.color = color;
       }}
       {...props}
     >

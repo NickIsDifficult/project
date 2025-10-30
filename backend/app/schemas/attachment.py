@@ -1,37 +1,44 @@
 # app/schemas/attachment.py
 from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel, ConfigDict, field_serializer
 
-from pydantic import BaseModel
 
-
-# -------------------------------
-# 📄 기본 스키마 (Base)
-# -------------------------------
+# ======================================================
+# 📎 Attachment Base
+# ======================================================
 class AttachmentBase(BaseModel):
     file_name: str
     file_path: str
-    file_size: int | None = None
-    file_type: str | None = None
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
+    is_deleted: bool = False
 
 
-# -------------------------------
-# ✏️ 생성(Create)
-# -------------------------------
-class AttachmentCreate(AttachmentBase):
-    project_id: int | None = None
-    task_id: int | None = None
+# ======================================================
+# 📎 Attachment Create
+# ======================================================
+class AttachmentCreate(BaseModel):
+    project_id: Optional[int] = None
+    task_id: Optional[int] = None
+    file_name: str
+    file_path: str
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
 
 
-# -------------------------------
-# 🧾 응답(Response)
-# -------------------------------
+# ======================================================
+# 📎 Attachment Read
+# ======================================================
 class Attachment(AttachmentBase):
     attachment_id: int
-    project_id: int | None = None
-    task_id: int | None = None
-    uploaded_by: int | None = None
+    project_id: Optional[int] = None
+    task_id: Optional[int] = None
+    uploaded_by: Optional[int] = None
     uploaded_at: datetime
-    is_deleted: bool | None = False
 
-    class Config:
-        from_attributes = True  # ✅ SQLAlchemy 모델 자동 변환 지원
+    @field_serializer("uploaded_at", when_used="always")
+    def serialize_datetime(self, v: datetime, _info):
+        return v.strftime("%Y-%m-%d %H:%M:%S")
+
+    model_config = ConfigDict(from_attributes=True)

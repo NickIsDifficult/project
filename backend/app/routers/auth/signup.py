@@ -25,16 +25,16 @@ router = APIRouter(
 def list_departments(for_user: str = "EMPLOYEE", db: Session = Depends(get_db)):
     if for_user not in ("EMPLOYEE", "EXTERNAL"):
         for_user = "EMPLOYEE"
-    rows = db.scalars(select(Department).order_by(Department.dept_id.asc())).all()
+    rows = db.scalars(select(Department).order_by(Department.dept_no.asc())).all()
     if for_user == "EMPLOYEE":
-        rows = [d for d in rows if d.dept_id != 10]
+        # 외부인 전용 부서 코드를 '10'으로 가정
+        rows = [d for d in rows if d.dept_no != "10"]
     return rows
 
 
 @router.get("/lookup/roles", response_model=list[RoleResponse])
 def list_roles(for_user: str = "EMPLOYEE", db: Session = Depends(get_db)):
-    """직책 목록 조회 (현재 user_type 구분 없음 — 전체 반환)"""
-    rows = db.scalars(select(Role).order_by(Role.role_id.asc())).all()
+    rows = db.scalars(select(Role).order_by(Role.role_no.asc())).all()
     return rows
 
 
@@ -48,12 +48,12 @@ def ping_db(db: Session = Depends(get_db)):
 def signup(req: SignupRequest, db: Session = Depends(get_db)):
     try:
         if req.user_type == "EMPLOYEE":
-            if not req.dept_id or not req.role_id:
-                raise HTTPException(status_code=400, detail="부서/직책은 필수입니다.")
+            if not req.dept_no or not req.role_no:
+                raise HTTPException(status_code=400, detail="부서/직책 코드는 필수입니다.")
             employee, member = create_employee_with_member(
                 db,
-                dept_id=req.dept_id,
-                role_id=req.role_id,
+                dept_no=req.dept_no,
+                role_no=req.role_no,
                 name=req.name,
                 email=req.email,
                 mobile=req.mobile,

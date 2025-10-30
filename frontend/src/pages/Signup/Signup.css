@@ -1,0 +1,161 @@
+/* frontend/src/pages/Signup/Signup.css */
+
+/* 카드 내부 여백/폭만 살짝 보정 (기존 .container 위에 얹힘) */
+.signup-wrap { max-width: 720px; }
+
+/* 제목/보조문구 */
+.signup-title { margin: 0 0 4px; }
+.signup-sub { margin: 0 0 16px; color: #6b7280; font-size: 14px; }
+
+/* 에러 배너 */
+.signup-error {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+  border-radius: 10px;
+}
+
+/* 섹션 카드 */
+.signup-section {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+}
+.section-title {
+  padding: 0 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #374151;
+  margin: 0 0 12px;
+}
+
+/* 라벨 + 인풋 공통 */
+.fld { display: block; margin-bottom: 12px; }
+.lbl { display: block; margin-bottom: 6px; font-weight: 600; color: #374151; }
+.signup-section input,
+.signup-section select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  outline: none;
+}
+.signup-section input:focus,
+.signup-section select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* 2열 그리드 (부서/직책) */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* 유저유형: 세그먼트형 라디오 */
+.radio-seg {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f1f5f9;
+}
+.radio-seg .seg {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+.radio-seg .seg input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;           /* 접근성 유지용: 실제 라디오는 보이지 않게 */
+  pointer-events: none;
+}
+.radio-seg .seg.active {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  box-shadow: 0 4px 10px rgba(0,0,0,.05);
+  color: #1f2937;
+}
+
+.radio-seg.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;                 /* 버튼 사이 간격 */
+  padding: 0;                /* 컨테이너 테두리/배경 제거 효과 */
+  border: 0;
+  background: transparent;
+}
+
+.radio-seg.two-col .seg {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;   /* 텍스트 중앙 정렬 */
+  width: 100%;
+  min-height: 44px;          /* 버튼 높이 통일 */
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 80ms ease;
+}
+
+.radio-seg.two-col .seg:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+}
+
+.radio-seg.two-col .seg input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;                /* 실제 라디오는 숨기고 라벨 전체를 클릭 타깃으로 */
+  pointer-events: none;
+}
+
+.radio-seg.two-col .seg.active {
+  border-color: #3b82f6;     /* 선택 시 파란 테두리 */
+  box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+  color: #1f2937;
+}
+
+/* 키보드 접근성 */
+.radio-seg.two-col .seg:has(input:focus-visible) {
+  outline: 3px solid rgba(59,130,246,.35);
+  outline-offset: 2px;
+}
+
+/* 다크 모드 대응(프로젝트에 다크 테마가 있으면) */
+body.theme-dark .radio-seg.two-col .seg {
+  background: #0f172a;
+  border-color: #1f2937;
+  color: #e5e7eb;
+}
+body.theme-dark .radio-seg.two-col .seg.active {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96,165,250,.25);
+}
+
+/* 하단 링크 */
+.signup-footer { margin-top: 14px; text-align: center; }
+
+/* 다크 모드 (있다면) */
+body.theme-dark .signup-section {
+  background: #0f172a; border-color: #1f2937;
+}
+body.theme-dark .lbl, body.theme-dark .section-title { color: #e5e7eb; }
+body.theme-dark .radio-seg { background: #111827; border-color: #1f2937; }
+body.theme-dark .radio-seg .seg.active { background: #0b1220; border-color: #2b3a59; }

@@ -1,25 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppShell from "../../layout/AppShell";
 import "./search.css";
 
 // ✅ 실제 API 호출 함수
-async function searchAPI({ keyword, categories, from, to, sort, page, pageSize }) {
+async function searchAPI({ keyword, categories, from, to, sort, page, pageSize, employeeState }) {
   const query = new URLSearchParams({
     keyword: keyword || "",
     category: categories?.[0] || "",
     from_date: from || "",
     to_date: to || "",
     sort: sort || "desc",
+    employee_state: employeeState || "",
   });
 
-  const response = await fetch(`http://localhost:8000/api/search/?${query.toString()}`);
-  if (!response.ok) {
-    throw new Error("검색 API 호출 실패");
-  }
+  const response = await fetch(`http://localhost:8000/search/?${query.toString()}`);
+  if (!response.ok) throw new Error("검색 API 호출 실패");
 
   const data = await response.json();
 
-  // ✅ 프론트 쪽에서도 필터링/정렬/페이지 처리가 필요하면 이 안에서 수행
+  // ✅ 필터링
   const selectedCats = Object.entries(categories)
     .filter(([, v]) => v)
     .map(([k]) => k);
@@ -30,13 +30,15 @@ async function searchAPI({ keyword, categories, from, to, sort, page, pageSize }
       !keyword ||
       row.title.toLowerCase().includes(keyword.toLowerCase()) ||
       row.owner.toLowerCase().includes(keyword.toLowerCase());
+    const matchState =
+      !employeeState || row.current_state === employeeState || row.state === employeeState;
 
     let matchFrom = true;
     let matchTo = true;
     if (from) matchFrom = new Date(row.createdAt) >= new Date(from + "T00:00:00");
     if (to) matchTo = new Date(row.createdAt) <= new Date(to + "T23:59:59");
 
-    return matchCat && matchKeyword && matchFrom && matchTo;
+    return matchCat && matchKeyword && matchState && matchFrom && matchTo;
   });
 
   const sorted = [...filtered].sort((a, b) => {
@@ -48,11 +50,7 @@ async function searchAPI({ keyword, categories, from, to, sort, page, pageSize }
   });
 
   const start = (page - 1) * pageSize;
-
-  return {
-    total: sorted.length,
-    items: sorted.slice(start, start + pageSize),
-  };
+  return { total: sorted.length, items: sorted.slice(start, start + pageSize) };
 }
 
 // ✅ 메인 컴포넌트
@@ -67,6 +65,7 @@ export default function SearchPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState("recent");
+  const [employeeState, setEmployeeState] = useState(""); // ✅ 직원 상태 필터 추가
 
   const [page, setPage] = useState(1);
   const pageSize = 12;
@@ -75,9 +74,14 @@ export default function SearchPage() {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
 
+  const isSearching = useRef(false);
+  const nav = useNavigate();
+
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
   const runSearch = async () => {
+    if (isSearching.current) return;
+    isSearching.current = true;
     setLoading(true);
     try {
       const { total: t, items: arr } = await searchAPI({
@@ -88,22 +92,24 @@ export default function SearchPage() {
         sort,
         page,
         pageSize,
+        employeeState, // ✅ 전달
       });
       setItems(arr);
       setTotal(t);
     } finally {
       setLoading(false);
+      isSearching.current = false;
     }
   };
 
   useEffect(() => {
     setPage(1);
-  }, [keyword, categories, from, to, sort]);
+  }, [keyword, categories, from, to, sort, employeeState]);
 
   useEffect(() => {
-    runSearch();
-    // eslint-disable-next-line
-  }, [page, keyword, categories, from, to, sort]);
+    const timer = setTimeout(() => runSearch(), 150);
+    return () => clearTimeout(timer);
+  }, [page, keyword, from, to, sort, JSON.stringify(categories), employeeState]);
 
   const clearFilters = () => {
     setKeyword("");
@@ -111,6 +117,18 @@ export default function SearchPage() {
     setFrom("");
     setTo("");
     setSort("recent");
+    setEmployeeState("");
+  };
+
+  const handleItemOpen = (item) => {
+    const routeMap = {
+      공지사항: `/notices/${item.id}`,
+      프로젝트: `/projects/`,
+      업무: `/tasks/${item.id}`,
+      직원: `/employees/${item.id}`,
+    };
+    const dest = routeMap[item.type];
+    if (dest) nav(dest);
   };
 
   return (
@@ -147,6 +165,24 @@ export default function SearchPage() {
               ))}
             </div>
           </div>
+
+          {/* ✅ 직원 상태 필터 */}
+          {categories["직원"] && (
+            <div className="f-group">
+              <label className="f-label">직원 상태</label>
+              <select
+                className="f-input"
+                value={employeeState}
+                onChange={(e) => setEmployeeState(e.target.value)}
+              >
+                <option value="">전체</option>
+                <option value="WORKING">업무중</option>
+                <option value="FIELD">외근</option>
+                <option value="AWAY">자리비움</option>
+                <option value="OFF">퇴근</option>
+              </select>
+            </div>
+          )}
 
           <div className="f-group">
             <label className="f-label">기간</label>
@@ -207,7 +243,12 @@ export default function SearchPage() {
         <div className="results-scroll">
           <div className="result-grid">
             {items.map((it) => (
-              <article key={it.id} className="card">
+              <article
+                key={`${it.type}-${it.id}`}
+                className="card"
+                onDoubleClick={() => handleItemOpen(it)}
+                style={{ cursor: "pointer" }}
+              >
                 <header className="card-head">
                   <span className={`badge type-${mapTypeClass(it.type)}`}>
                     {it.type}
@@ -217,8 +258,13 @@ export default function SearchPage() {
                 <h3 className="card-title">{highlight(it.title, keyword)}</h3>
                 <p className="card-desc">{it.summary}</p>
                 <div className="card-foot">
-                  <span className="owner">담당: {it.owner}</span>
-                  <button className="btn tiny">자세히</button>
+                  <span className="owner">
+                    {it.owner ? `담당: ${it.owner}` : ""}
+                    {it.current_state ? ` (${it.current_state})` : ""}
+                  </span>
+                  <button className="btn tiny" onClick={() => handleItemOpen(it)}>
+                    자세히
+                  </button>
                 </div>
               </article>
             ))}
@@ -229,11 +275,7 @@ export default function SearchPage() {
 
           {totalPages > 1 && (
             <div className="pager">
-              <button
-                className="btn ghost"
-                disabled={page <= 1}
-                onClick={() => setPage(1)}
-              >
+              <button className="btn ghost" disabled={page <= 1} onClick={() => setPage(1)}>
                 ≪
               </button>
               <button
@@ -286,6 +328,3 @@ function highlight(text, keyword) {
     re.test(part) ? <mark key={idx}>{part}</mark> : <span key={idx}>{part}</span>
   );
 }
-
-
-// 가져가야 하는 파일 서치페이지, 서치 라우터, 노티스모델, 메인라우터

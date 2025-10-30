@@ -1,58 +1,81 @@
 from enum import Enum
 
 
-# ------------------------------------------
-# 📁 프로젝트 상태
-# ------------------------------------------
+# ============================================================
+# 📁 프로젝트 상태 (ProjectStatus)
+# ============================================================
 class ProjectStatus(str, Enum):
-    PLANNED = "PLANNED"
-    IN_PROGRESS = "IN_PROGRESS"
-    ON_HOLD = "ON_HOLD"
-    COMPLETED = "COMPLETED"
+    PLANNED = "PLANNED"  # 🗂 계획
+    IN_PROGRESS = "IN_PROGRESS"  # 🚧 진행 중
+    REVIEW = "REVIEW"  # 🔍 검토 중
+    ON_HOLD = "ON_HOLD"  # ⏸ 보류
+    DONE = "DONE"  # ✅ 완료
+
+    def __str__(self):
+        """Swagger 문서에서 한글 라벨로 보이게"""
+        labels = {
+            "PLANNED": "계획 🗂",
+            "IN_PROGRESS": "진행 중 🚧",
+            "REVIEW": "검토 중 🔍",
+            "ON_HOLD": "보류 ⏸",
+            "DONE": "완료 ✅",
+        }
+        return labels.get(self.value, self.value)
 
 
-# ------------------------------------------
-# 👥 멤버 역할
-# ------------------------------------------
-class MemberRole(str, Enum):
-    OWNER = "OWNER"
-    MANAGER = "MANAGER"
-    MEMBER = "MEMBER"
-    VIEWER = "VIEWER"
-
-
-# ------------------------------------------
-# 🗂️ 업무(Task) 상태
-# ------------------------------------------
+# ============================================================
+# 🗂️ 업무 상태 (TaskStatus)
+# ============================================================
 class TaskStatus(str, Enum):
-    TODO = "TODO"
-    IN_PROGRESS = "IN_PROGRESS"
-    REVIEW = "REVIEW"
-    DONE = "DONE"
+    PLANNED = "PLANNED"  # 🗂 계획
+    IN_PROGRESS = "IN_PROGRESS"  # 🚧 진행 중
+    REVIEW = "REVIEW"  # 🔍 검토 중
+    ON_HOLD = "ON_HOLD"  # ⏸ 보류
+    DONE = "DONE"  # ✅ 완료
+
+    def __str__(self):
+        labels = {
+            "PLANNED": "계획 🗂",
+            "IN_PROGRESS": "진행 중 🚧",
+            "REVIEW": "검토 중 🔍",
+            "ON_HOLD": "보류 ⏸",
+            "DONE": "완료 ✅",
+        }
+        return labels.get(self.value, self.value)
 
 
-# ------------------------------------------
-# ⚡ 업무 우선순위
-# ------------------------------------------
+# ============================================================
+# 👥 멤버 역할 (MemberRole)
+# ============================================================
+class MemberRole(str, Enum):
+    OWNER = "OWNER"  # 👑 프로젝트 소유자
+    MANAGER = "MANAGER"  # 🧭 관리자
+    MEMBER = "MEMBER"  # 👥 일반 구성원
+    VIEWER = "VIEWER"  # 👀 읽기 전용
+
+
+# ============================================================
+# ⚡ 업무 우선순위 (TaskPriority)
+# ============================================================
 class TaskPriority(str, Enum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-    URGENT = "URGENT"
+    LOW = "LOW"  # 🌱 낮음
+    MEDIUM = "MEDIUM"  # ⚖️ 보통
+    HIGH = "HIGH"  # 🔥 높음
+    URGENT = "URGENT"  # 🚨 긴급
 
 
-# ------------------------------------------
-# 🎯 마일스톤 상태
-# ------------------------------------------
+# ============================================================
+# 🎯 마일스톤 상태 (MilestoneStatus)
+# ============================================================
 class MilestoneStatus(str, Enum):
-    PLANNED = "PLANNED"
-    ACHIEVED = "ACHIEVED"
-    MISSED = "MISSED"
+    PLANNED = "PLANNED"  # 🗂 계획됨
+    ACHIEVED = "ACHIEVED"  # 🎉 달성됨
+    MISSED = "MISSED"  # ❌ 미달성
 
 
-# ------------------------------------------
+# ============================================================
 # 🧾 활동 로그 타입 (ActivityAction)
-# ------------------------------------------
+# ============================================================
 class ActivityAction(str, Enum):
     """
     프로젝트 / 태스크 / 댓글 / 첨부파일 관련 모든 활동 로그 Enum

@@ -1,9 +1,11 @@
 # app/models/employee.py
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, func, Enum
 from sqlalchemy.orm import relationship
-
 from app.database import Base
 
+# ✅ 상태 관련 ENUM 값 정의
+EMPLOYEE_STATUS = ("ACTIVE", "INACTIVE", "SUSPENDED", "DELETED")
+EMPLOYEE_STATE = ("WORKING", "FIELD", "AWAY", "OFF")
 
 class Employee(Base):
     __tablename__ = "employee"
@@ -12,19 +14,56 @@ class Employee(Base):
     emp_no = Column(String(20), unique=True, nullable=False)
     dept_id = Column(Integer, ForeignKey("department.dept_id"), nullable=False)
     role_id = Column(Integer, ForeignKey("role.role_id"), nullable=False)
-
+    dept_no = Column(String(20), nullable=False)
+    role_no = Column(String(20), nullable=False)
     name = Column(String(50), nullable=False)
-    email = Column(String(100), nullable=False)  # ← unique 제거
-    mobile = Column(String(20), nullable=False)  # ← unique 제거
-
+    email = Column(String(100), unique=True, nullable=False)
+    mobile = Column(String(20), unique=True, nullable=False)
+    status = Column(Enum(*EMPLOYEE_STATUS, name="employee_status"), default="ACTIVE", nullable=False)
+    current_state = Column(Enum(*EMPLOYEE_STATE, name="employee_current_state"), default="OFF", nullable=False)
     hire_date = Column(Date, nullable=True)
     birthday = Column(Date, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    # ✅ Relations
     department = relationship("Department", back_populates="employees")
-    role = relationship("Role")  # Role과 DepartmentPermission은 다른 관계이므로 유지
-    attachments = relationship("Attachment", back_populates="uploader")
-    project_memberships = relationship("ProjectMember", back_populates="employee")
-    tasks = relationship("Task", back_populates="assignee")
+    role = relationship("Role")
+
+    attachment = relationship(
+        "Attachment", back_populates="uploader", cascade="all, delete-orphan", lazy="selectin"
+    )
+    projectmember = relationship("ProjectMember", back_populates="employee", lazy="selectin")
+
+    # ✅ Task / TaskMember 관계 정리
+    tasks = relationship(
+        "Task",
+        secondary="task_member",
+        back_populates="employee",
+        lazy="selectin",
+        overlaps="taskmember"
+    )
+    taskmember = relationship(
+        "TaskMember",
+        back_populates="employee",
+        lazy="selectin",
+        overlaps="tasks,task"
+    )
+
     comments = relationship("TaskComment", back_populates="employee")
+    notification_received = relationship(
+        "Notification",
+        back_populates="recipient",
+        foreign_keys="Notification.recipient_emp_id",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    notification_sent = relationship(
+        "Notification",
+        back_populates="actor",
+        foreign_keys="Notification.actor_emp_id",
+        lazy="selectin",
+    )
+    activitylog = relationship(
+        "ActivityLog", back_populates="employee", cascade="all, delete-orphan", lazy="selectin"
+    )

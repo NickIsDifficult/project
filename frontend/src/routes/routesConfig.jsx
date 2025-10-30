@@ -1,39 +1,36 @@
 // src/routes/routesConfig.js
 import { lazy } from "react";
+import { ProjectGlobalProvider } from "../context/ProjectGlobalContext";
 import LoginPage from "../pages/Login/Login";
-import SignupPage from "../pages/Signup/Signup";
+import Signup from "../pages/Signup/Signup";
+import Account from "../pages/admin/Account";
+import DeptRoles from "../pages/admin/DeptRoles";
 
 const Screen = lazy(() => import("../pages/screens/Screen"));
 const Calendar = lazy(() => import("../pages/calendar/CalendarView"));
 const NoticeBoard = lazy(() => import("../pages/notices/NoticeBoard"));
 const TrashBin = lazy(() => import("../components/TrashBin"));
-const ProjectsPage = lazy(() => import("../pages/projects/ProjectsPage"));
-const ProjectDetailPage = lazy(() => import("../pages/projects/ProjectDetailPage"));
-const Search = lazy(() => import("../pages/search/SearchPage"));
+const ProjectPage = lazy(() => import("../pages/projects/index"));
 const NotFoundPage = lazy(() => import("../pages/errors/NotFoundPage"));
+const Search = lazy(() => import("../pages/search/SearchPage"));
 
 // ------------------------------------
 // ✅ 라우트 구성
 // ------------------------------------
 export const routesConfig = [
   { path: "/", element: <LoginPage />, isPrivate: false },
-  { path: "/signup", element: <SignupPage />, isPrivate: false },
+
+  { path: "/signup", element: <Signup />, isPrivate: true, adminOnly: true },
 
   // Private Routes
   { path: "/main", element: <Screen />, isPrivate: true },
   {
     path: "/projects",
-    element: <ProjectsPage />,
-    isPrivate: true,
-  },
-  {
-    path: "/projects/:projectId",
-    element: <ProjectDetailPage />,
-    isPrivate: true,
-  },
-  {
-    path: "/search",
-    element: <Search />,
+    element: (
+      <ProjectGlobalProvider>
+        <ProjectPage />
+      </ProjectGlobalProvider>
+    ),
     isPrivate: true,
   },
   {
@@ -47,9 +44,31 @@ export const routesConfig = [
     isPrivate: true,
   },
   {
-    path: "/trash-bin",
+    path: "/search",
+    element: <Search />,
+    isPrivate: true,
+  },
+  {
+    path: "/trashbin",
     element: <TrashBin />,
     isPrivate: true,
   },
-  { path: "*", element: <NotFoundPage />, isPrivate: false },
+  {
+    path: "/admin/dept_roles",
+    element: <DeptRoles />,
+    isPrivate: true,
+    adminOnly: true,
+  },
+  {
+    path: "/admin/account",
+    element: <Account />,
+    isPrivate: true,
+    adminOnly: true,
+  },
+  {
+    path: "*",
+    element: <NotFoundPage />,
+    isPrivate: false,
+  },
 ];
+("// update marker $(date)");

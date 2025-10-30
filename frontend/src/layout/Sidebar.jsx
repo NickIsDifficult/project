@@ -1,10 +1,11 @@
 // src/layout/Sidebar.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import "../pages/screens/style.css"; // 메인 CSS 재사용
+import "../pages/screens/style.css"; // 기존 CSS 그대로 재사용
 
-export default function Sidebar({ userStatus }) {
+export default function Sidebar() {
   const [workOpen, setWorkOpen] = useState(true);
+  const [adminOpen, setAdminOpen] = useState(false);
   const nav = useNavigate();
 
   return (
@@ -19,7 +20,6 @@ export default function Sidebar({ userStatus }) {
           src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/colink-2.png"
         />
       </Link>
-
 
       <div className="view">
         {/* 조직도 */}
@@ -36,7 +36,7 @@ export default function Sidebar({ userStatus }) {
         </div>
 
         {/* 휴지통 */}
-        <div className="view-3" role="button" tabIndex={0} onClick={() => nav("/trash")}>
+        <div className="view-3" role="button" tabIndex={0} onClick={() => nav("/trashbin")}>
           <div className="rectangle-4" />
           <div className="text-wrapper">휴지통</div>
           <div className="vector-wrapper">
@@ -132,7 +132,7 @@ export default function Sidebar({ userStatus }) {
             </div>
           </div>
 
-          {/* '업무' 헤더 / 토글 */}
+          {/* 업무 접기/펼치기 */}
           <div
             className="view-11"
             role="button"
@@ -157,6 +157,55 @@ export default function Sidebar({ userStatus }) {
           alt="Line"
           src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/line-2.svg"
         />
+
+        {/* 관리자 구분선 */}
+        <img
+          className="admin-line"
+          alt="Line"
+          src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/line-2.svg"
+        />
+
+        {/* 관리자 그룹 */}
+        <div className={`admin-group ${adminOpen ? "expanded" : "collapsed"}`}>
+          {/* 계정생성 */}
+          <div className="view-8" role="button" onClick={() => nav("/signup")}>
+            <div className="rectangle-4" />
+            <div className="text-wrapper">계정생성</div>
+            <div className="frame-2" />
+          </div>
+
+          {/* 계정관리 */}
+          <div className="view-9" role="button" onClick={() => nav("/admin/account")}>
+            <div className="rectangle-4" />
+            <div className="text-wrapper">계정관리</div>
+            <div className="frame-2" />
+          </div>
+
+          {/* 부서 및 직급관리 */}
+          <div className="view-10" role="button" onClick={() => nav("/admin/dept_roles")}>
+            <div className="rectangle-4" />
+            <div className="text-wrapper">부서 및 직급관리</div>
+            <div className="frame-2" />
+          </div>
+
+          {/* 관리자 접기/펼치기 */}
+          <div
+            className="view-11"
+            role="button"
+            tabIndex={0}
+            aria-expanded={adminOpen}
+            onClick={() => setAdminOpen(v => !v)}
+          >
+            <div className="text-wrapper-2">관리자</div>
+            <div className="frame-3 arrow">
+              <img
+                className="vector-8"
+                alt=""
+                src="https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/vector-8.svg"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

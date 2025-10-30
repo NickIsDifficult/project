@@ -4,8 +4,8 @@ from pydantic import BaseModel
 
 class Role(BaseModel):
     role_id: int
+    role_no: str
     role_name: str
-    role_level: int
 
     class Config:
         from_attributes = True
@@ -13,6 +13,7 @@ class Role(BaseModel):
 
 class RoleResponse(BaseModel):
     role_id: int
+    role_no: str
     role_name: str
 
     model_config = {"from_attributes": True}

@@ -1,0 +1,401 @@
+/* =========================================
+   반응형 + 다크모드 대응 Screen 스타일
+   ========================================= */
+
+/* === 전체 화면 컨테이너 === */
+.screen {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color: #ffffff;
+    color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: "Inter", Helvetica, Arial, sans-serif;
+}
+
+/* === 전체 UI 래퍼 === */
+.UI {
+    position: relative;
+    width: min(1920px, 100vw);
+    height: min(1080px, 100vh);
+    overflow: hidden;
+}
+
+/* === 상단 파란 영역 === */
+.rectangle {
+    background-color: #3071ea;
+    border: 1px solid #000;
+    width: 100%;
+    height: 15%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* === 메인 흰색 헤더바 === */
+.rectangle-2 {
+    background-color: #ffffff;
+    border: 1px solid #000;
+    height: 7%;
+    width: calc(100% - 290px);
+    position: absolute;
+    top: 8%;
+    left: 290px;
+}
+
+/* === 메인 회색 배경 === */
+.div {
+    background-color: #e8e8e8;
+    border: 1px solid #000;
+    position: absolute;
+    top: 15%;
+    left: 290px;
+    width: calc(100% - 290px);
+    height: calc(100% - 15%);
+}
+
+/* === 중앙 Colink 로고 === */
+.colink {
+    position: absolute;
+    top: 1%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: clamp(120px, 12vw, 236px);
+    height: auto;
+    object-fit: contain;
+}
+
+/* === 사이드바 전체 === */
+.group {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 290px;
+    height: 100%;
+    background-color: #ffffff;
+    border-right: 1px solid #000;
+    display: flex;
+    flex-direction: column;
+}
+
+/* === 사이드바 로고 === */
+.group .img {
+    width: clamp(140px, 10vw, 220px);
+    height: auto;
+    margin: 10px auto;
+    object-fit: contain;
+    cursor: pointer;
+}
+
+/* === 사이드바 메뉴 === */
+.group .view {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.group .view::-webkit-scrollbar {
+    display: none;
+}
+
+/* 메뉴 아이템 기본형 */
+.group [class^="view-"]:not(.view-7) {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 39px;
+    padding-left: 46px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.group [class^="view-"]:hover {
+    background-color: #e3e7ee;
+}
+
+.group .text-wrapper {
+    font-size: clamp(13px, 0.9vw, 15px);
+    white-space: nowrap;
+}
+
+/* === 업무 섹션 (접힘/펼침) === */
+.view-7 {
+    overflow: hidden;
+    transition: height 0.2s ease;
+}
+
+.view-7.expanded {
+    height: auto;
+}
+
+.view-7.collapsed {
+    height: 33px;
+}
+
+.view-7 .view-11 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 16px;
+    cursor: pointer;
+}
+
+.view-7 .arrow {
+    transition: transform 0.2s ease;
+}
+
+.view-7.collapsed .arrow {
+    transform: rotate(-90deg);
+}
+
+/* === 카드 영역 (4개 box-click) === */
+.view-12,
+.view-13,
+.view-14,
+.view-15 {
+    position: absolute;
+    border-radius: 24px;
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+}
+
+.view-12:hover,
+.view-13:hover,
+.view-14:hover,
+.view-15:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* 카드 배치 (반응형) */
+.view-14,
+.view-15 {
+    top: 20%;
+}
+
+.view-12,
+.view-13 {
+    top: 55%;
+}
+
+.view-14,
+.view-12 {
+    left: 30%;
+}
+
+.view-15,
+.view-13 {
+    left: 60%;
+}
+
+.view-12,
+.view-13,
+.view-14,
+.view-15 {
+    width: clamp(300px, 24vw, 580px);
+    height: clamp(200px, 28vh, 310px);
+}
+
+/* === 프로필 카드 (좌측 중단) === */
+.view-16 {
+    position: absolute;
+    left: 15px;
+    top: 60%;
+    transform: translateY(-50%);
+    width: 260px;
+    background-color: #99cae2;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 프로필 이미지 */
+.ellipse {
+    width: clamp(60px, 5vw, 75px);
+    height: clamp(60px, 5vw, 75px);
+    background-color: #fff;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 상태 점 */
+.ellipse-2 {
+    position: absolute;
+    bottom: 12px;
+    left: 72px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+}
+
+/* 프로필 텍스트 */
+.profile-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.profile-name {
+    font-size: clamp(14px, 1vw, 16px);
+    font-weight: 600;
+}
+
+.profile-role {
+    font-size: clamp(12px, 0.9vw, 14px);
+    opacity: 0.8;
+}
+
+/* === 하단 설정/직원관리 === */
+.view-bottom {
+    position: absolute;
+    bottom: 12px;
+    left: 1px;
+    width: 290px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.nav-item {
+    height: 39px;
+    display: flex;
+    align-items: center;
+    padding-left: 46px;
+    cursor: pointer;
+    background: #f5f5f5;
+    transition: background 0.2s ease;
+}
+
+.nav-item:hover {
+    background: #e3e7ee;
+}
+
+.text-wrapper {
+    font-size: clamp(13px, 1vw, 15px);
+}
+
+/* === 모달 === */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal-panel {
+    width: min(880px, 90vw);
+    max-height: 80vh;
+    background: #fff;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+
+.modal-body {
+    padding: 16px;
+    overflow-y: auto;
+}
+
+/* === 테마 토글 버튼 === */
+.theme-toggle-fab {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    z-index: 10000;
+    transition: transform 0.15s ease;
+}
+
+.theme-toggle-fab:hover {
+    transform: translateY(-1px);
+}
+
+/* ===========================
+   다크 모드
+   =========================== */
+body.theme-dark {
+    background-color: #0b1220;
+    color: #e5e7eb;
+}
+
+body.theme-dark .rectangle {
+    background-color: #182a52;
+}
+
+body.theme-dark .div {
+    background-color: #0f172a;
+}
+
+body.theme-dark .group {
+    background-color: #0d1625;
+    border-color: #1f2937;
+}
+
+body.theme-dark .view-16 {
+    background-color: #1e3b4f;
+}
+
+body.theme-dark .card,
+body.theme-dark .view-12,
+body.theme-dark .view-13,
+body.theme-dark .view-14,
+body.theme-dark .view-15 {
+    background-color: #111827;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+body.theme-dark .modal-panel {
+    background-color: #0f172a;
+    color: #e5e7eb;
+}
+
+body.theme-dark .sidebar-item span,
+body.theme-dark .profile-name,
+body.theme-dark .profile-role {
+    color: #e5e7eb;
+}
+
+body.theme-dark .frame img,
+body.theme-dark .vector-wrapper img {
+    filter: brightness(0) invert(1);
+}

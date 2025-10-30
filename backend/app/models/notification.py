@@ -59,13 +59,17 @@ class Notification(Base):
     recipient = relationship(
         "Employee",
         foreign_keys=[recipient_emp_id],
-        backref="received_notifications",
+        back_populates="notification_received",  # ✅ 정확히 일치
     )
+
     actor = relationship(
         "Employee",
         foreign_keys=[actor_emp_id],
-        backref="sent_notifications",
+        back_populates="notification_sent",  # ✅ 정확히 일치
     )
+
+    project = relationship("Project", back_populates="notification")
+    task = relationship("Task", back_populates="notification")
 
     __table_args__ = (
         Index("idx_notification_recipient", "recipient_emp_id"),

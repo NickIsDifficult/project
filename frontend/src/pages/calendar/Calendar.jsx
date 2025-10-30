@@ -1,38 +1,32 @@
 // src/pages/calendar/Calendar.jsx
 import { useEffect, useState } from "react";
+import AppShell from "../../layout/AppShell";
 import API from "../../services/api/http";
-import AppShell from "../layout/AppShell";
 
-export default function Calendar({ token }) {
+export default function Calendar() {
   const [title, setTitle] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [list, setList] = useState([]);
 
   async function load() {
-    const { data } = await API.get("/events?project_id=1", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const { data } = await API.get("/events", { params: { project_id: 1 } });
     setList(data);
   }
 
   async function submit(e) {
     e.preventDefault();
-    await API.post(
-      "/events",
-      {
-        project_id: 1,
-        title,
-        description: "",
-        start_date: start,
-        end_date: end,
-      },
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    await API.post("/events", {
+      project_id: 1,
+      title,
+      description: "",
+      start_date: start,
+      end_date: end,
+    });
     setTitle("");
     setStart("");
     setEnd("");
-    load();
+    load(); // 추가 후 즉시 반영
   }
 
   useEffect(() => {

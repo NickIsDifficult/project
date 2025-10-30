@@ -10,7 +10,7 @@ export default function TopStage() {
       <div className="rectangle-2" />
 
       {/* 상단 중앙 로고 */}
-      <Link to="/main" className="logo-link top-logo" aria-label="홈으로">
+      <Link to="/" className="logo-link top-logo" aria-label="홈으로">
         <img
           className="colink"
           alt="Colink"

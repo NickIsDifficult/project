@@ -1,319 +1,375 @@
-import React, { useState, useEffect } from "react";
-import { createProject } from "../../services/api/project";
-import { createTask } from "../../services/api/task";
+// src/components/projects/ProjectRegistration.jsx
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { useProjectGlobal } from "../../context/ProjectGlobalContext";
+import { useProjectMembers } from "../../hooks/useProjectMembers";
+import api from "../../services/api/http";
+import AssigneeSelector from "./AssigneeSelector";
+import TaskNode from "./TaskNode";
 
 export default function ProjectRegistration({ onClose }) {
-  const [title, setTitle] = useState("");
+  const [projectName, setProjectName] = useState("");
   const [description, setDescription] = useState("");
-  const [assignees, setAssignees] = useState([]); // 선택된 담당자
-  const [employees, setEmployees] = useState([]); // 전체 직원 목록
-  const [assigneeInput, setAssigneeInput] = useState(""); // 검색 입력
-  const [subtasks, setSubtasks] = useState([]); // 하위 업무 목록
+  const [attachments, setAttachments] = useState([]);
+  const [mainAssignees, setMainAssignees] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [showDetails, setShowDetails] = useState(false);
+  const [priority, setPriority] = useState("MEDIUM");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [tasks, setTasks] = useState([]);
+  const [saving, setSaving] = useState(false);
 
-  // 담당자 선택 / 제거
-  const toggleAssignee = (id) => {
-    if (assignees.includes(id)) {
-      setAssignees(assignees.filter((emp) => emp !== id));
-    } else {
-      setAssignees([...assignees, id]);
+  const { selectedProjectId, fetchAllProjects, setUiState } = useProjectGlobal();
+  const { members, loading } = useProjectMembers(selectedProjectId);
+  const fileInputRef = useRef(null);
+
+  // ✅ 직원 목록 로드
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const res = selectedProjectId ? !loading && members : await api.get("/employees");
+        setEmployees(selectedProjectId ? members : res.data);
+      } catch (err) {
+        console.error("❌ 직원 목록 실패:", err);
+      }
+    };
+    fetchEmployees();
+  }, [selectedProjectId, members, loading]);
+
+  // ✅ 파일 핸들러
+  const handleFileChange = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("10MB 이하의 파일만 업로드할 수 있습니다.");
+      return;
     }
+    setAttachments(prev => [...prev, file]);
+  };
+  const handleFileDelete = i => setAttachments(prev => prev.filter((_, idx) => idx !== i));
+
+  // ✅ 업무 관리
+  const handleAddRootTask = () =>
+    setTasks(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        title: "",
+        startDate: "",
+        endDate: "",
+        assignees: [],
+        children: [],
+      },
+    ]);
+
+  const handleTaskUpdate = useCallback((i, updated) => {
+    setTasks(prev => {
+      const copy = [...prev];
+      if (updated === null) copy.splice(i, 1);
+      else copy[i] = updated;
+      return copy;
+    });
+  }, []);
+
+  // ✅ 하위업무 재귀 직렬화 함수
+  const serializeTasks = (list = []) =>
+    list.map(t => ({
+      title: t.title,
+      start_date: t.startDate || null,
+      due_date: t.endDate || null,
+      priority: "MEDIUM",
+      progress: 0,
+      assignee_ids: Array.isArray(t.assignees) ? t.assignees : [],
+      subtasks: serializeTasks(t.children || []), // ✅ 재귀 호출
+    }));
+
+  // ✅ 유효성 검사
+  const validateForm = useCallback(() => {
+    if (!projectName.trim()) return toast.error("프로젝트 이름을 입력하세요.");
+    if (startDate && endDate && new Date(startDate) > new Date(endDate))
+      return toast.error("시작일은 종료일보다 이전이어야 합니다.");
+
+    for (const t of tasks) {
+      if (!t.title.trim()) return toast.error("모든 업무에 제목을 입력하세요.");
+      if (t.startDate && t.endDate && new Date(t.startDate) > new Date(t.endDate))
+        return toast.error("하위 업무의 시작일은 종료일보다 이전이어야 합니다.");
+    }
+    return true;
+  }, [projectName, startDate, endDate, tasks]);
+
+  // ✅ 취소 시 확인
+  const hasChanges = useMemo(() => {
+    return (
+      projectName ||
+      description ||
+      startDate ||
+      endDate ||
+      tasks.length > 0 ||
+      attachments.length > 0
+    );
+  }, [projectName, description, startDate, endDate, tasks, attachments]);
+
+  const handleCancel = () => {
+    if (hasChanges && !window.confirm("작성 중인 내용이 있습니다. 정말 취소하시겠습니까?")) return;
+    onClose?.();
   };
 
-  // 하위업무 추가 / 삭제
-  const handleAddSubtask = () => {
-    setSubtasks([...subtasks, { title: "", endDate: "", details: [] }]);
-  };
-  const handleRemoveSubtask = (index) => {
-    const newSubs = [...subtasks];
-    newSubs.splice(index, 1);
-    setSubtasks(newSubs);
-  };
-
-  // 세부업무 추가 / 삭제
-  const handleAddSubDetail = (subIndex) => {
-    const newSubs = [...subtasks];
-    newSubs[subIndex].details.push({ title: "", endDate: "" });
-    setSubtasks(newSubs);
-  };
-
-  const handleRemoveSubDetail = (subIndex, detailIndex) => {
-    const newSubs = [...subtasks];
-    newSubs[subIndex].details.splice(detailIndex, 1);
-    setSubtasks(newSubs);
-  };
-
-  // 값 변경 핸들러
-  const handleSubtaskChange = (index, field, value) => {
-    const newSubs = [...subtasks];
-    newSubs[index][field] = value;
-    setSubtasks(newSubs);
-  };
-  const handleDetailChange = (subIndex, detailIndex, field, value) => {
-    const newSubs = [...subtasks];
-    newSubs[subIndex].details[detailIndex][field] = value;
-    setSubtasks(newSubs);
-  };
-
-  // 제출
+  // ✅ 등록 + 자동 새로고침 + Drawer 닫기
   const handleSubmit = async () => {
+    if (!validateForm()) return;
+    setSaving(true);
+
+    const payload = {
+      project_name: projectName,
+      description,
+      start_date: startDate || null,
+      end_date: endDate || null,
+      status: "PLANNED",
+      main_assignees: mainAssignees,
+      tasks: serializeTasks(tasks), // ✅ 재귀 적용
+    };
+
     try {
-      console.log("상위 업무:", title);
-      console.log("업무 내용:", description);
-      console.log("담당자:", assignees);
-      console.log("하위업무:", subtasks);
+      const res = await api.post("/projects/full-create", payload);
+      const pid = res.data.project_id;
 
-      // ✅ 여기서 실제 API 호출
-      const task = await createTask(title, description, startDate, endDate);
-
-      for (const sub of subtasks) {
-        if (!sub.title.trim()) continue;
-        const subtask = await createSubtask(task.id, sub.title, sub.startDate, sub.endDate);
-
-        for (const detail of sub.details) {
-          if (!detail.title.trim()) continue;
-          await createSubDetail(subtask.id, detail.title, detail.startDate, detail.endDate);
-        }
+      // 첨부파일 업로드 (병렬)
+      if (attachments.length) {
+        await Promise.all(
+          attachments.map(f => {
+            const fd = new FormData();
+            fd.append("file", f);
+            return api.post(`/projects/${pid}/attachments`, fd, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+          }),
+        );
       }
 
-      alert("등록 완료!");
-      onClose();
+      toast.success("✅ 프로젝트가 등록되었습니다!");
+
+      // 🔄 전체 목록 새로고침
+      await fetchAllProjects();
+
+      // 🚪 Drawer 닫기
+      setUiState(prev => ({
+        ...prev,
+        drawer: { ...prev.drawer, project: false },
+      }));
+
+      onClose?.();
     } catch (err) {
-      console.error(err);
-      alert("등록 중 오류 발생");
+      console.error("❌ 등록 실패:", err);
+      toast.error(`등록 중 오류: ${err.message}`);
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div style={{ padding: "16px", maxHeight: "80vh", overflowY: "auto" }}>
-      <h2 style={{ marginBottom: "12px", fontSize: "18px" }}>📌 업무 등록</h2>
+    <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+      <h2>📌 프로젝트 등록</h2>
 
-      {/* 상위 업무 제목 */}
-      <label>상위 업무 제목</label>
+      <label>프로젝트 이름</label>
       <input
-        placeholder="상위 업무 제목 입력"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "8px",
-          marginBottom: "12px",
-          fontSize: "15px",
-        }}
+        value={projectName}
+        onChange={e => setProjectName(e.target.value)}
+        style={{ width: "100%", marginBottom: 12 }}
       />
 
-      {/* 담당자 지정 */}
-      <label>담당자 지정</label>
-      <div style={{ marginBottom: "15px", position: "relative" }}>
-        {/* 선택된 담당자 박스 */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
-          {assignees.map((id) => {
-            const emp = employees.find((e) => e.emp_id === id);
-            return (
-              <span
-                key={id}
-                style={{
-                  background: "#e0f0ff",
-                  padding: "4px 8px",
-                  borderRadius: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                {emp?.name}
-                <button
-                  onClick={() => setAssignees(assignees.filter((x) => x !== id))}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                  }}
-                >
-                  ×
-                </button>
-              </span>
-            );
-          })}
-        </div>
+      <button
+        onClick={() => setShowDetails(!showDetails)}
+        style={{
+          background: showDetails ? "#555" : "#1976d2",
+          color: "white",
+          border: "none",
+          borderRadius: 6,
+          padding: "8px 12px",
+          cursor: "pointer",
+          marginBottom: 12,
+        }}
+      >
+        {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
+      </button>
 
-        {/* 검색 입력칸 */}
-        <input
-          type="text"
-          placeholder="담당자 검색"
-          value={assigneeInput}
-          onChange={(e) => setAssigneeInput(e.target.value)}
-          style={{ width: "100%", padding: "8px" }}
-        />
-
-        {/* 자동완성 드롭다운 */}
-        {assigneeInput && (
-          <div
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: 0,
-              right: 0,
-              background: "#fff",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              maxHeight: "150px",
-              overflowY: "auto",
-              zIndex: 10,
-            }}
+      {showDetails && (
+        <div style={{ background: "#f9f9f9", padding: 12, borderRadius: 8 }}>
+          <label>시작일</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            style={{ width: "100%", marginBottom: 8 }}
+          />
+          <label>종료일</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+            style={{ width: "100%", marginBottom: 8 }}
+          />
+          <label>우선순위</label>
+          <select
+            value={priority}
+            onChange={e => setPriority(e.target.value)}
+            style={{ width: "100%" }}
           >
-            {employees
-              .filter((emp) => emp.name.includes(assigneeInput) && !assignees.includes(emp.emp_id))
-              .map((emp) => (
-                <div
-                  key={emp.emp_id}
-                  onClick={() => {
-                    setAssignees([...assignees, emp.emp_id]);
-                    setAssigneeInput("");
-                  }}
-                  style={{
-                    padding: "8px",
-                    cursor: "pointer",
-                    borderBottom: "1px solid #eee",
-                  }}
-                >
-                  {emp.name}
-                </div>
-              ))}
-          </div>
-        )}
-      </div>
-      <label>시작일</label>
-      <input
-        type="date"
-        value={startDate}
-        onChange={(e) => setStartDate(e.target.value)}
-        style={{ marginBottom: "12px", display: "block" }}
-      />
-      <label>종료일</label>
-      <input
-        type="date"
-        value={endDate}
-        onChange={(e) => setEndDate(e.target.value)}
-        style={{ marginBottom: "20px", display: "block" }}
-      />
-      {/* 상위업무 내용 */}
-      <label>상위 업무 내용</label>
-      <textarea
-        placeholder="상위 업무 내용 입력"
-        value={description}
-        onChange={(e) => {
-          setDescription(e.target.value);
-          e.target.style.height = "auto";
-          e.target.style.height = `${e.target.scrollHeight}px`;
-        }}
-        style={{
-          width: "100%",
-          padding: "8px",
-          marginBottom: "15px",
-          resize: "none",
-          overflow: "hidden",
-          minHeight: "70px",
-          fontSize: "15px",
-        }}
-      />
+            <option value="LOW">낮음</option>
+            <option value="MEDIUM">보통</option>
+            <option value="HIGH">높음</option>
+            <option value="URGENT">긴급</option>
+          </select>
 
-      {/* 하위업무 목록 */}
-      {subtasks.map((sub, subIndex) => (
-        <div
-          key={subIndex}
-          style={{
-            border: "1px solid #ccc",
-            padding: "10px",
-            marginBottom: "12px",
-            borderRadius: "5px",
-          }}
-        >
-          <label style={{ fontWeight: "bold" }}>하위 업무</label>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-            <input
-              placeholder="하위 업무 제목"
-              value={sub.title}
-              onChange={(e) => handleSubtaskChange(subIndex, "title", e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleAddSubtask();
-                }
-              }}
-              style={{ flex: 1, padding: "6px", fontSize: "15px" }}
+          <div style={{ marginTop: 12 }}>
+            <strong>상위업무 담당자:</strong>
+            <AssigneeSelector
+              employees={employees}
+              selected={mainAssignees}
+              setSelected={setMainAssignees}
             />
-            <input
-              type="date"
-              value={sub.endDate}
-              onChange={(e) => handleSubtaskChange(subIndex, "endDate", e.target.value)}
-            />
-            <button onClick={() => handleAddSubtask(subIndex)}>➕</button>
-            <button onClick={() => handleRemoveSubtask(subIndex)}>➖</button>
           </div>
-
-          {/* 세부업무 목록 */}
-          {sub.details.length > 0 ? (
-            sub.details.map((d, detailIndex) => (
-              <div
-                key={detailIndex}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  marginLeft: "20px",
-                  marginBottom: "6px",
-                }}
-              >
-                <span style={{ color: "#777" }}>-</span>
-                <input
-                  placeholder="세부 업무 제목"
-                  value={d.title}
-                  onChange={(e) =>
-                    handleDetailChange(subIndex, detailIndex, "title", e.target.value)
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddSubDetail(subIndex);
-                    }
-                  }}
-                  style={{ flex: 1, padding: "6px", fontSize: "14px" }}
-                />
-                <input
-                  type="date"
-                  value={d.endDate}
-                  onChange={(e) =>
-                    handleDetailChange(subIndex, detailIndex, "endDate", e.target.value)
-                  }
-                />
-                <button onClick={() => handleAddSubDetail(subIndex)}>➕</button>
-                <button onClick={() => handleRemoveSubDetail(subIndex, detailIndex)}>➖</button>
-              </div>
-            ))
-          ) : (
-            <div style={{ marginLeft: "20px", marginTop: "6px" }}>
-              <button onClick={() => handleAddSubDetail(subIndex)}>➕ 세부업무 추가</button>
-            </div>
-          )}
         </div>
-      ))}
-
-      {/* 하위업무 없으면 버튼 표시 */}
-      {subtasks.length === 0 && (
-        <button onClick={handleAddSubtask} style={{ marginBottom: "15px" }}>
-          ➕ 하위업무 추가
-        </button>
       )}
 
-      {/* Footer */}
-      <div style={{ marginTop: "20px" }}>
-        <button onClick={handleSubmit} style={{ marginRight: "10px" }}>
-          저장
+      <label style={{ marginTop: 12 }}>프로젝트 설명</label>
+      <textarea
+        placeholder="프로젝트 설명을 입력하세요..."
+        value={description}
+        onChange={e => setDescription(e.target.value)}
+        style={{
+          width: "100%",
+          minHeight: 80,
+          padding: 8,
+          borderRadius: 6,
+          border: "1px solid #ccc",
+          resize: "none",
+        }}
+      />
+
+      {/* 첨부파일 */}
+      <div style={{ marginTop: 20 }}>
+        <h3>📎 첨부파일</h3>
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            background: "#1976d2",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 12px",
+            cursor: "pointer",
+          }}
+        >
+          📤 첨부파일 추가
         </button>
-        <button onClick={onClose}>취소</button>
+        {attachments.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, marginTop: 8 }}>
+            {attachments.map((file, index) => (
+              <li
+                key={index}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderBottom: "1px solid #eee",
+                  padding: "4px 0",
+                }}
+              >
+                <span>{file.name}</span>
+                <button
+                  onClick={() => handleFileDelete(index)}
+                  style={{
+                    background: "crimson",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 4,
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  삭제
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* 하위 업무 */}
+      <div style={{ marginTop: 20 }}>
+        <h3>📋 하위 업무</h3>
+        {tasks.map((t, i) => (
+          <TaskNode
+            key={t.id}
+            task={t}
+            employees={employees}
+            onUpdate={u => handleTaskUpdate(i, u)}
+            depth={0}
+            onAddSibling={handleAddRootTask}
+          />
+        ))}
+        {tasks.length === 0 && (
+          <button
+            onClick={handleAddRootTask}
+            style={{
+              marginTop: 10,
+              background: "#1976d2",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 12px",
+              cursor: "pointer",
+            }}
+          >
+            ➕ 업무 추가
+          </button>
+        )}
+      </div>
+
+      {/* 하단 버튼 */}
+      <div
+        style={{
+          paddingTop: 12,
+          borderTop: "1px solid #eee",
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 8,
+          marginTop: 16,
+        }}
+      >
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          style={{
+            background: saving ? "#999" : "#1976d2",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 12px",
+            cursor: saving ? "not-allowed" : "pointer",
+          }}
+        >
+          {saving ? "저장 중..." : "저장"}
+        </button>
+        <button
+          onClick={handleCancel}
+          style={{
+            background: "#eee",
+            border: "1px solid #ccc",
+            borderRadius: 6,
+            padding: "8px 12px",
+            cursor: "pointer",
+          }}
+        >
+          취소
+        </button>
       </div>
     </div>
   );

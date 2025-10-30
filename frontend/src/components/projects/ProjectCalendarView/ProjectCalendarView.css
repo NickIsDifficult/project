@@ -1,0 +1,62 @@
+/* ============================
+   📘 Tooltip 카드 스타일 (ProjectCalendarView)
+   ============================ */
+.tippy-tooltip-content {
+  font-family: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+  font-size: 13px;
+  color: #333;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  min-width: 220px;
+  cursor: default;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Header 영역 */
+.tippy-tooltip-content .tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #111;
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+  background: rgba(250, 250, 250, 0.85);
+}
+
+/* 아이콘 크기 */
+.tippy-tooltip-content .tooltip-icon {
+  font-size: 15px;
+}
+
+/* 본문 */
+.tippy-tooltip-content .tooltip-body {
+  padding: 6px 10px;
+}
+
+.tippy-tooltip-content .tooltip-body p {
+  margin: 3px 0;
+  line-height: 1.5;
+}
+
+.tippy-tooltip-content .tooltip-body b {
+  color: #333;
+  margin-right: 4px;
+  font-weight: 500;
+}
+
+/* Hover 시 미세한 확대 효과 */
+.tippy-tooltip-content:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Tooltip Theme Override (light-border) */
+.tippy-box[data-theme~="light-border"] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}

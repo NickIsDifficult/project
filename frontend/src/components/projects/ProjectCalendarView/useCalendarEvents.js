@@ -1,105 +1,94 @@
 // src/components/projects/ProjectCalendarView/useCalendarEvents.js
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
-import { getStatusColor, getStatusIcon, getStatusLabel } from "../constants/taskDisplay";
+import { getTaskColor } from "../constants/taskDisplay";
 
-/**
- * ✅ 전역 프로젝트 기반 Calendar Events Hook (2025.10 개선 버전)
- * - 모든 프로젝트의 tasksByProject 병합
- * - 담당자별 색상 / 상태별 fallback 색상 적용
- * - 상태별 className + hover tooltip 표시
- * - 날짜 없는 업무는 undatedTasks로 분리
- */
-export default function useCalendarEvents() {
+export default function useCalendarEvents(colorMode = "status", activeProjectIds = []) {
   const { projects, tasksByProject } = useProjectGlobal();
-  const [events, setEvents] = useState([]);
-  const [undatedTasks, setUndatedTasks] = useState([]);
 
-  useEffect(() => {
-    if (!projects?.length) {
-      setEvents([]);
-      setUndatedTasks([]);
-      return;
-    }
-
-    const colorByAssignee = {};
-    const colorPalette = [
-      "#90caf9",
-      "#81c784",
-      "#ffb74d",
-      "#ba68c8",
-      "#4db6ac",
-      "#7986cb",
-      "#f06292",
-      "#a1887f",
-      "#64b5f6",
-      "#ffd54f",
+  // 🎨 프로젝트 색상 팔레트
+  const projectColorMap = useMemo(() => {
+    const palette = [
+      "#90CAF9",
+      "#A5D6A7",
+      "#FFCC80",
+      "#BA68C8",
+      "#4DB6AC",
+      "#F48FB1",
+      "#CE93D8",
+      "#81D4FA",
+      "#FFAB91",
     ];
-    let colorIndex = 0;
+    const map = {};
+    projects.forEach((p, i) => (map[p.project_id] = palette[i % palette.length]));
+    return map;
+  }, [projects]);
 
-    const mergedEvents = [];
-    const undated = [];
+  // 📁 프로젝트 기간 이벤트
+  const projectEvents = useMemo(() => {
+    return projects
+      .filter(p => p.start_date && p.end_date)
+      .map(p => ({
+        id: `proj-${p.project_id}`,
+        title: p.project_name, // 📁 제거 (중복 방지)
+        start: p.start_date,
+        end: dayjs(p.end_date).add(1, "day").format("YYYY-MM-DD"),
+        allDay: true,
+        backgroundColor: projectColorMap[p.project_id],
+        borderColor: "#bbb",
+        textColor: "#111",
+        extendedProps: {
+          isProject: true,
+          project_id: p.project_id,
+          project_name: p.project_name,
+        },
+      }));
+  }, [projects, projectColorMap]);
 
-    projects.forEach(proj => {
-      const tasks = tasksByProject[proj.project_id] || [];
+  // 🧩 업무(Task) 이벤트
+  const taskEvents = useMemo(() => {
+    const allEvents = [];
+    for (const [projectId, tasks] of Object.entries(tasksByProject)) {
+      tasks.forEach(task => {
+        if (!task.start_date && !task.due_date) return;
 
-      tasks.forEach(t => {
-        const task = {
-          ...t,
-          project_id: proj.project_id,
-          project_name: proj.project_name,
-        };
-
-        // ✅ 날짜가 지정된 업무만 이벤트로
-        if (task.start_date || task.due_date) {
-          // 🎨 담당자별 고유 색상 (없으면 새 할당)
-          if (task.assignee_name && !colorByAssignee[task.assignee_name]) {
-            colorByAssignee[task.assignee_name] = colorPalette[colorIndex++ % colorPalette.length];
-          }
-
-          const start = task.start_date || task.due_date;
-          const end = task.due_date
-            ? dayjs(task.due_date).add(1, "day").format("YYYY-MM-DD")
-            : task.start_date;
-
-          // 🧩 Tooltip 내용 (이모지 + 라벨 통일)
-          const tooltip = [
-            `${getStatusIcon(task.status)} ${getStatusLabel(task.status)}`,
-            `📌 ${task.title}`,
-            task.assignee_name ? `👤 ${task.assignee_name}` : null,
-            `📁 ${proj.project_name}`,
-            `📅 ${task.start_date || "?"} ~ ${task.due_date || "?"}`,
-          ]
-            .filter(Boolean)
-            .join("\n");
-
-          mergedEvents.push({
-            id: String(task.task_id),
-            title: task.title,
-            start,
-            end,
-            // ✅ 상태별 className + 담당자색 fallback
-            classNames: [`status-${(task.status || "PLANNED").toLowerCase()}`],
-            backgroundColor: colorByAssignee[task.assignee_name] || getStatusColor(task.status),
-            borderColor: "#ccc",
-            textColor: "#222",
-            extendedProps: {
-              ...task,
-              tooltip,
-              project_name: proj.project_name,
-            },
-          });
-        } else {
-          // ✅ 날짜 없는 업무 → 별도 목록
-          undated.push(task);
-        }
+        allEvents.push({
+          id: task.task_id,
+          title: task.title || task.task_name || "제목 없음",
+          start: task.start_date,
+          end: dayjs(task.due_date).add(1, "day").format("YYYY-MM-DD"),
+          allDay: true,
+          color: getTaskColor(task, colorMode, projectColorMap),
+          textColor: "#111",
+          extendedProps: {
+            ...task,
+            project_id: Number(projectId),
+            isProject: false,
+          },
+        });
       });
-    });
+    }
+    return allEvents;
+  }, [tasksByProject, colorMode, projectColorMap]);
 
-    setEvents(mergedEvents);
-    setUndatedTasks(undated);
-  }, [projects, tasksByProject]);
+  // 📋 날짜 미지정 업무
+  const undatedTasks = useMemo(() => {
+    const list = [];
+    for (const [pid, tasks] of Object.entries(tasksByProject)) {
+      tasks.forEach(task => {
+        if (!task.start_date && !task.due_date) list.push({ ...task, project_id: Number(pid) });
+      });
+    }
+    return list;
+  }, [tasksByProject]);
 
-  return { events, undatedTasks };
+  // 🔍 필터
+  const filteredEvents = useMemo(() => {
+    const combined = [...projectEvents, ...taskEvents];
+    if (!activeProjectIds.length) return combined;
+    return combined.filter(ev => activeProjectIds.includes(ev.extendedProps.project_id));
+  }, [projectEvents, taskEvents, activeProjectIds]);
+
+  return { events: filteredEvents, undatedTasks, projectColorMap };
 }

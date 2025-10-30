@@ -1,10 +1,16 @@
-// src/components/projects/UndatedProjectList.jsx
-export default function UndatedProjectList({ tasks = [], onTaskClick }) {
+import { getStatusLabel, getTaskColor } from "../constants/taskDisplay";
+
+export default function UndatedProjectList({
+  tasks = [],
+  onTaskClick,
+  colorMode = "status",
+  projectColorMap = {},
+}) {
   if (!tasks.length) {
     return <div style={emptyBox}>모든 업무가 날짜를 가지고 있습니다 🎉</div>;
   }
 
-  // 프로젝트별 그룹화
+  // ✅ 프로젝트별 그룹화
   const grouped = tasks.reduce((acc, t) => {
     const pid = t.project_id || "기타";
     if (!acc[pid]) acc[pid] = { project_name: t.project_name, items: [] };
@@ -19,59 +25,42 @@ export default function UndatedProjectList({ tasks = [], onTaskClick }) {
           <h4 style={projectTitle}>📁 {group.project_name || "프로젝트 미지정"}</h4>
 
           <ul style={listStyle}>
-            {group.items.map(t => (
-              <li
-                key={t.task_id}
-                onClick={() => onTaskClick?.(t)}
-                style={taskItem}
-                onMouseEnter={e => (e.currentTarget.style.background = "#f8f9fa")}
-                onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
-              >
-                <div style={taskMain}>
-                  <span style={taskTitle}>{t.title}</span>
-                  {t.assignee_name && <span style={assigneeTag}>👤 {t.assignee_name}</span>}
-                </div>
+            {group.items.map(t => {
+              const color = getTaskColor(t, colorMode, projectColorMap);
+              const statusLabel = getStatusLabel(t.status);
+              return (
+                <li
+                  key={t.task_id}
+                  onClick={() => onTaskClick?.(t)}
+                  style={{ ...taskItem, borderLeft: `4px solid ${color}` }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#f8f9fa")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
+                >
+                  <div style={taskMain}>
+                    <span style={taskTitle}>{t.title}</span>
+                    {t.assignee_name && <span style={assigneeTag}>👤 {t.assignee_name}</span>}
+                  </div>
 
-                <div style={taskMeta}>
-                  <span style={{ ...statusTag, background: getStatusColor(t.status) }}>
-                    {getStatusLabel(t.status)}
-                  </span>
-                  <span style={projectTag}>#{pid}</span>
-                </div>
-              </li>
-            ))}
+                  <div style={taskMeta}>
+                    <span
+                      style={{
+                        ...statusTag,
+                        background: color,
+                        color: "#222",
+                      }}
+                    >
+                      {statusLabel}
+                    </span>
+                    <span style={projectTag}>#{pid}</span>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
     </div>
   );
-}
-
-/* ---------------------- 보조 함수 ---------------------- */
-function getStatusColor(status) {
-  switch (status) {
-    case "DONE":
-      return "#C8E6C9"; // green
-    case "IN_PROGRESS":
-      return "#BBDEFB"; // blue
-    case "REVIEW":
-      return "#FFE082"; // orange
-    case "ON_HOLD":
-      return "#E0E0E0"; // gray
-    default:
-      return "#FFF9C4"; // planned
-  }
-}
-
-function getStatusLabel(status) {
-  const map = {
-    PLANNED: "계획",
-    IN_PROGRESS: "진행중",
-    REVIEW: "검토중",
-    ON_HOLD: "보류",
-    DONE: "완료",
-  };
-  return map[status] || "미정";
 }
 
 /* ---------------------- 스타일 ---------------------- */

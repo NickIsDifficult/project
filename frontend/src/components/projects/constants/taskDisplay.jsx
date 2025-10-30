@@ -1,10 +1,10 @@
 // src/components/projects/constants/taskDisplay.jsx
-
 /**
  * ✅ 공용 업무 표시 유틸 (리스트 / 칸반 / 캘린더 통합용)
  * - 상태별 색상, 아이콘, 레이블
- * - 담당자 이름 추출
- * - 우선순위 색상도 포함
+ * - 담당자 이름 기반 색상 해시
+ * - 우선순위 색상 포함
+ * - colorMode별 색상 계산 통합
  */
 
 // -------------------- 상태 정의 --------------------
@@ -81,8 +81,38 @@ export function getAssigneeNames(task) {
   return [];
 }
 
+/* 🔹 담당자 이름 기반 색상 해시 (고유 색상 생성) */
+export function stringToColor(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c = (hash & 0x00ffffff).toString(16).toUpperCase();
+  return `#${"00000".substring(0, 6 - c.length) + c}`.slice(0, 7);
+}
+
 /**
- * 🎨 태스크 배지 렌더링 (공통 스타일)
+ * 🎨 colorMode에 따른 Task 색상 계산
+ * - colorMode: "status" | "project" | "assignee" | "priority"
+ * - projectColorMap: { [project_id]: color }
+ */
+export function getTaskColor(task, colorMode, projectColorMap = {}) {
+  switch (colorMode) {
+    case "project":
+      return projectColorMap[task.project_id] || "#ccc";
+    case "status":
+      return STATUS_META[task.status]?.color || "#eee";
+    case "assignee":
+      return stringToColor(task.assignee_name || "미지정");
+    case "priority":
+      return PRIORITY_META[task.priority]?.color || "#fafafa";
+    default:
+      return "#ccc";
+  }
+}
+
+/**
+ * 🎨 태스크 상태 배지 렌더링 (공통 스타일)
  */
 export function renderStatusBadge(status) {
   const meta = STATUS_META[status] || STATUS_META.PLANNED;

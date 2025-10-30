@@ -16,6 +16,7 @@ from app.schemas.attachment import Attachment
 from app.schemas.department import Department
 from app.schemas.role import Role
 from app.schemas.notification import Notification
+from app.schemas.trash import TrashCreate, TrashOut
 
 __all__ = [
     "Project",
@@ -34,4 +35,6 @@ __all__ = [
     "Department",
     "Role",
     "Notification",
+    "TrashCreate",
+    "TrashOut"
 ]

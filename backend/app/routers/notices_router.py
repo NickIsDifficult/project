@@ -7,19 +7,30 @@ from app.database import get_db
 from app.services import notices_service as svc
 from app.schemas.notices import (
     NoticeCreateIn, NoticeUpdateIn,
-    NoticeOut, NoticeListOut,
+    NoticeOut,
     AddRefByNoticeIdIn, AddRefGenericIn,
-    NoticeRefOut, NoticeRefListOut
+    NoticeRefOut
 )
 
-# 로그인 사용자 주입
+# 로그인 사용자 주입 (utils.token 에 get_current_member가 반드시 존재해야 함)
 try:
-    from app.utils.token import get_current_member  # JWT 인증 유틸
+    from app.utils.token import get_current_member
 except Exception:
     def get_current_member():
         raise HTTPException(status_code=401, detail="인증 필요")
 
 router = APIRouter(prefix="/notices", tags=["notices"])
+
+# --- 권한 유틸 ---
+def _is_admin(me) -> bool:
+    """
+    관리자 판정: role_no == '99' 또는 user_type == 'ADMIN'
+    프로젝트 상황에 맞게 확장 가능.
+    """
+    role_no = getattr(me, "role_no", None) or (me.get("role_no") if isinstance(me, dict) else None)
+    user_type = getattr(me, "user_type", None) or (me.get("user_type") if isinstance(me, dict) else None)
+    return role_no == "99" or user_type == "ADMIN"
+
 
 # -------------------------------
 # ✅ 공지 목록
@@ -29,6 +40,7 @@ def list_notices(db: Session = Depends(get_db)):
     """공지 전체 목록 조회"""
     return svc.list_notices(db)
 
+
 # -------------------------------
 # ✅ 공지 검색
 # -------------------------------
@@ -36,6 +48,7 @@ def list_notices(db: Session = Depends(get_db)):
 def search_notices(q: str = Query(..., min_length=1), db: Session = Depends(get_db)):
     """공지 제목/본문/작성자 검색"""
     return svc.search_notices(db, q=q)
+
 
 # -------------------------------
 # ✅ 공지 단건 조회
@@ -48,6 +61,7 @@ def get_notice(notice_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="존재하지 않는 공지입니다.")
     return item
 
+
 # -------------------------------
 # ✅ 공지 등록
 # -------------------------------
@@ -55,16 +69,34 @@ def get_notice(notice_id: int, db: Session = Depends(get_db)):
 def create_notice(
     payload: NoticeCreateIn,
     db: Session = Depends(get_db),
-    me=Depends(get_current_member)
+    me=Depends(get_current_member),
 ):
-    """새 공지 작성"""
+    """
+    새 공지 작성
+    - 작성자 ID는 me.member_id → me.id → me.login_id(보조 조회) 순으로 안전 추출
+    """
+    # me가 ORM 모델/스키마/딕셔너리 등 어떤 형태로 와도 안전하게 추출
+    author_id = getattr(me, "member_id", None) or getattr(me, "id", None)
+    if not author_id:
+        # login_id만 온 경우 보조 조회
+        login_id = getattr(me, "login_id", None) or (me.get("login_id") if isinstance(me, dict) else None)
+        if login_id:
+            from app import models
+            m = db.query(models.Member).filter(models.Member.login_id == login_id).first()
+            if m:
+                author_id = getattr(m, "member_id", None)
+
+    if not author_id:
+        raise HTTPException(status_code=401, detail="작성자 식별 실패")
+
     return svc.create_notice(
         db,
-        author_id=me.id,
+        author_id=int(author_id),
         title=payload.title,
         body=payload.body,
         scope=payload.scope,
     )
+
 
 # -------------------------------
 # ✅ 공지 수정
@@ -74,9 +106,9 @@ def update_notice(
     notice_id: int,
     payload: NoticeUpdateIn,
     db: Session = Depends(get_db),
-    me=Depends(get_current_member)
+    me=Depends(get_current_member),
 ):
-    """공지 수정 (작성자만)"""
+    """공지 수정 (작성자/관리자 제한은 필요 시 서비스/모델 확장해 적용)"""
     current = svc.get_notice(db, notice_id)
     if not current:
         raise HTTPException(status_code=404, detail="수정할 공지가 없습니다.")
@@ -86,23 +118,28 @@ def update_notice(
         raise HTTPException(status_code=400, detail="수정 실패")
     return {"ok": True}
 
+
 # -------------------------------
-# ✅ 공지 삭제
+# ✅ 공지 삭제 (관리자 전용)
 # -------------------------------
 @router.delete("/{notice_id}", response_model=dict, status_code=status.HTTP_200_OK)
 def delete_notice(
     notice_id: int,
     db: Session = Depends(get_db),
-    me=Depends(get_current_member)
+    me=Depends(get_current_member),
 ):
-    """공지 삭제"""
+    if not _is_admin(me):
+        raise HTTPException(status_code=403, detail="삭제 권한이 없습니다(관리자 전용).")
+
     current = svc.get_notice(db, notice_id)
     if not current:
         return {"ok": True}
+
     ok = svc.delete_notice(db, notice_id)
     if not ok:
         raise HTTPException(status_code=400, detail="삭제 실패")
     return {"ok": True}
+
 
 # -------------------------------
 # ✅ 참조 목록 조회
@@ -116,6 +153,7 @@ def list_references(
     """공지 참조 목록 조회"""
     return svc.list_references(db, notice_id)
 
+
 # -------------------------------
 # ✅ 참조 추가
 # -------------------------------
@@ -127,7 +165,7 @@ def add_reference(
     db: Session = Depends(get_db),
     me=Depends(get_current_member),
 ):
-    """공지 참조 추가"""
+    """공지 참조 추가 (두 포맷 모두 지원)"""
     ref_notice_id = None
     ref_type = None
     ref_id = None

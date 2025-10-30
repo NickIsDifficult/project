@@ -9,6 +9,7 @@ import DeptRoles from "../pages/admin/DeptRoles";
 const Screen = lazy(() => import("../pages/screens/Screen"));
 const Calendar = lazy(() => import("../pages/calendar/CalendarView"));
 const NoticeBoard = lazy(() => import("../pages/notices/NoticeBoard"));
+const NoticeList = lazy(() => import("../pages/notices/NoticeList"));
 const TrashBin = lazy(() => import("../components/TrashBin"));
 const ProjectPage = lazy(() => import("../pages/projects/index"));
 const NotFoundPage = lazy(() => import("../pages/errors/NotFoundPage"));
@@ -18,6 +19,8 @@ const NotFoundPage = lazy(() => import("../pages/errors/NotFoundPage"));
 // ------------------------------------
 export const routesConfig = [
   { path: "/", element: <LoginPage />, isPrivate: false },
+  // ✅ 공지 목록 페이지 (등록 버튼 포함된 버전)
+  { path: "/notices", element: <NoticeList />, isPrivate: true },
 
   { path: "/signup", element: <Signup />, isPrivate: true, adminOnly: true },
 

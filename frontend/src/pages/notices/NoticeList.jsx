@@ -1,54 +1,50 @@
+// src/pages/notices/NoticeList.jsx
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { api } from "../../api";
+import { api } from "../../services/api";
 import AppShell from "../../layout/AppShell";
 
 export default function NoticeList({ token }) {
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
+  const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newBody, setNewBody] = useState("");
-  const navigate = useNavigate();
 
-  // 🔹 전체 공지 불러오기
+  const authToken = token || localStorage.getItem("token");
+
+  // 전체 공지 불러오기
   async function load() {
     try {
-      const data = await api("/notices", {
-        method: "GET",
-        token,
-      });
-      setItems(data);
+      const data = await api("/notices", { method: "GET", token: authToken });
+      setItems(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("공지사항 로드 실패:", err);
+      setItems([]);
     }
   }
 
-  // 🔹 검색 실행
+  // 검색
   const search = async () => {
-    if (!q.trim()) {
-      await load(); // 검색어 없으면 전체 불러오기
-      return;
-    }
+    if (!q.trim()) return load();
     try {
       const data = await api(`/notices/search?q=${encodeURIComponent(q)}`, {
         method: "GET",
-        token,
+        token: authToken,
       });
-      setItems(data);
+      setItems(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("검색 실패:", err);
     }
   };
 
-  // 🔹 엔터키로 검색
-  const handleKeyPress = e => {
+  const handleKeyDown = e => {
     if (e.key === "Enter") {
       e.preventDefault();
       search();
     }
   };
 
-  // 🔹 공지 등록
+  // 공지 등록
   async function addNotice(e) {
     e.preventDefault();
     if (!newTitle.trim() || !newBody.trim()) {
@@ -58,102 +54,117 @@ export default function NoticeList({ token }) {
     try {
       await api("/notices", {
         method: "POST",
-        token,
-        body: {
-          scope: "GLOBAL",
-          title: newTitle,
-          body: newBody,
-        },
+        token: authToken,
+        body: { scope: "GLOBAL", title: newTitle.trim(), body: newBody },
       });
       setNewTitle("");
       setNewBody("");
+      setShowForm(false);
       await load();
+      alert("공지 등록 완료");
     } catch (err) {
-      alert("공지 등록 실패: " + err.message);
+      if (err?.status === 401) {
+        alert("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+        localStorage.removeItem("token");
+        localStorage.removeItem("access_token");
+        window.location.href = "/";
+        return;
+      }
+      alert("공지 등록 실패: " + (err.message || ""));
     }
   }
 
-  // 🔹 공지 수정
+  // 공지 수정
   async function editNotice(id, oldTitle, oldBody) {
-    const newTitle = prompt("새 제목:", oldTitle);
-    const newBody = prompt("새 내용:", oldBody);
-    if (!newTitle || !newBody) return;
+    const t = prompt("새 제목:", oldTitle);
+    const b = prompt("새 내용:", oldBody);
+    if (!t || !b) return;
     try {
       await api(`/notices/${id}`, {
         method: "PUT",
-        token,
-        body: { title: newTitle, body: newBody },
+        token: authToken,
+        body: { title: t, body: b },
       });
       await load();
     } catch (err) {
-      alert("수정 실패: " + err.message);
+      alert("수정 실패: " + (err.message || ""));
     }
   }
 
-  // 🔹 공지 삭제
+  // 공지 삭제
   async function deleteNotice(id) {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     try {
-      await api(`/notices/${id}`, { method: "DELETE", token });
+      await api(`/notices/${id}`, { method: "DELETE", token: authToken });
       await load();
     } catch (err) {
-      alert("삭제 실패: " + err.message);
+      if (String(err.message || "").includes("HTTP 403")) {
+        alert("삭제 권한이 없습니다. (관리자 전용)");
+      } else {
+        alert("삭제 실패: " + (err.message || ""));
+      }
     }
   }
 
-  // ✅ 최초 로드
   useEffect(() => {
     load();
-    // eslint-disable-next-line
   }, []);
 
   return (
     <AppShell>
-      <div>
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
         <h3>📢 공지사항</h3>
 
-        {/* 검색창 */}
-        <input
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="검색어 입력"
-        />
-        <button onClick={search}>검색</button>
-
-        {/* 📅 캘린더 이동 */}
-        <button
-          style={{ marginLeft: "10px", backgroundColor: "#2196F3", color: "white" }}
-          onClick={() => navigate("/calendar")}
-        >
-          📅 캘린더 보기
-        </button>
-
-        {/* ✏ 새 공지 등록 */}
-        <form onSubmit={addNotice} style={{ marginTop: "20px" }}>
-          <h4>✏ 새 공지 등록</h4>
+        {/* 검색바 */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
           <input
-            type="text"
-            placeholder="제목"
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            required
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="검색어 입력 (제목/내용/작성자/범위)"
+            style={{ flex: 1, padding: 8 }}
           />
-          <textarea
-            placeholder="내용"
-            value={newBody}
-            onChange={e => setNewBody(e.target.value)}
-            required
-            rows={3}
-            style={{ display: "block", marginTop: "5px", width: "100%" }}
-          />
-          <button type="submit" style={{ marginTop: "10px" }}>
-            등록
+          <button onClick={search}>검색</button>
+          <button
+            style={{ backgroundColor: "#1976D2", color: "white" }}
+            onClick={() => setShowForm(v => !v)}
+            title="공지 등록"
+          >
+            ✚ 공지 등록
           </button>
-        </form>
+        </div>
 
-        {/* 📋 공지 목록 */}
-        <div style={{ marginTop: "20px" }}>
+        {/* 등록 폼 */}
+        {showForm && (
+          <form onSubmit={addNotice} style={{ marginTop: 12, marginBottom: 16 }}>
+            <h4>✏ 새 공지 등록</h4>
+            <input
+              type="text"
+              placeholder="제목"
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              required
+              style={{ display: "block", width: "100%", padding: 8 }}
+            />
+            <textarea
+              placeholder="내용"
+              value={newBody}
+              onChange={e => setNewBody(e.target.value)}
+              required
+              rows={3}
+              style={{ display: "block", marginTop: 6, width: "100%", padding: 8 }}
+            />
+            <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+              <button type="submit">등록</button>
+              <button type="button" onClick={() => setShowForm(false)}>
+                닫기
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* 목록 */}
+        <div style={{ marginTop: 8 }}>
           {items.length === 0 ? (
             <p>공지사항이 없습니다.</p>
           ) : (
@@ -161,22 +172,23 @@ export default function NoticeList({ token }) {
               <div
                 key={n.id}
                 style={{
-                  marginBottom: "15px",
+                  marginBottom: 15,
                   borderBottom: "1px solid #ccc",
-                  paddingBottom: "10px",
+                  paddingBottom: 10,
                 }}
               >
-                <h4>{n.title}</h4>
-                <p>{n.body}</p>
+                <h4 style={{ marginBottom: 6 }}>{n.title}</h4>
+                <p style={{ whiteSpace: "pre-wrap" }}>{n.body}</p>
                 <small>
                   작성자: {n.username} [{n.scope}] / 작성일:{" "}
                   {new Date(n.created_at).toLocaleString()}
                 </small>
-                <div style={{ marginTop: "8px" }}>
+                <div style={{ marginTop: 8 }}>
                   <button onClick={() => editNotice(n.id, n.title, n.body)}>✏ 수정</button>
                   <button
-                    style={{ marginLeft: "8px", color: "red" }}
+                    style={{ marginLeft: 8, color: "red" }}
                     onClick={() => deleteNotice(n.id)}
+                    title="관리자만 삭제 가능"
                   >
                     🗑 삭제
                   </button>

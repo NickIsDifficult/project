@@ -89,6 +89,10 @@ def get_notice(db: Session, notice_id: int) -> Optional[Dict[str, Any]]:
     n, username = row
     return _row_to_public(n, username=username)
 
+def get_notice_raw(db: Session, notice_id: int) -> Optional[Notice]:
+    """권한 판단용으로 ORM 객체 원형 반환"""
+    return db.get(Notice, notice_id)
+
 
 def create_notice(db: Session, *, author_id: int, title: str, body: str, scope: str) -> Dict[str, Any]:
     n = Notice(title=title.strip(), body=body, scope=(scope or "GLOBAL").upper(), author_id=author_id)

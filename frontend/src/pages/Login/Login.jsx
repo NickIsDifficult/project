@@ -4,22 +4,28 @@ import { useNavigate } from "react-router-dom";
 import Button from "../../components/common/Button";
 import { api } from "../../services/api";
 
-// ✅ 응답에서 토큰만 뽑고, 접두사(Bearer/JWT)는 제거
+/** ✅ FastAPI JWT 응답용 최종 버전 */
 function extractRawToken(res) {
-  const raw =
-    res?.access_token ||
-    res?.token ||
-    res?.jwt ||
-    res?.result?.token ||
+  if (!res || typeof res !== "object") return "";
+
+  // 1️⃣ access_token이 가장 흔한 구조
+  if (typeof res.access_token === "string" && res.access_token.length > 10)
+    return res.access_token.trim();
+
+  // 2️⃣ 기타 형태 대비
+  const candidate =
+    res.token ||
+    res.jwt ||
+    res.result?.token ||
+    res.result?.access_token ||
     "";
 
-  if (typeof raw !== "string") return "";
+  if (typeof candidate !== "string") return "";
 
-  // "Bearer xxxxx" 또는 "JWT xxxxx" 형태면 접두사 제거
-  if (raw.startsWith("Bearer ")) return raw.slice("Bearer ".length).trim();
-  if (raw.startsWith("JWT ")) return raw.slice("JWT ".length).trim();
+  if (candidate.startsWith("Bearer ")) return candidate.slice(7).trim();
+  if (candidate.startsWith("JWT ")) return candidate.slice(4).trim();
 
-  return raw.trim();
+  return candidate.trim();
 }
 
 export default function Login() {
@@ -29,12 +35,12 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (e) => {
+  async function onSubmit(e) {
     e.preventDefault();
     if (loading) return;
 
-    const id = (loginId || "").trim();
-    const pw = (password || "").trim();
+    const id = loginId.trim();
+    const pw = password.trim();
     if (!id || !pw) {
       setError("아이디와 비밀번호를 입력하세요.");
       return;
@@ -44,29 +50,39 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // /auth/login 호출 (api.js가 BASE 붙임)
+      // 1️⃣ 로그인 요청
       const res = await api("/auth/login", {
         method: "POST",
         body: { login_id: id, password: pw },
       });
 
-      // ✅ raw 토큰만 저장
+      console.log("✅ 로그인 응답:", res);
+
+      // 2️⃣ access_token 추출
       const rawToken = extractRawToken(res);
-      if (!rawToken) throw new Error("로그인 응답에 토큰이 없습니다.");
+      console.log("✅ 추출된 토큰:", rawToken);
 
-      // 통일: token / access_token 둘 다 저장 (호환)
-      localStorage.setItem("token", rawToken);
-      localStorage.setItem("access_token", rawToken);
-
-      // (선택) 내 정보 미리 적재 — 실패해도 무시
-      try {
-        await api("/auth/me", { method: "GET", token: rawToken });
-      } catch {
-        // 401이어도 로그인 자체는 성공 처리 (토큰은 저장되어 있으므로 /api/* 호출 가능)
+      // ✅ 토큰 저장
+      if (rawToken && rawToken.length > 10) {
+        localStorage.setItem("token", rawToken);
+        localStorage.setItem("access_token", rawToken);
+      } else {
+        console.warn("⚠️ access_token이 예상보다 짧음:", rawToken);
+        throw new Error("로그인 응답에 토큰이 없습니다.");
       }
 
+      // 3️⃣ /auth/me 검증 (선택)
+      try {
+        const me = await api("/auth/me", { method: "GET", token: rawToken });
+        console.log("✅ /auth/me 검증 성공:", me);
+      } catch (verifyErr) {
+        console.warn("⚠️ 토큰 검증 실패 (무시 가능):", verifyErr);
+      }
+
+      // 4️⃣ 성공 이동
       nav("/main");
     } catch (err) {
+      console.error("로그인 실패:", err);
       const msg =
         err?.status === 401
           ? "아이디 또는 비밀번호가 올바르지 않습니다."
@@ -75,7 +91,7 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <div className="container" style={{ maxWidth: 360, margin: "60px auto" }}>
@@ -83,7 +99,6 @@ export default function Login() {
 
       {error && (
         <div
-          className="error"
           style={{
             background: "#ffe9e9",
             color: "#b00020",

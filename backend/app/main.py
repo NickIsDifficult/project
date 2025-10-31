@@ -1,14 +1,15 @@
 # app/main.py
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
+
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from passlib.hash import bcrypt
+from sqlalchemy import select
 
 # --- DB / Models ---
 from app import models
 from app.database import Base, engine, SessionLocal
-from sqlalchemy import select
-from passlib.hash import bcrypt
 
 # --- Routers ---
 # auth (/auth/*)
@@ -26,13 +27,13 @@ from app.routers import (
     notification_router,
     activity_router,
     ai_router,
-    notices_router,
+    notices_router,   # /api/notices
 )
 
 # 확장 라우터 (개별 export)
-from app.routers.events_router import router as events_router
-from app.routers.status_router import router as status_router
-from app.routers.trash_router import router as trash_router
+from app.routers.events_router import router as events_router     # /api/events
+from app.routers.status_router import router as status_router     # /api/status
+from app.routers.trash_router import router as trash_router       # /api/trash
 
 # ------------------------------------------------
 # FastAPI
@@ -119,7 +120,10 @@ def create_default_admin():
     db = SessionLocal()
     try:
         # 이미 있으면 스킵
-        if db.scalar(select(models.Member.member_id).where(models.Member.login_id == "0000")):
+        exists = db.scalar(
+            select(models.Member.member_id).where(models.Member.login_id == "0000")
+        )
+        if exists:
             log.info("ℹ️ 기본 관리자(0000) 이미 존재. 초기화 스킵.")
             return
 
@@ -177,14 +181,16 @@ def seed_default_project():
             return  # 하나라도 있으면 스킵
 
         proj = models.Project()
-        # 모델에 따라 name 또는 title만 있을 수 있으므로 방어적으로 설정
+
+        # 1) 이름
         if hasattr(proj, "project_name"):
             setattr(proj, "project_name", "Default Project")
         elif hasattr(proj, "name"):
             setattr(proj, "name", "Default Project")
         elif hasattr(proj, "title"):
             setattr(proj, "title", "Default Project")
-            # 2) 설명(선택)
+
+        # 2) 설명(선택)
         for field in ("description", "project_desc", "detail"):
             if hasattr(proj, field):
                 setattr(proj, field, "Seeded on startup")
@@ -205,11 +211,12 @@ def seed_default_project():
         # 5) 소유자(선택) - 관리자(emp_no=0000) 있으면 연결
         owner_id = None
         if hasattr(models, "Employee") and hasattr(models.Employee, "emp_id"):
-            owner_id = db.scalar(select(models.Employee.emp_id).where(models.Employee.emp_no == "0000"))
+            owner_id = db.scalar(
+                select(models.Employee.emp_id).where(models.Employee.emp_no == "0000")
+            )
         for field in ("owner_emp_id", "owner_id", "manager_emp_id"):
             if hasattr(proj, field) and getattr(proj, field, None) is None:
                 setattr(proj, field, owner_id)
-
 
         db.add(proj)
         db.commit()

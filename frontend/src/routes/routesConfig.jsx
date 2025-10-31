@@ -8,7 +8,7 @@ import DeptRoles from "../pages/admin/DeptRoles";
 
 const Screen = lazy(() => import("../pages/screens/Screen"));
 const Calendar = lazy(() => import("../pages/calendar/CalendarView"));
-const NoticeBoard = lazy(() => import("../pages/notices/NoticeBoard"));
+const NoticeList = lazy(() => import("../pages/notices/NoticeList"));
 const TrashBin = lazy(() => import("../components/TrashBin"));
 const ProjectPage = lazy(() => import("../pages/projects/index"));
 const NotFoundPage = lazy(() => import("../pages/errors/NotFoundPage"));
@@ -39,7 +39,7 @@ export const routesConfig = [
   },
   {
     path: "/notices",
-    element: <NoticeBoard />,
+    element: <NoticeList />,
     isPrivate: true,
   },
   {

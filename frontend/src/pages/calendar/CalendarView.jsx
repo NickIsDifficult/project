@@ -12,65 +12,111 @@ import "react-datepicker/dist/react-datepicker.css";
 import AppShell from "../../layout/AppShell";
 import API from "../../services/api/http";
 
-const locales = { ko: ko };
+const locales = { ko };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
+
+// "YYYY-MM-DD HH:mm" 또는 ISO → Date
+function toDate(input) {
+  if (!input) return null;
+  if (input instanceof Date) return input;
+  if (typeof input !== "string") return null;
+  if (input.includes("T")) {
+    const d = new Date(input);
+    return isNaN(d) ? null : d;
+  }
+  const m = input.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
+  if (!m) {
+    const d = new Date(input);
+    return isNaN(d) ? null : d;
+  }
+  const [, y, mo, d, h, mi] = m;
+  const out = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi));
+  return isNaN(out) ? null : out;
+}
+
+function formatDateTime(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${day} ${h}:${min}`;
+}
 
 export default function CalendarView({ projectId = 1 }) {
   const [events, setEvents] = useState([]);
-  const [status, setStatus] = useState([]); // 필요 시 사용
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  const mapEvent = (ev) => ({
+    id: `event-${ev.id}`,
+    type: "event",
+    title: ev.title,
+    start: toDate(ev.start_date),
+    end: toDate(ev.end_date),
+  });
+
+  const mapStatus = (s) => ({
+    id: `status-${s.id}`,
+    type: "status",
+    title: `[${s.type}] ${s.username ?? ""}`.trim(),
+    start: toDate(s.start_date),
+    end: toDate(s.end_date),
+  });
+
+  const okRange = (x) =>
+    x &&
+    x.start instanceof Date &&
+    !isNaN(x.start) &&
+    x.end instanceof Date &&
+    !isNaN(x.end) &&
+    x.end >= x.start;
+
   async function loadEvents() {
     const { data } = await API.get("/events", { params: { project_id: projectId } });
-    return data.map(ev => ({
-      id: `event-${ev.id}`,
-      type: "event",
-      title: ev.title,
-      start: new Date(ev.start_date),
-      end: new Date(ev.end_date),
-    }));
+    return (data || []).map(mapEvent).filter(okRange);
   }
 
   async function loadStatus() {
     const { data } = await API.get("/status");
-    return data.map(s => ({
-      id: `status-${s.id}`,
-      type: "status",
-      title: `[${s.type}] ${s.username}`,
-      start: new Date(s.start_date),
-      end: new Date(s.end_date),
-    }));
+    return (data || []).map(mapStatus).filter(okRange);
   }
 
   async function loadAll() {
-    const ev = await loadEvents();
-    const st = await loadStatus();
+    const [ev, st] = await Promise.all([loadEvents(), loadStatus()]);
     setEvents([...ev, ...st]);
   }
 
   useEffect(() => {
-    loadAll();
-  }, []);
+    loadAll().catch((e) => console.error("loadAll error:", e?.message || e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   async function addEvent(e) {
     e.preventDefault();
     if (!title.trim()) return alert("제목을 입력하세요!");
+    if (endDate < startDate) return alert("종료 시각이 시작 시각보다 빠릅니다.");
 
-    await API.post("/events", {
-      project_id: projectId,
-      title,
-      description: "",
-      start_date: formatDateTime(startDate),
-      end_date: formatDateTime(endDate),
-    });
+    try {
+      // 빈 description은 아예 생략
+      const payload = {
+        project_id: projectId,
+        title,
+        start_date: formatDateTime(startDate),
+        end_date: formatDateTime(endDate),
+      };
+      await API.post("/events/create", payload);
 
-    setTitle("");
-    setStartDate(new Date());
-    setEndDate(new Date());
-    await loadAll(); // 추가 후 즉시 반영
+      setTitle("");
+      setStartDate(new Date());
+      setEndDate(new Date());
+      await loadAll();
+    } catch (err) {
+      alert(`일정 추가 실패: ${err?.message || "서버 오류"}`);
+      console.error(err);
+    }
   }
 
   async function editEvent() {
@@ -80,30 +126,38 @@ export default function CalendarView({ projectId = 1 }) {
     if (!newTitle) return;
 
     const id = selectedEvent.id.replace("event-", "");
-    await API.put(`/events/${id}`, {
-      title: newTitle,
-      start_date: formatDateTime(selectedEvent.start),
-      end_date: formatDateTime(selectedEvent.end),
-    });
-
-    setSelectedEvent(null);
-    await loadAll(); // 수정 후 즉시 반영
+    try {
+      await API.put(`/events/${id}`, {
+        title: newTitle,
+        start_date: formatDateTime(selectedEvent.start),
+        end_date: formatDateTime(selectedEvent.end),
+      });
+      setSelectedEvent(null);
+      await loadAll();
+    } catch (err) {
+      alert(`수정 실패: ${err?.message || "서버 오류"}`);
+      console.error(err);
+    }
   }
 
   async function deleteEvent() {
     if (!selectedEvent) return;
     if (!window.confirm("삭제하시겠습니까?")) return;
 
-    if (selectedEvent.type === "event") {
-      const id = selectedEvent.id.replace("event-", "");
-      await API.delete(`/events/${id}`);
-    } else if (selectedEvent.type === "status") {
-      const id = selectedEvent.id.replace("status-", "");
-      await API.delete(`/status/${id}`);
+    try {
+      if (selectedEvent.type === "event") {
+        const id = selectedEvent.id.replace("event-", "");
+        await API.delete(`/events/${id}`);
+      } else if (selectedEvent.type === "status") {
+        const id = selectedEvent.id.replace("status-", "");
+        await API.delete(`/status/${id}`);
+      }
+      setSelectedEvent(null);
+      await loadAll();
+    } catch (err) {
+      alert(`삭제 실패: ${err?.message || "서버 오류"}`);
+      console.error(err);
     }
-
-    setSelectedEvent(null);
-    await loadAll(); // 삭제 후 즉시 반영
   }
 
   return (
@@ -111,14 +165,13 @@ export default function CalendarView({ projectId = 1 }) {
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
         <h2>📅 프로젝트 {projectId} 캘린더</h2>
 
-        {/* 일정 등록 */}
         <form onSubmit={addEvent} style={{ marginBottom: "20px" }}>
           <h4>➕ 프로젝트 일정 등록</h4>
           <input
             type="text"
             placeholder="일정 제목"
             value={title}
-            onChange={e => setTitle(e.target.value)}
+            onChange={(e) => setTitle(e.target.value)}
             required
           />
           <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
@@ -144,7 +197,6 @@ export default function CalendarView({ projectId = 1 }) {
           </button>
         </form>
 
-        {/* 캘린더 */}
         <RBCalendar
           localizer={localizer}
           events={events}
@@ -161,16 +213,17 @@ export default function CalendarView({ projectId = 1 }) {
             previous: "이전",
             next: "다음",
           }}
-          onSelectEvent={event => setSelectedEvent(event)}
-          eventPropGetter={event => ({
+          onSelectEvent={(event) => setSelectedEvent(event)}
+          eventPropGetter={(event) => ({
             style: {
               backgroundColor: event.type === "status" ? "#FFB6C1" : "#4CAF50",
               color: "black",
+              borderRadius: "8px",
+              border: "1px solid rgba(0,0,0,0.15)",
             },
           })}
         />
 
-        {/* 선택 항목 관리 */}
         {selectedEvent && (
           <div style={{ marginTop: "20px", padding: "10px", border: "1px solid #ccc" }}>
             <h4>선택된 항목: {selectedEvent.title}</h4>
@@ -186,13 +239,4 @@ export default function CalendarView({ projectId = 1 }) {
       </div>
     </AppShell>
   );
-}
-
-function formatDateTime(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${day} ${h}:${min}`;
 }

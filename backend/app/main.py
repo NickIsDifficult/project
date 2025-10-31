@@ -98,7 +98,7 @@ app.include_router(ai_router.router)
 # 프런트가 /api/notices 로 호출한다면 아래처럼:
 # app.include_router(notices_router.router, prefix="/api")
 # 이미 프런트가 /notices 로 부르고 있다면 prefix 없이 아래처럼:
-app.include_router(notices_router.router, prefix="/api")
+app.include_router(notices_router.router)
 
 
 # ---------------------------
@@ -132,9 +132,7 @@ def create_default_admin():
         log.info("⚙️ 기본 관리자/부서/직급/사원/멤버 생성 시작...")
 
         # 1) 부서
-        dept = db.scalar(
-            select(models.Department).where(models.Department.dept_no == "99")
-        )
+        dept = db.scalar(select(models.Department).where(models.Department.dept_no == "99"))
         if not dept:
             dept = models.Department(dept_no="99", dept_name="관리자")
             db.add(dept)

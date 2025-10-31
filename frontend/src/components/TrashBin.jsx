@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AppShell from "../layout/AppShell";
+import API from "../services/api/http";
 
 export default function TrashBin() {
   const [items, setItems] = useState([]);
@@ -46,7 +47,7 @@ export default function TrashBin() {
     formData.append("file", file);
 
     try {
-      await API.post("/upload", formData, {
+      await API.post("/trash/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setFile(null);

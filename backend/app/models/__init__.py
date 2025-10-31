@@ -6,6 +6,7 @@ from app.models.employee import Employee
 from app.models.enums import *
 from app.models.external import External
 from app.models.member import Member
+from app.models.trash import Trash
 
 # ✅ 새로 추가된 공지/참조 모델
 from app.models.notices import Notice, NoticeReference
@@ -52,4 +53,5 @@ __all__ = [
     # ✅ notices
     "Notice",
     "NoticeReference",
+    "Trash"
 ]

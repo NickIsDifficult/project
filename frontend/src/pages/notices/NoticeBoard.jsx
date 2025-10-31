@@ -1,25 +1,9 @@
+// src/pages/notices/NoticeBoard.jsx
 import { useEffect, useState } from "react";
 import AppShell from "../../layout/AppShell";
+import API from "../../services/api/http"; // ✅ axios 인스턴스 사용
 
-/** ────────────── fetch 헬퍼 ────────────── */
-async function api(path, { method = "GET", token, body } = {}) {
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-    // credentials: "include", // 쿠키 인증이면 주석 해제
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`.trim());
-  }
-  return res.json();
-}
-
-/** 응답을 항상 배열로 정규화 */
+// ✅ 응답을 항상 배열로 정규화
 function normalizeToArray(data) {
   if (Array.isArray(data)) return data;
   if (!data) return [];
@@ -30,47 +14,44 @@ function normalizeToArray(data) {
   return [];
 }
 
-export default function NoticeBoard({ token }) {
+export default function NoticeBoard() {
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
 
-  const authToken = token || localStorage.getItem("token");
-
-  // 전체 공지 불러오기
+  // -----------------------------
+  // ✅ 공지사항 전체 불러오기
+  // -----------------------------
   async function load() {
     try {
-      const data = await api("/notices", { method: "GET", token: authToken });
+      const { data } = await API.get("/notices");
       const list = normalizeToArray(data);
-      if (!Array.isArray(list)) console.warn("Unexpected /notices shape:", data);
       setItems(list);
     } catch (err) {
       console.error("공지사항 불러오기 실패:", err);
-      setItems([]); // 안전 처리
+      setItems([]);
     }
   }
 
-  // 검색 실행
+  // -----------------------------
+  // ✅ 검색
+  // -----------------------------
   async function search() {
-    if (!q.trim()) {
-      await load();
-      return;
-    }
+    if (!q.trim()) return load();
+
     try {
-      const data = await api(`/notices/search?q=${encodeURIComponent(q)}`, {
-        method: "GET",
-        token: authToken,
+      const { data } = await API.get("/notices/search", {
+        params: { q },
       });
       const list = normalizeToArray(data);
-      if (!Array.isArray(list)) console.warn("Unexpected /notices/search shape:", data);
       setItems(list);
     } catch (err) {
       console.error("검색 실패:", err);
-      setItems([]); // 안전 처리
+      setItems([]);
     }
   }
 
-  // 엔터키로 검색
-  const handleKeyPress = e => {
+  // 엔터키 검색
+  const handleKeyDown = e => {
     if (e.key === "Enter") {
       e.preventDefault();
       search();
@@ -79,33 +60,51 @@ export default function NoticeBoard({ token }) {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line
   }, []);
 
+  // -----------------------------
+  // ✅ UI 렌더링
+  // -----------------------------
   return (
     <AppShell>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <h2>📢 공지사항</h2>
 
-        {/* onKeyDown으로 바꿔도 됨 */}
+        {/* 검색창 */}
         <div style={{ marginBottom: "16px" }}>
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="제목 / 작성자 / 본문 / 범위(GLOBAL, TEAM, PROJECT)"
-            style={{ width: "70%", padding: "8px" }}
+            style={{
+              width: "70%",
+              padding: "8px",
+              border: "1px solid #ccc",
+              borderRadius: 4,
+            }}
           />
-          <button onClick={search} style={{ marginLeft: "8px" }}>
+          <button
+            onClick={search}
+            style={{
+              marginLeft: "8px",
+              padding: "8px 12px",
+              border: "none",
+              backgroundColor: "#1976D2",
+              color: "white",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
             검색
           </button>
         </div>
 
         {/* 결과 출력 */}
-        {!Array.isArray(items) || items.length === 0 ? (
+        {items.length === 0 ? (
           <p>공지사항이 없습니다.</p>
         ) : (
-          <ul>
+          <ul style={{ listStyle: "none", paddingLeft: 0 }}>
             {items.map(n => (
               <li
                 key={n.id}
@@ -115,11 +114,11 @@ export default function NoticeBoard({ token }) {
                   paddingBottom: "8px",
                 }}
               >
-                <h4>{n.title}</h4>
-                <p>{n.body}</p>
-                <small>
-                  작성자: {n.username} / 범위: {n.scope} / 작성일:{" "}
-                  {new Date(n.created_at).toLocaleString()}
+                <h4 style={{ margin: "4px 0" }}>{n.title}</h4>
+                <p style={{ margin: "6px 0", whiteSpace: "pre-wrap" }}>{n.body}</p>
+                <small style={{ color: "#555" }}>
+                  작성자: {n.username || "알 수 없음"} / 범위: {n.scope || "-"} / 작성일:{" "}
+                  {n.created_at ? new Date(n.created_at).toLocaleString() : "-"}
                 </small>
               </li>
             ))}

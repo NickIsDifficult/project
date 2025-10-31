@@ -15,7 +15,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
   /* ✅ 필드 변경 */
   const handleFieldChange = useCallback(
     (key, value) => onUpdate?.({ ...task, [key]: value }),
-    [task, onUpdate]
+    [task, onUpdate],
   );
 
   /* ✅ 하위업무 추가 */

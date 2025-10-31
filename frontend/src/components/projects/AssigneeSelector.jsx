@@ -18,19 +18,19 @@ function AssigneeSelector({ employees = [], selected = [], setSelected }) {
     if (typeof setSelected === "function") {
       if (Array.isArray(selected)) {
         setSelected([...selected, id]);
-        } else {
-          setSelected([id]);
-        }
+      } else {
+        setSelected([id]);
       }
-      setQuery("");
-    };
+    }
+    setQuery("");
+  };
 
-
-  const handleRemove = id =>{
+  const handleRemove = id => {
     if (typeof setSelected === "function") {
       const safe = Array.isArray(selected) ? selected.filter(s => s !== id) : [];
       setSelected(safe);
-  }};
+    }
+  };
 
   return (
     <div style={{ marginTop: 6, position: "relative" }}>
@@ -96,9 +96,9 @@ function AssigneeSelector({ employees = [], selected = [], setSelected }) {
             background: "#fff",
             position: "absolute",
             zIndex: 999999,
-            top :"100%",
-            left : 0,
-            right : 0,
+            top: "100%",
+            left: 0,
+            right: 0,
             boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
           }}
         >

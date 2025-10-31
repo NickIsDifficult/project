@@ -55,7 +55,6 @@ export default function ProjectDetailPanel({ projectId, taskId, onClose, onAddSu
   const [jwtUser, setJwtUser] = useState(null);
   const [openEditDrawer, setOpenEditDrawer] = useState(false);
 
-
   // ✅ JWT 디코딩
   useEffect(() => {
     const token = localStorage.getItem("access_token");

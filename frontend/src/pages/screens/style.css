@@ -1226,7 +1226,8 @@ body.theme-dark .modal-list-skel {
 .screen .admin-group {
   position: absolute;
   left: 1px;
-  top: 380px; /* ← 필요시 360~400 사이에서 미세조정 */
+  top: 380px;
+  /* ← 필요시 360~400 사이에서 미세조정 */
   width: 290px;
   height: 146px;
   overflow: hidden;
@@ -1239,6 +1240,7 @@ body.theme-dark .modal-list-skel {
 .screen .admin-group.expanded {
   height: 146px;
 }
+
 .screen .admin-group.collapsed {
   height: 33px;
 }
@@ -1252,6 +1254,7 @@ body.theme-dark .modal-list-skel {
 .screen .admin-group .arrow {
   transition: transform 180ms ease;
 }
+
 .screen .admin-group.collapsed .arrow {
   transform: rotate(-90deg);
 }
@@ -1260,7 +1263,8 @@ body.theme-dark .modal-list-skel {
 .screen .admin-line {
   position: absolute;
   left: 12px;
-  top: 375px; /* admin-group 바로 위 */
+  top: 375px;
+  /* admin-group 바로 위 */
   width: 264px;
   height: 1px;
   object-fit: cover;
@@ -1269,5 +1273,32 @@ body.theme-dark .modal-list-skel {
 /* 업무를 접었을 때, 관리자 섹션도 위로 당겨 ‘빈 공간’을 줄이고 싶으면 */
 .screen .group.work-collapsed .admin-group,
 .screen .group.work-collapsed .admin-line {
-  transform: translateY(calc(-1 * var(--work-gap))); /* --work-gap은 기존 CSS에 정의 */
+  transform: translateY(calc(-1 * var(--work-gap)));
+  /* --work-gap은 기존 CSS에 정의 */
+}
+
+/* ✅ 카드 내부 리스트 기본 유지 */
+.card-preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ✅ 리스트에서 초과 항목 잘라내기 */
+.card-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  /* 스크롤바 숨김 */
+}
+
+/* ✅ 더보기 표시 */
+.card-more {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
 }

@@ -1,6 +1,6 @@
 // src/layout/AppShell.jsx
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import "../pages/screens/style.css";
@@ -12,40 +12,25 @@ import TopStage from "./TopStage";
 import PersonalInfoModal from "../pages/screens/Setting/PersonalInfoModal";
 import useTheme from "../theme/useTheme";
 
-// 🔁 백엔드 API 래퍼 (axios 기반) 재사용
-//    /auth/me, /auth/me/password 등 이미 여기에 구현돼 있음
-import {
-  getMe, 
-  updateProfile,
-  changePassword,
-  logout,
-} from "../services/api/auth";
+// 🔁 백엔드 API 래퍼 (axios 기반)
+import { changePassword, getMe, logout, updateProfile } from "../services/api/auth";
+
+import API from "../services/api/http"; // ✅ axios 인스턴스 추가
 
 export default function AppShell({ children }) {
   const { theme, toggleTheme } = useTheme();
 
-  // 모달 열림 여부
   const [openSettings, setOpenSettings] = useState(false);
-
-  // 화면 표시용 유저 정보
   const [userInfo, setUserInfo] = useState({
     name: "",
     role_name: "",
     email: "",
   });
-
-  // 현재 근무상태(상단 초록/노랑 점)
   const [userStatus, setUserStatus] = useState("WORKING");
-
-  // 상태 드롭다운 온/오프
   const [showMenu, setShowMenu] = useState(false);
-
-  // 백엔드에서 받은 풀 프로필 (member_id 등)
   const [me, setMe] = useState(null);
-
   const nav = useNavigate();
 
-  // 상태 코드 ↔ 라벨 맵
   const STATE_LABELS = {
     WORKING: "업무중",
     FIELD: "외근",
@@ -62,7 +47,7 @@ export default function AppShell({ children }) {
 
   const fetchMe = useCallback(async () => {
     try {
-      const data = await getMe(); // { member: {...} }
+      const data = await getMe();
       console.log("📥 /auth/me 응답:", data);
 
       const profile = data?.member ?? {};
@@ -72,12 +57,9 @@ export default function AppShell({ children }) {
       setUserInfo({
         name: profile.name ?? "이름 없음",
         email: profile.email ?? "이메일 없음",
-        role_name:
-          profile.role_name ??
-          profile.role_no ??
-          "직급 정보 없음",
+        role_name: profile.role_name ?? profile.role_no ?? "직급 정보 없음",
       });
-      
+
       if (profile.current_state) {
         setUserStatus(String(profile.current_state).toUpperCase());
       }
@@ -95,9 +77,21 @@ export default function AppShell({ children }) {
     fetchMe();
   }, [fetchMe]);
 
+  // ✅ 근무 상태 변경 (axios 버전)
   const handleStatusChange = async newStatus => {
-    setUserStatus(newStatus);
-    setShowMenu(false);
+    try {
+      setUserStatus(newStatus);
+      setShowMenu(false);
+
+      await API.put("/employees/update-status/me", {
+        current_state: newStatus,
+      });
+
+      console.log("✅ 상태 변경 완료:", newStatus);
+    } catch (err) {
+      console.error("❌ 상태 변경 실패:", err);
+      alert("상태 변경 중 오류가 발생했습니다.\n" + (err?.message || "네트워크 오류"));
+    }
   };
 
   const handleSave = async payload => {
@@ -120,7 +114,7 @@ export default function AppShell({ children }) {
           message: "비밀번호가 변경되었습니다. 다시 로그인하세요.",
         });
 
-        return; 
+        return;
       }
 
       await fetchMe();
@@ -128,19 +122,13 @@ export default function AppShell({ children }) {
       alert("저장되었습니다.");
     } catch (err) {
       console.error("❌ 저장 오류:", err);
-      alert(
-        "저장 중 오류가 발생했습니다.\n" +
-          (err?.message || "알 수 없는 오류"),
-      );
+      alert("저장 중 오류가 발생했습니다.\n" + (err?.message || "알 수 없는 오류"));
     }
   };
 
   return (
     <div className="screen">
-      {/* 상단 영역 */}
       <TopStage />
-
-      {/* 좌측 사이드바 */}
       <Sidebar userStatus={userStatus} />
 
       {/* 다크모드 토글 */}
@@ -173,11 +161,7 @@ export default function AppShell({ children }) {
         {showMenu && (
           <div className="status-menu">
             {Object.entries(STATE_LABELS).map(([key, label]) => (
-              <div
-                key={key}
-                className="status-option"
-                onClick={() => handleStatusChange(key)}
-              >
+              <div key={key} className="status-option" onClick={() => handleStatusChange(key)}>
                 <div
                   className="status-dot"
                   style={{
@@ -223,7 +207,7 @@ export default function AppShell({ children }) {
         </div>
       </div>
 
-      {/* 좌하단 고정: 개인정보수정 버튼 */}
+      {/* 좌하단 개인정보 수정 */}
       <div className="view-bottom">
         <div
           className="nav-item settings-item"
@@ -240,7 +224,6 @@ export default function AppShell({ children }) {
         </div>
       </div>
 
-      {/* 개인정보 수정 모달 */}
       <PersonalInfoModal
         open={openSettings}
         initial={{
@@ -251,7 +234,6 @@ export default function AppShell({ children }) {
         onSave={handleSave}
       />
 
-      {/* 중앙 컨텐츠 */}
       <main className="appstage-content">{children}</main>
     </div>
   );

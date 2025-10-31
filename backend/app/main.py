@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app import models  # 모델 패키지를 로드해 메타데이터를 채움
 from app.database import Base, SessionLocal, engine
 from app.routers import notices_router  # ✅ 공지 라우터
+from app.routers import search  # ✅ 추가
 from app.routers import (
     activity_router,
     ai_router,
@@ -17,6 +18,7 @@ from app.routers import (
     history_router,
     milestone_router,
     notification_router,
+    preview_router,
     project_router,
     task_router,
 )
@@ -93,6 +95,9 @@ app.include_router(events_router)
 app.include_router(status_router)
 app.include_router(trash_router)
 app.include_router(ai_router.router)
+app.include_router(search.router)
+app.include_router(preview_router.router)
+
 
 # ✅ notices (프런트가 /api 프록시를 탄다면 prefix="/api" 권장)
 # 프런트가 /api/notices 로 호출한다면 아래처럼:

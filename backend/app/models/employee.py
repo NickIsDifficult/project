@@ -1,7 +1,12 @@
 # app/models/employee.py
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
+
 from app.database import Base
+
+# ✅ 상태 관련 ENUM 값 정의
+EMPLOYEE_STATUS = ("ACTIVE", "INACTIVE", "SUSPENDED", "DELETED")
+EMPLOYEE_STATE = ("WORKING", "FIELD", "AWAY", "OFF")
 
 
 class Employee(Base):
@@ -16,6 +21,12 @@ class Employee(Base):
     name = Column(String(50), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     mobile = Column(String(20), unique=True, nullable=False)
+    status = Column(
+        Enum(*EMPLOYEE_STATUS, name="employee_status"), default="ACTIVE", nullable=False
+    )
+    current_state = Column(
+        Enum(*EMPLOYEE_STATE, name="employee_current_state"), default="OFF", nullable=False
+    )
     hire_date = Column(Date, nullable=True)
     birthday = Column(Date, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -36,13 +47,10 @@ class Employee(Base):
         secondary="task_member",
         back_populates="employee",
         lazy="selectin",
-        overlaps="taskmember"
+        overlaps="taskmember",
     )
     taskmember = relationship(
-        "TaskMember",
-        back_populates="employee",
-        lazy="selectin",
-        overlaps="tasks,task"
+        "TaskMember", back_populates="employee", lazy="selectin", overlaps="tasks,task"
     )
 
     comments = relationship("TaskComment", back_populates="employee")

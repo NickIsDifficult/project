@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import tippy from "tippy.js";
 import "tippy.js/dist/tippy.css";
 
+import { useState } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { updateTask } from "../../../services/api/task";
 import { renderTooltip } from "../utils/renderTooltip";
@@ -20,9 +21,14 @@ import "./ProjectCalendarView.css";
 export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
   const { projects, updateTaskLocal, setUiState, setSelectedProject } = useProjectGlobal();
   const { colorMode, setColorMode, activeProjectIds, setActiveProjectIds } = useCalendarSettings();
-  const { events, undatedTasks, projectColorMap } = useCalendarEvents(colorMode, activeProjectIds);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const { events, undatedTasks, projectColorMap } = useCalendarEvents(
+    colorMode,
+    activeProjectIds,
+    searchKeyword,
+  );
 
-  /* 📦 일정 이동 */
+  /* 📦 일정 이동 (드래그로 위치 변경) */
   const handleEventDrop = async info => {
     const { id, start, end, extendedProps } = info.event;
     if (extendedProps.isProject) {
@@ -45,7 +51,30 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     }
   };
 
-  /* 🆕 선택 → 새 업무 등록 */
+  /* 📏 일정 길이 조정 (기간 늘리기/줄이기) */
+  const handleEventResize = async info => {
+    const { id, start, end, extendedProps } = info.event;
+    if (extendedProps.isProject) {
+      toast.error("프로젝트 기간은 직접 조정할 수 없습니다.");
+      return info.revert();
+    }
+
+    const projectId = extendedProps.project_id;
+    const startDate = dayjs(start).format("YYYY-MM-DD");
+    const endDate = end ? dayjs(end).subtract(1, "day").format("YYYY-MM-DD") : startDate;
+
+    try {
+      updateTaskLocal(id, { start_date: startDate, due_date: endDate });
+      await updateTask(projectId, id, { start_date: startDate, due_date: endDate });
+      toast.success(`📏 기간 변경: ${startDate} ~ ${endDate}`);
+    } catch (err) {
+      console.error("❌ 기간 변경 실패:", err);
+      toast.error("기간 변경 실패");
+      info.revert();
+    }
+  };
+
+  /* 🆕 날짜 선택 → 새 업무 등록 */
   const handleSelect = info => {
     const start = dayjs(info.start).format("YYYY-MM-DD");
     const end = dayjs(info.end).subtract(1, "day").format("YYYY-MM-DD");
@@ -58,7 +87,7 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     localStorage.setItem("newTask_end", end);
   };
 
-  /* 🖱️ 클릭 → 프로젝트 or 업무 상세 */
+  /* 🖱️ 클릭 → 프로젝트 or 업무 상세 보기 */
   const handleEventClick = info => {
     const { id, extendedProps } = info.event;
     if (extendedProps.isProject) {
@@ -94,7 +123,7 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     }
   };
 
-  /* 🎨 프로젝트 / 업무 시각 구분 + 색상 모드 적용 */
+  /* 🎨 이벤트 표시 스타일 */
   const handleEventContent = arg => {
     const { extendedProps } = arg.event;
     const isProject = extendedProps.isProject;
@@ -124,7 +153,7 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     };
   };
 
-  /* 🎨 색상 모드 라벨 */
+  /* 🎨 색상 기준 라벨 */
   const getColorModeLabel = () => {
     switch (colorMode) {
       case "assignee":
@@ -148,9 +177,16 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
         setActiveProjectIds={setActiveProjectIds}
         colorMode={colorMode}
         setColorMode={setColorMode}
+        searchKeyword={searchKeyword}
+        setSearchKeyword={setSearchKeyword}
       />
 
-      {/* 🎨 현재 색상 모드 안내 */}
+      {searchKeyword && (
+        <div style={{ fontSize: 12, color: "#555", margin: "4px 0 6px" }}>
+          🔍 “{searchKeyword}” 검색 결과만 표시 중
+        </div>
+      )}
+
       <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>
         🎨 현재 색상 기준: <b>{getColorModeLabel()}</b>
       </div>
@@ -160,9 +196,11 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
         initialView="dayGridMonth"
         selectable
         select={handleSelect}
-        events={events}
-        editable
-        eventDrop={handleEventDrop}
+        events={events || []}
+        editable // ✅ 이동 & 기간조정 모두 활성화
+        eventResizableFromStart // ✅ 시작 날짜 조정 가능
+        eventDrop={handleEventDrop} // ✅ 드래그 이동
+        eventResize={handleEventResize} // ✅ 길이 조정
         eventClick={handleEventClick}
         eventDidMount={handleEventDidMount}
         eventContent={handleEventContent}
@@ -173,7 +211,6 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
         firstDay={1}
         height="auto"
         contentHeight="auto"
-        windowResize
         headerToolbar={{
           left: "prev,next today",
           center: "title",

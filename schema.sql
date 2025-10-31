@@ -147,6 +147,26 @@ CREATE TABLE `member` (
 ;
 --------------------------------------------------------------------------------
 
+-- Table: trash
+
+CREATE TABLE trash (
+	id INTEGER NOT NULL AUTO_INCREMENT, 
+	title VARCHAR(255), 
+	table_name VARCHAR(64) NOT NULL, 
+	record_id INTEGER NOT NULL, 
+	deleted_at DATETIME NOT NULL, 
+	delete_reason VARCHAR(255), 
+	deleted_by_emp_id INTEGER, 
+	file_path TEXT, 
+	content_type VARCHAR(128), 
+	size_bytes INTEGER, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(deleted_by_emp_id) REFERENCES employee (emp_id) ON DELETE SET NULL
+)
+
+;
+--------------------------------------------------------------------------------
+
 -- Table: notice
 
 CREATE TABLE notice (

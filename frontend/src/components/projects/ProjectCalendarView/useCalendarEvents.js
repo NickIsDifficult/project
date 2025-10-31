@@ -4,7 +4,11 @@ import { useMemo } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { getTaskColor } from "../constants/taskDisplay";
 
-export default function useCalendarEvents(colorMode = "status", activeProjectIds = []) {
+export default function useCalendarEvents(
+  colorMode = "status",
+  activeProjectIds = [],
+  searchKeyword = "",
+) {
   const { projects, tasksByProject } = useProjectGlobal();
 
   // 🎨 프로젝트 색상 팔레트
@@ -31,7 +35,7 @@ export default function useCalendarEvents(colorMode = "status", activeProjectIds
       .filter(p => p.start_date && p.end_date)
       .map(p => ({
         id: `proj-${p.project_id}`,
-        title: p.project_name, // 📁 제거 (중복 방지)
+        title: p.project_name,
         start: p.start_date,
         end: dayjs(p.end_date).add(1, "day").format("YYYY-MM-DD"),
         allDay: true,
@@ -40,7 +44,7 @@ export default function useCalendarEvents(colorMode = "status", activeProjectIds
         textColor: "#111",
         extendedProps: {
           isProject: true,
-          project_id: p.project_id,
+          project_id: Number(p.project_id), // ✅ 숫자형으로 통일
           project_name: p.project_name,
         },
       }));
@@ -77,18 +81,30 @@ export default function useCalendarEvents(colorMode = "status", activeProjectIds
     const list = [];
     for (const [pid, tasks] of Object.entries(tasksByProject)) {
       tasks.forEach(task => {
-        if (!task.start_date && !task.due_date) list.push({ ...task, project_id: Number(pid) });
+        if (!task.start_date && !task.due_date) list.push({ ...task, project_id: Number(pid) }); // ✅ 숫자형으로 통일
       });
     }
     return list;
   }, [tasksByProject]);
 
-  // 🔍 필터
-  const filteredEvents = useMemo(() => {
-    const combined = [...projectEvents, ...taskEvents];
-    if (!activeProjectIds.length) return combined;
-    return combined.filter(ev => activeProjectIds.includes(ev.extendedProps.project_id));
-  }, [projectEvents, taskEvents, activeProjectIds]);
+  const combined = useMemo(() => [...projectEvents, ...taskEvents], [projectEvents, taskEvents]);
 
-  return { events: filteredEvents, undatedTasks, projectColorMap };
+  // 🔍 프로젝트 필터 적용
+  const filtered = useMemo(() => {
+    let result = combined;
+    if (activeProjectIds.length > 0) {
+      const ids = activeProjectIds.map(Number);
+      result = result.filter(ev => ids.includes(ev.extendedProps.project_id));
+    }
+    if (searchKeyword.trim()) {
+      const kw = searchKeyword.toLowerCase();
+      result = result.filter(
+        ev =>
+          ev.title?.toLowerCase().includes(kw) ||
+          ev.extendedProps.project_name?.toLowerCase().includes(kw),
+      );
+    }
+    return result;
+  }, [combined, activeProjectIds, searchKeyword]);
+  return { events: filtered, undatedTasks, projectColorMap };
 }

@@ -75,15 +75,19 @@ def create_task_recursive(
     node: Dict[str, Any],
     parent_task_id: Optional[int] = None,
 ) -> models.Task:
-    """태스크 및 하위 태스크를 재귀적으로 생성"""
+    """태스크 및 모든 하위 태스크를 재귀적으로 생성"""
     title = (node.get("title") or "").strip()
     if not title:
-        raise ValueError("태스크 제목이 비어 있습니다.")
+        print("⚠️ 태스크 제목이 비어 있음 -> 건너뜀")
+        return None
 
+    print(f"🟦 [생성 시작] '{title}' / parent_task_id={parent_task_id}")
+
+    # 1️⃣ Task 생성
     task = models.Task(
         project_id=project_id,
         title=title,
-        description=node.get("description"),
+        description=node.get("description") or "",
         start_date=node.get("start_date"),
         due_date=node.get("due_date"),
         priority=node.get("priority") or TaskPriority.MEDIUM,
@@ -93,20 +97,38 @@ def create_task_recursive(
     )
     db.add(task)
     db.flush()
+    print(f"✅ [등록됨] task_id={task.task_id} / title={title}")
 
-    # ✅ 다중 담당자 등록 + 프로젝트 멤버 자동 포함
-    for eid in node.get("assignee_ids") or []:
+    # 2️⃣ 다중 담당자 등록
+    assignees = node.get("assignee_ids") or []
+    for eid in assignees:
         db.add(models.TaskMember(task_id=task.task_id, emp_id=eid))
         ensure_member(db, project_id, eid, MemberRole.MEMBER)
-
     db.flush()
 
-    # ✅ 하위 태스크 재귀 생성
-    for child in node.get("subtasks") or []:
-        create_task_recursive(db, project_id, creator_emp_id, child, parent_task_id=task.task_id)
+    # 3️⃣ 하위 태스크 처리 (subtask, subtasks 등 모든 이름 지원)
+    subtasks = (
+    node.get("subtasks")
+    or node.get("subtask")
+    or node.get("children")
+    or []
+)
+    if subtasks:
+        print(f"🔽 [하위 태스크 탐색] '{title}' 하위 {len(subtasks)}개")
+        for child in subtasks:
+            print(f"➡️ [하위 생성 호출] '{child.get('title')}' (부모={task.task_id})")
+            create_task_recursive(
+                db=db,
+                project_id=project_id,
+                creator_emp_id=creator_emp_id,
+                node=child,
+                parent_task_id=task.task_id,
+            )
+    else:
+        print(f"🔹 [하위 없음] '{title}'")
 
+    print(f"🏁 [생성 완료] '{title}' (id={task.task_id})")
     return task
-
 
 # =====================================================
 # ✅ 프로젝트 CRUD
@@ -156,6 +178,9 @@ def create_project(db: Session, request, current_user: models.Employee):
 
 def create_project_full(db: Session, payload: Dict[str, Any], current_user: models.Employee):
     """프로젝트 + 태스크 트리 전체 생성"""
+    print("\n" + "=" * 80)
+    print("📦 [요청 payload]", payload)
+    print("=" * 80 + "\n")
     try:
         project_name = (payload.get("project_name") or "").strip()
         if not project_name:
@@ -182,7 +207,8 @@ def create_project_full(db: Session, payload: Dict[str, Any], current_user: mode
         db.flush()
 
         # 태스크 트리 생성
-        for root in payload.get("tasks") or []:
+        roots = payload.get("tasks") or payload.get("subtask") or []
+        for root in roots:
             create_task_recursive(db, proj.project_id, current_user.emp_id, root)
 
         # Activity Log 기록

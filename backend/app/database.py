@@ -10,7 +10,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./default.db")
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    connect_args={"connection_timeout": 5, "use_pure": True},  # 5초만 대기
+    # connect_args={"connection_timeout": 50, "use_pure": True},  # 5초만 대기
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

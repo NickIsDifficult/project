@@ -1,25 +1,33 @@
-// ✅ src/components/projects/TaskNode.jsx
-import { memo, useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 import AssigneeSelector from "./AssigneeSelector";
 
-/**
- * ✅ TaskNode
- * - 업무 / 하위업무 재귀 컴포넌트
- * - 담당자 선택, 시작일/종료일, 세부정보 토글, 자세히 보기 기능 포함
- */
-function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
+function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSibling = () => {} }) {
   const [showDetails, setShowDetails] = useState(false);
   const { setUiState } = useProjectGlobal();
+  const fileInputRef = useRef(null); // 📎 파일 입력용 ref 추가
+
+  /* ✅ 같은 레벨(형제) 업무 추가 */
+  const handleAddSibling = useCallback(() => {
+    const newSibling = {
+      task_id: Date.now(),
+      title: "",
+      start_date: "",
+      end_date: "",
+      assignees: [],
+      subtask: [],
+      attachments: [], // 📎 새 필드 추가
+    };
+  }, [task, onUpdate]);
 
   /* ✅ 필드 변경 */
   const handleFieldChange = useCallback(
     (key, value) => onUpdate?.({ ...task, [key]: value }),
-    [task, onUpdate],
+    [task, onUpdate]
   );
 
   /* ✅ 하위업무 추가 */
-  const handleAddChild = () => {
+  const handleAddChild = useCallback(() => {
     const newChild = {
       task_id: Date.now(),
       title: "",
@@ -27,10 +35,11 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
       end_date: "",
       assignees: [],
       subtask: [],
-      isOpen: false,
+      attachments: [], // 📎 새 필드 추가
     };
-    onUpdate?.({ ...task, subtask: [...(task.subtask || []), newChild] });
-  };
+    const nextSubtasks = [...(task.subtask || []), newChild];
+    onUpdate?.({ ...task, subtask: nextSubtasks });
+  }, [task, onUpdate]);
 
   /* ✅ 하위업무 수정/삭제 */
   const handleChildUpdate = (index, updated) => {
@@ -42,6 +51,14 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
 
   /* ✅ 삭제 */
   const handleDelete = () => onUpdate?.(null);
+
+  /* ✅ ⌨️ 엔터키로 하위업무 추가 */
+  const handleKeyDown = e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onAddSibling?.();
+    }
+  };
 
   /* ✅ 자세히 보기 (우측 패널 이동) */
   const openTaskPanel = () => {
@@ -55,9 +72,27 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
       panel: {
         ...prev.panel,
         selectedTask: { ...task, project_id: projectId },
-        projectId: projectId ?? task.project_id, // ✅ 반드시 포함
+        projectId: projectId ?? task.project_id,
       },
     }));
+  };
+
+  /* 📎 파일 업로드 핸들러 */
+  const handleFileChange = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert("10MB 이하의 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    const next = [...(task.attachments || []), file];
+    handleFieldChange("attachments", next);
+  };
+
+  /* 📎 파일 삭제 */
+  const handleFileDelete = i => {
+    const next = (task.attachments || []).filter((_, idx) => idx !== i);
+    handleFieldChange("attachments", next);
   };
 
   return (
@@ -69,9 +104,6 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
         marginTop: 10,
       }}
     >
-      {/* ================================ */}
-      {/* 🧱 제목 + 버튼 그룹 */}
-      {/* ================================ */}
       <div
         style={{
           display: "flex",
@@ -84,7 +116,8 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
           type="text"
           value={task.title || ""}
           onChange={e => handleFieldChange("title", e.target.value)}
-          placeholder="업무 제목"
+          onKeyDown={handleKeyDown}
+          placeholder="업무 제목 (Enter로 하위업무 추가)"
           style={{
             flex: 1,
             border: "1px solid #ccc",
@@ -94,7 +127,6 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
           }}
         />
 
-        {/* ✅ 버튼 그룹 */}
         <div style={{ display: "flex", gap: 4 }}>
           <button
             onClick={() => setShowDetails(prev => !prev)}
@@ -154,9 +186,6 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
         </div>
       </div>
 
-      {/* ================================ */}
-      {/* 🧩 상세입력 토글 */}
-      {/* ================================ */}
       {showDetails && (
         <div
           style={{
@@ -191,24 +220,96 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
               setSelected={newList => handleFieldChange("assignees", newList)}
             />
           </div>
+
+          {/* 📎 첨부파일 영역 추가 */}
+          <div style={{ marginTop: 12 }}>
+            <strong>첨부파일:</strong>
+            <div style={{ marginTop: 6 }}>
+              <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: "none" }}
+                onChange={handleFileChange}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  background: "#1976d2",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "6px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                📤 첨부파일 추가
+              </button>
+
+              {(task.attachments || []).length > 0 && (
+                <ul style={{ listStyle: "none", padding: 0, marginTop: 8 }}>
+                  {(task.attachments || []).map((file, index) => (
+                    <li
+                      key={index}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        borderBottom: "1px solid #eee",
+                        padding: "4px 0",
+                      }}
+                    >
+                      <span>{file.name}</span>
+                      <button
+                        onClick={() => handleFileDelete(index)}
+                        style={{
+                          background: "crimson",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 4,
+                          padding: "4px 8px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* ================================ */}
-      {/* 🔁 하위업무 재귀 렌더링 */}
-      {/* ================================ */}
-      {(task.subtask || []).map((child, i) => (
-        <TaskNode
-          key={child.task_id ?? i}
-          task={child}
-          employees={employees}
-          onUpdate={u => handleChildUpdate(i, u)}
-          depth={depth + 1}
-          projectId={projectId} // ✅ 전달 유지
-        />
-      ))}
+      {(task.subtask || []).map((child, i) => {
+        const handleAddSiblingAtThisLevel = () => {
+          const newSibling = {
+            task_id: Date.now(),
+            title: "",
+            start_date: "",
+            end_date: "",
+            assignees: [],
+            subtask: [],
+            attachments: [], // 📎 동일하게 추가
+          };
+          const next = [...(task.subtask || []), newSibling];
+          onUpdate?.({ ...task, subtask: next });
+        };
+
+        return (
+          <TaskNode
+            key={child.task_id ?? i}
+            task={child}
+            employees={employees}
+            onUpdate={u => handleChildUpdate(i, u)}
+            depth={depth + 1}
+            projectId={projectId}
+            onAddSibling={handleAddSiblingAtThisLevel}
+          />
+        );
+      })}
     </div>
   );
 }
 
-export default memo(TaskNode);
+export default TaskNode;

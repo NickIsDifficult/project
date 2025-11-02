@@ -325,7 +325,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           rootTasks.map((task, i) => (
             <TaskNode
               key={task.task_id ?? `root-${i}`}
-              task={task}
+              task={{ ...task, attachments: task.attachments || [] }}
               employees={employees}
               onUpdate={updatedTask => {
                 const newTasks = [...project.task];

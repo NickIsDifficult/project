@@ -229,7 +229,7 @@ def create_project_full(db: Session, payload: Dict[str, Any], current_user: mode
 
 
 def update_project(db: Session, project_id: int, request, current_user: models.Employee):
-    """프로젝트 수정 (OWNER만 가능)"""
+    """프로젝트 수정 (OWNER만 가능 + task/attachment 반영)"""
     proj = get_project_by_id(db, project_id)
     if not proj:
         raise ValueError("수정할 프로젝트를 찾을 수 없습니다.")
@@ -237,8 +237,60 @@ def update_project(db: Session, project_id: int, request, current_user: models.E
         raise PermissionError("프로젝트 소유자만 수정할 수 있습니다.")
 
     data = request.model_dump(exclude_unset=True)
-    for k, v in data.items():
-        setattr(proj, k, v)
+
+    # 🔹 1. 프로젝트 기본 정보 갱신
+    for key, value in data.items():
+        if key not in ["task", "attachments"]:
+            setattr(proj, key, value)
+
+    # 🔹 2. 하위 태스크 갱신
+    tasks = data.get("task", [])
+    for t in tasks:
+        db_task = db.query(models.Task).filter(models.Task.task_id == t.get("task_id")).first()
+        if not db_task:
+            continue
+        db_task.title = t.get("title", db_task.title)
+        db_task.description = t.get("description", db_task.description)
+        db_task.start_date = t.get("start_date", db_task.start_date)
+        db_task.due_date = t.get("due_date", db_task.due_date)
+        db_task.progress = t.get("progress", db_task.progress)
+        db_task.status = (
+            models.TaskStatus[t["status"]]
+            if t.get("status") and t["status"] in models.TaskStatus.__members__
+            else db_task.status
+        )
+
+        # 🔸 담당자 동기화
+        if "assignee_ids" in t:
+            db.query(models.TaskMember).filter(models.TaskMember.task_id == db_task.task_id).delete()
+            for emp_id in t["assignee_ids"]:
+                db.add(models.TaskMember(task_id=db_task.task_id, emp_id=emp_id))
+                ensure_member(db, project_id, emp_id, MemberRole.MEMBER)
+
+    # 🔹 3. 첨부파일 갱신
+    attachments = data.get("attachments", [])
+    for a in attachments:
+        if not a.get("file_name"):
+            continue
+        db_attachment = (
+            db.query(models.Attachment)
+            .filter(models.Attachment.attachment_id == a.get("attachment_id"))
+            .first()
+        )
+        if db_attachment:
+            db_attachment.file_name = a.get("file_name", db_attachment.file_name)
+            db_attachment.file_path = a.get("file_path", db_attachment.file_path)
+            db_attachment.file_size = a.get("file_size", db_attachment.file_size)
+        else:
+            new_attachment = models.Attachment(
+                project_id=project_id,
+                task_id=a.get("task_id"),
+                file_name=a.get("file_name"),
+                file_path=a.get("file_path"),
+                file_size=a.get("file_size"),
+                uploaded_by=current_user.emp_id,
+            )
+            db.add(new_attachment)
 
     db.commit()
     db.refresh(proj)

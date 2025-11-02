@@ -202,6 +202,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
   };
 
   const handleSave = async () => {
+    console.log("📤 updateProject payload:", project);
     try {
       await updateProject(projectId, project);
       toast.success("수정 완료!");
@@ -255,7 +256,98 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           background: !isEditing ? "#f6f6f6" : "white",
         }}
       />
+      {/* 📎 프로젝트 첨부파일 영역 */}
+<div style={{ marginTop: 16 }}>
+  <strong>📎 프로젝트 첨부파일</strong>
 
+  {/* 업로드 버튼 */}
+  <div style={{ marginTop: 8 }}>
+    <input
+      type="file"
+      id="projectFileInput"
+      style={{ display: "none" }}
+      onChange={async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error("10MB 이하의 파일만 업로드 가능합니다.");
+          return;
+        }
+
+        // TODO: 백엔드 업로드 API와 연결 필요
+        // 지금은 일단 프론트 상태에 추가
+        const next = [...(project.attachments || []), {
+          file_name: file.name,
+          file_path: URL.createObjectURL(file),
+          file_size: file.size,
+        }];
+        setProject({ ...project, attachments: next });
+      }}
+      disabled={!isEditing}
+    />
+    <button
+      onClick={() => document.getElementById("projectFileInput")?.click()}
+      style={{
+        background: "#1976d2",
+        color: "white",
+        border: "none",
+        borderRadius: 6,
+        padding: "6px 10px",
+        cursor: "pointer",
+      }}
+      disabled={!isEditing}
+    >
+      📤 파일 추가
+    </button>
+  </div>
+
+  {/* 파일 목록 */}
+  {(project.attachments && project.attachments.length > 0) ? (
+    <ul style={{ listStyle: "none", padding: 0, marginTop: 8 }}>
+      {project.attachments.map((f, i) => (
+        <li
+          key={i}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: "1px solid #eee",
+            padding: "4px 0",
+          }}
+        >
+          <a
+            href={f.file_path}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#1976d2", textDecoration: "none" }}
+          >
+            {f.file_name}
+          </a>
+          {isEditing && (
+          <button
+            onClick={() => {
+              const next = project.attachments.filter((_, idx) => idx !== i);
+              setProject({ ...project, attachments: next });
+            }}
+            style={{
+              background: "crimson",
+              color: "white",
+              border: "none",
+              borderRadius: 4,
+              padding: "4px 8px",
+              cursor: "pointer",
+            }}
+          >
+            삭제
+          </button>
+          )}
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <p style={{ color: "#888", marginTop: 8 }}>첨부된 파일이 없습니다.</p>
+  )}
+</div>
       {/* 상세입력 버튼 */}
       <button
         onClick={() => setShowDetails(!showDetails)}
@@ -328,13 +420,16 @@ export default function ProjectDetailForm({ projectId, onClose }) {
               task={{ ...task, attachments: task.attachments || [] }}
               employees={employees}
               onUpdate={updatedTask => {
-                const newTasks = [...project.task];
-                const index = newTasks.findIndex(t => t.task_id === task.task_id);
-                if (updatedTask === null) newTasks.splice(index, 1);
-                else newTasks[index] = updatedTask;
-                setProject({ ...project, task: newTasks });
+                setProject(prev => {
+                  const newTasks = [...project.task];
+                  const index = newTasks.findIndex(t => t.task_id === task.task_id);
+                  if (updatedTask === null) newTasks.splice(index, 1);
+                    else newTasks[index] = updatedTask;
+                  return { ...prev, task: newTasks };
+                });
               }}
               disabled={!isEditing}
+              isEditing={isEditing}
               depth={0}
               projectId={project?.project_id ?? projectId}
             />

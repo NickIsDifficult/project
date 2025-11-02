@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 import AssigneeSelector from "./AssigneeSelector";
 
-function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSibling = () => {} }) {
+function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSibling = () => {},  isEditing = false}) {
   const [showDetails, setShowDetails] = useState(false);
   const { setUiState } = useProjectGlobal();
   const fileInputRef = useRef(null); // 📎 파일 입력용 ref 추가
@@ -22,7 +22,13 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
 
   /* ✅ 필드 변경 */
   const handleFieldChange = useCallback(
-    (key, value) => onUpdate?.({ ...task, [key]: value }),
+    (key, value) => {
+      const updated = structuredClone
+        ? structuredClone(task)
+        : JSON.parse(JSON.stringify(task));
+      updated[key] = value;
+      onUpdate?.(updated);
+    },
     [task, onUpdate]
   );
 
@@ -116,7 +122,8 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
           type="text"
           value={task.title || ""}
           onChange={e => handleFieldChange("title", e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={isEditing ? handleKeyDown : undefined}
+          disabled={!isEditing}
           placeholder="업무 제목 (Enter로 하위업무 추가)"
           style={{
             flex: 1,
@@ -155,7 +162,8 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
           >
             자세히
           </button>
-
+          {isEditing && (
+            <>
           <button
             onClick={handleAddChild}
             style={{
@@ -183,6 +191,8 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
           >
             ✕
           </button>
+          </>
+          )}
         </div>
       </div>
 
@@ -201,6 +211,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
               type="date"
               value={task.start_date || ""}
               onChange={e => handleFieldChange("start_date", e.target.value)}
+              disabled={!isEditing}
               style={{ marginLeft: 8 }}
             />
             <label style={{ marginLeft: 12 }}>종료일</label>
@@ -208,6 +219,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
               type="date"
               value={task.end_date || ""}
               onChange={e => handleFieldChange("end_date", e.target.value)}
+              disabled={!isEditing}
               style={{ marginLeft: 8 }}
             />
           </div>
@@ -218,6 +230,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
               employees={employees}
               selected={task.assignees ?? []}
               setSelected={newList => handleFieldChange("assignees", newList)}
+              disabled={!isEditing}
             />
           </div>
 
@@ -230,9 +243,11 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
                 ref={fileInputRef}
                 style={{ display: "none" }}
                 onChange={handleFileChange}
+                disabled={!isEditing}
               />
               <button
-                onClick={() => fileInputRef.current?.click()}
+                button onClick={() => fileInputRef.current?.click()}
+                disabled={!isEditing}
                 style={{
                   background: "#1976d2",
                   color: "white",
@@ -251,30 +266,39 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
                     <li
                       key={index}
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        borderBottom: "1px solid #eee",
-                        padding: "4px 0",
-                      }}
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      borderBottom: "1px solid #eee",
+                      padding: "4px 0",
+                  }}
                     >
-                      <span>{file.name}</span>
-                      <button
-                        onClick={() => handleFileDelete(index)}
-                        style={{
-                          background: "crimson",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 4,
-                          padding: "4px 8px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        삭제
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                    <a
+                      href={file.file_path || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ textDecoration: "none", color: "#1976d2" }}
+                    >
+                  {file.name || file.file_name}
+                    </a>
+
+                {isEditing && (
+                  <button onClick={() => handleFileDelete(index)}
+                  style={{
+                  background: "crimson",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  }}
+                >
+              삭제
+                </button>
+                )}
+                  </li>
+                ))}
+              </ul>
               )}
             </div>
           </div>

@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List
+from app.schemas.project import Project as ProjectSchema
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 
 from app import models, schemas
 from app.database import get_db
@@ -47,7 +49,15 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
 
 def get_project_by_id(db: Session, project_id: int):
     """프로젝트 + 업무 계층 트리 구조로 조회"""
-    project = db.query(ProjectModel).filter(ProjectModel.project_id == project_id).first()
+    project = (
+        db.query(ProjectModel)
+        .options(
+            joinedload(ProjectModel.task).joinedload(TaskModel.subtask),
+            joinedload(ProjectModel.attachment),   # ✅ 첨부파일까지 로드
+        )
+        .filter(ProjectModel.project_id == project_id)
+        .first()
+    )
     if not project:
         return None
 
@@ -110,18 +120,74 @@ def create_project_full(
 @router.put("/{project_id}", response_model=schemas.project.Project)
 def update_project(
     project_id: int,
-    request: schemas.project.ProjectUpdate,
+    data: schemas.project.ProjectUpdate,
     db: Session = Depends(get_db),
     current_user: models.Employee = Depends(get_current_user),
 ):
-    """프로젝트 수정 (OWNER만 가능)"""
-    try:
-        return project_service.update_project(db, project_id, request, current_user)
-    except PermissionError as e:
-        _error(str(e), status.HTTP_403_FORBIDDEN)
-    except Exception as e:
-        _error(f"프로젝트 수정 실패: {str(e)}")
+    db_project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
+    if not db_project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
 
+    update_data = data.dict(exclude_unset=True)
+
+    # 🔹 필드 갱신
+    for key, value in update_data.items():
+        if key in ["task", "attachments", "projectmember", "taskcomment", "milestone"]:
+            continue
+        setattr(db_project, key, value)
+
+
+    # 🔹 태스크 갱신
+    if "task" in update_data:
+        for t_data in update_data["task"]:
+            db_task = db.query(models.Task).filter(models.Task.task_id == t_data["task_id"]).first()
+            if db_task:
+                for field, val in t_data.items():
+                    if field in ["task_id", "project_id", "assignee_ids", "taskmember", "taskcomment", "subtask", "attachments"]:
+                        continue
+                    if hasattr(db_task, field):
+                        try:
+                            setattr(db_task, field, val)
+                        except AttributeError:
+                            continue
+            else:
+                # 새로운 Task 생성
+                new_task = models.Task(**t_data)
+                new_task.project_id = project_id
+                db.add(new_task)
+
+    # 🔹 첨부파일 갱신
+    if "attachments" in update_data:
+        for a_data in update_data["attachments"]:
+            db_attach = db.query(models.Attachment).filter(
+                models.Attachment.attachment_id == a_data["attachment_id"]
+            ).first()
+            if db_attach:
+                for field, val in a_data.items():
+                    if hasattr(db_attach, field):
+                        setattr(db_attach, field, val)
+            else:
+                # 신규 파일 등록
+                new_attach = models.Attachment(**a_data)
+                new_attach.project_id = project_id
+                db.add(new_attach)
+    db.commit()
+    db.refresh(db_project)
+    db_project = (
+    db.query(models.Project)
+    .options(
+        joinedload(models.Project.task)
+        .joinedload(models.Task.subtask)
+        .joinedload(models.Task.attachment),
+        joinedload(models.Project.attachment),
+        joinedload(models.Project.projectmember),
+    )
+    .filter(models.Project.project_id == project_id)
+    .first()
+)
+
+    # ✅ ORM → Pydantic 변환
+    return ProjectSchema.model_validate(db_project, from_attributes=True)
 
 # =====================================================
 # ✅ 프로젝트 삭제

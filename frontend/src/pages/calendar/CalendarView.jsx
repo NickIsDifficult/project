@@ -50,7 +50,7 @@ export default function CalendarView({ projectId = 1 }) {
   const [endDate, setEndDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  const mapEvent = (ev) => ({
+  const mapEvent = ev => ({
     id: `event-${ev.id}`,
     type: "event",
     title: ev.title,
@@ -58,7 +58,7 @@ export default function CalendarView({ projectId = 1 }) {
     end: toDate(ev.end_date),
   });
 
-  const mapStatus = (s) => ({
+  const mapStatus = s => ({
     id: `status-${s.id}`,
     type: "status",
     title: `[${s.type}] ${s.username ?? ""}`.trim(),
@@ -66,7 +66,7 @@ export default function CalendarView({ projectId = 1 }) {
     end: toDate(s.end_date),
   });
 
-  const okRange = (x) =>
+  const okRange = x =>
     x &&
     x.start instanceof Date &&
     !isNaN(x.start) &&
@@ -90,7 +90,7 @@ export default function CalendarView({ projectId = 1 }) {
   }
 
   useEffect(() => {
-    loadAll().catch((e) => console.error("loadAll error:", e?.message || e));
+    loadAll().catch(e => console.error("loadAll error:", e?.message || e));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -171,7 +171,7 @@ export default function CalendarView({ projectId = 1 }) {
             type="text"
             placeholder="일정 제목"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={e => setTitle(e.target.value)}
             required
           />
           <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
@@ -213,8 +213,8 @@ export default function CalendarView({ projectId = 1 }) {
             previous: "이전",
             next: "다음",
           }}
-          onSelectEvent={(event) => setSelectedEvent(event)}
-          eventPropGetter={(event) => ({
+          onSelectEvent={event => setSelectedEvent(event)}
+          eventPropGetter={event => ({
             style: {
               backgroundColor: event.type === "status" ? "#FFB6C1" : "#4CAF50",
               color: "black",

@@ -1,6 +1,7 @@
 # app/routers/project_router.py
 from __future__ import annotations
-from typing import List, Dict, Any
+
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -43,22 +44,15 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
         _error("프로젝트를 찾을 수 없습니다.", status.HTTP_404_NOT_FOUND)
     return proj
 
+
 def get_project_by_id(db: Session, project_id: int):
     """프로젝트 + 업무 계층 트리 구조로 조회"""
-    project = (
-        db.query(ProjectModel)
-        .filter(ProjectModel.project_id == project_id)
-        .first()
-    )
+    project = db.query(ProjectModel).filter(ProjectModel.project_id == project_id).first()
     if not project:
         return None
 
     # ✅ 프로젝트 내 모든 task 조회
-    tasks = (
-        db.query(TaskModel)
-        .filter(TaskModel.project_id == project_id)
-        .all()
-    )
+    tasks = db.query(TaskModel).filter(TaskModel.project_id == project_id).all()
 
     # ✅ 트리 구성
     task_dict = {t.task_id: t for t in tasks}
@@ -76,6 +70,7 @@ def get_project_by_id(db: Session, project_id: int):
 
     # ✅ FastAPI 직렬화를 위해 반드시 반환은 ORM 객체 그대로 (ProjectModel)
     return project
+
 
 # =====================================================
 # ✅ 프로젝트 생성
@@ -198,7 +193,9 @@ def update_task_status(
     """업무 상태 변경"""
     try:
         new_status = payload.get("status")
-        return project_service.update_task_status(db, project_id, task_id, new_status, current_user.emp_id)
+        return project_service.update_task_status(
+            db, project_id, task_id, new_status, current_user.emp_id
+        )
     except Exception as e:
         _error(f"태스크 상태 변경 실패: {str(e)}")
 
@@ -217,7 +214,9 @@ def update_task_progress(
     """업무 진행률 변경"""
     try:
         progress = payload.get("progress")
-        return project_service.update_task_progress(db, project_id, task_id, progress, current_user.emp_id)
+        return project_service.update_task_progress(
+            db, project_id, task_id, progress, current_user.emp_id
+        )
     except Exception as e:
         _error(f"태스크 진행률 변경 실패: {str(e)}")
 

@@ -107,9 +107,7 @@ export function useTaskDetail(projectId, taskId) {
     if (!taskId) return;
     try {
       const updated = await updateComment(projectId, taskId, commentId, { content });
-      setComments(prev =>
-        prev.map(c => (c.comment_id === commentId ? updated : c)),
-      );
+      setComments(prev => prev.map(c => (c.comment_id === commentId ? updated : c)));
       toast.success("댓글 수정 완료");
     } catch {
       toast.error("댓글 수정 실패");

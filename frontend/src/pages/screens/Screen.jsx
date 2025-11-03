@@ -3,15 +3,6 @@ import { useNavigate } from "react-router-dom";
 import AppShell from "../../layout/AppShell";
 import "./style.css";
 
-// ✅ 각 카드별 미리보기 API 엔드포인트
-const previewEndpoints = {
-  ann: "http://localhost:8000/api/notices/preview",
-  proj: "http://localhost:8000/api/projects/preview",
-  noti: "http://localhost:8000/api/notifications/preview",
-  cal: "http://localhost:8000/api/calendar/preview",
-};
-
-// ✅ 라우팅 매핑
 const routeMap = {
   ann: "/notices",
   proj: "/projects",
@@ -19,63 +10,105 @@ const routeMap = {
   cal: "/calendar",
 };
 
-// ✅ 카드 미리보기 컴포넌트
+const previewEndpoints = {
+  ann: "http://localhost:8000/notices/preview",
+  proj: "http://localhost:8000/projects/preview/list",
+  noti: "http://localhost:8000/notifications/preview",
+  cal: "http://localhost:8000/calendar/preview",
+};
+
+/* ✅ 누락된 ProgressBar 정의 추가 */
+function ProgressBar({ value }) {
+  const clamped = Math.min(100, Math.max(0, value || 0));
+  return (
+    <div className="progress-bar">
+      <div className="progress-fill" style={{ width: `${clamped}%` }}></div>
+      <span className="progress-label">{clamped}%</span>
+    </div>
+  );
+}
+
 function CardPreview({ type, title }) {
   const [items, setItems] = useState([]);
   const nav = useNavigate();
 
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
+  const fetchData = async () => {
+    try {
+      const res = await fetch(previewEndpoints[type]);
+      const data = await res.json();
+      setItems(data);
+    } catch (err) {
+      console.error(`${title} 미리보기 불러오기 실패`, err);
+    }
+  };
 
-    (async () => {
-      try {
-        const res = await fetch(previewEndpoints[type], {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("데이터 요청 실패");
-        const data = await res.json();
-        setItems(data.slice(0, 3)); // 최신 3개만 표시
-      } catch (err) {
-        console.error(`${type} 미리보기 불러오기 실패:`, err);
-      }
-    })();
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, [type]);
 
+  const displayItems = items.slice(0, 2); // ✅ 최대 3개까지만 표시
+
   return (
-    <div
-      className="card-preview"
-      role="button"
-      tabIndex={0}
-      onDoubleClick={() => nav(routeMap[type])}
-      title="더블클릭 시 상세 페이지로 이동"
-    >
+    <div className="card-preview" onDoubleClick={() => nav(routeMap[type])}>
       <h3 className="card-title">{title}</h3>
       <ul className="card-list">
-        {items.length > 0 ? (
-          items.map((item, i) => (
+        {displayItems.length > 0 ? (
+          displayItems.map((item, i) => (
             <li key={i} className="card-item">
-              <strong>{item.title || item.name}</strong>
-              <p>{item.summary || item.content?.slice(0, 40) || "내용 없음"}...</p>
+              <strong>{item.title}</strong>
+
+              {/* ✅ 프로젝트 전용 확장 */}
+              {type === "proj" ? (
+                <>
+                  <p className="proj-summary">{item.summary}</p>
+                  <div className="proj-meta">
+                    <span className={`proj-status status-${item.status?.toLowerCase()}`}>
+                      상태: {item.status || "미정"}
+                    </span>
+                    {item.progress !== undefined && <ProgressBar value={item.progress} />}
+                    <span className="proj-updated">🕒 {item.createdAtStr || "수정일 미상"}</span>
+                  </div>
+                </>
+              ) : type === "cal" ? (
+                <p>
+                  {item.time
+                    ? `${item.time} — ${item.summary || "세부 내용 없음"}`
+                    : item.summary || "오늘 일정 없음"}
+                </p>
+              ) : (
+                <p>{item.summary}</p>
+              )}
             </li>
           ))
         ) : (
           <li className="card-placeholder">데이터를 불러오는 중...</li>
         )}
       </ul>
+
+      {/* ✅ 데이터가 3개 초과일 때 표시 */}
+      {items.length > 2 && (
+        <div
+          className="card-more"
+          onClick={() => nav(routeMap[type])}
+          style={{ cursor: "pointer" }}
+        >
+          …더 보기
+        </div>
+      )}
     </div>
   );
 }
 
-// ✅ Screen 본체 — AppShell이 감싸는 형태
 export default function Screen() {
   return (
     <AppShell>
       <div className="dashboard-grid">
         <CardPreview type="ann" title="공지사항" />
-        <CardPreview type="proj" title="프로젝트" />
+        <CardPreview type="proj" title="프로젝트 현황" /> {/* ✅ 확장된 카드 */}
         <CardPreview type="noti" title="알림" />
-        <CardPreview type="cal" title="캘린더" />
+        <CardPreview type="cal" title="오늘의 일정" />
       </div>
     </AppShell>
   );

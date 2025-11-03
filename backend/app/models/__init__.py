@@ -4,11 +4,9 @@ from app.models.attachment import Attachment
 from app.models.department import Department, DepartmentPermission
 from app.models.employee import Employee
 from app.models.enums import *
+from app.models.event import Event
 from app.models.external import External
 from app.models.member import Member
-from app.models.trash import Trash
-
-# ✅ 새로 추가된 공지/참조 모델
 from app.models.notices import Notice, NoticeReference
 from app.models.notification import Notification, NotificationType
 from app.models.project import (
@@ -22,6 +20,7 @@ from app.models.project import (
 )
 from app.models.role import Role
 from app.models.status import Status
+from app.models.trash import Trash
 
 __all__ = [
     # enums
@@ -53,5 +52,6 @@ __all__ = [
     # ✅ notices
     "Notice",
     "NoticeReference",
-    "Trash"
+    "Trash",
+    "Event",
 ]

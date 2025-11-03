@@ -1,14 +1,9 @@
 from datetime import date, datetime
 from typing import Annotated, List, Optional
+
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
-from app.models.enums import (
-    MemberRole,
-    MilestoneStatus,
-    ProjectStatus,
-    TaskPriority,
-    TaskStatus,
-)
+from app.models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
 from app.schemas.employee import Employee
 
 
@@ -57,9 +52,7 @@ class TaskComment(TaskCommentBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(
-        _serialize_datetime
-    )
+    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(_serialize_datetime)
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -88,9 +81,7 @@ class TaskBase(BaseModel):
     estimate_hours: float = 0.0
     progress: Annotated[int, Field(ge=0, le=100)] = 0
 
-    _ser_date = field_serializer("start_date", "due_date", when_used="always")(
-        _serialize_date
-    )
+    _ser_date = field_serializer("start_date", "due_date", when_used="always")(_serialize_date)
 
 
 class TaskCreate(TaskBase):
@@ -108,9 +99,7 @@ class TaskUpdate(BaseModel):
     estimate_hours: Optional[float] = None
     progress: Optional[int] = None
 
-    _ser_date = field_serializer("start_date", "due_date", when_used="always")(
-        _serialize_date
-    )
+    _ser_date = field_serializer("start_date", "due_date", when_used="always")(_serialize_date)
 
 
 class Task(TaskBase):
@@ -164,9 +153,7 @@ class ProjectBase(BaseModel):
     status: ProjectStatus = ProjectStatus.PLANNED
     owner_emp_id: Optional[int] = None
 
-    _ser_date = field_serializer("start_date", "end_date", when_used="always")(
-        _serialize_date
-    )
+    _ser_date = field_serializer("start_date", "end_date", when_used="always")(_serialize_date)
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -182,9 +169,7 @@ class ProjectUpdate(BaseModel):
     status: Optional[ProjectStatus] = None
     owner_emp_id: Optional[int] = None
 
-    _ser_date = field_serializer("start_date", "end_date", when_used="always")(
-        _serialize_date
-    )
+    _ser_date = field_serializer("start_date", "end_date", when_used="always")(_serialize_date)
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
 
@@ -198,9 +183,7 @@ class Project(ProjectBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(
-        _serialize_datetime
-    )
+    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(_serialize_datetime)
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -235,9 +218,7 @@ class TaskTree(BaseModel):
     assignees: List[dict] = []
     subtasks: List["TaskTree"] = Field(default_factory=list)
 
-    _ser_date = field_serializer("start_date", "due_date", when_used="always")(
-        _serialize_date
-    )
+    _ser_date = field_serializer("start_date", "due_date", when_used="always")(_serialize_date)
     model_config = ConfigDict(from_attributes=True)
 
 

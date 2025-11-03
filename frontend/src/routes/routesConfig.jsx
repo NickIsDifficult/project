@@ -12,6 +12,7 @@ const NoticeList = lazy(() => import("../pages/notices/NoticeList"));
 const TrashBin = lazy(() => import("../components/TrashBin"));
 const ProjectPage = lazy(() => import("../pages/projects/index"));
 const NotFoundPage = lazy(() => import("../pages/errors/NotFoundPage"));
+const Search = lazy(() => import("../pages/search/SearchPage"));
 
 // ------------------------------------
 // ✅ 라우트 구성
@@ -40,6 +41,11 @@ export const routesConfig = [
   {
     path: "/notices",
     element: <NoticeList />,
+    isPrivate: true,
+  },
+  {
+    path: "/search",
+    element: <Search />,
     isPrivate: true,
   },
   {

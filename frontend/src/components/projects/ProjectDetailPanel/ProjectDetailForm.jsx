@@ -21,7 +21,7 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
           Number(e.emp_id) === numId ||
           Number(e.id) === numId ||
           Number(e.employee?.emp_id) === numId ||
-          Number(e.employee?.id) === numId
+          Number(e.employee?.id) === numId,
       ) || null
     );
   };
@@ -59,9 +59,7 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
               {name}
               {!disabled && (
                 <button
-                  onClick={() =>
-                    setSelected(selected.filter(sid => Number(sid) !== Number(id)))
-                  }
+                  onClick={() => setSelected(selected.filter(sid => Number(sid) !== Number(id)))}
                   style={{
                     border: "none",
                     background: "transparent",
@@ -100,10 +98,8 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
               }}
             >
               {filtered.map(e => {
-                const name =
-                  e.name || e.employee?.name || e.employee?.employee_name;
-                const id =
-                  e.emp_id || e.id || e.employee?.emp_id || e.employee?.id;
+                const name = e.name || e.employee?.name || e.employee?.employee_name;
+                const id = e.emp_id || e.id || e.employee?.emp_id || e.employee?.id;
                 return (
                   <div
                     key={id}
@@ -141,37 +137,36 @@ export default function ProjectDetailForm({ projectId, onClose }) {
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-  if (projectId) {
-    console.log("🧾 Project DetailForm check:", {
-      project_id: project?.project_id,
-      name: project?.project_name,
-      raw: project,
-    });
-  } else {
-    console.warn("⚠️ ProjectDetailForm: projectId가 없습니다!");
-  }
-
-  const fetchData = async () => {
-    if (!projectId) return; // projectId 없으면 호출하지 않음
-    try {
-      console.log("📡 getProject 호출:", projectId);
-      const [projectData, employeeData] = await Promise.all([
-        getProject(projectId),
-        getEmployees(),
-      ]);
-      console.log("📦 getProject 응답:", projectData);
-      setProject(projectData);
-      setEmployees(employeeData);
-      const ownerIds = projectData?.projectmember?.map(pm => pm.emp_id) || [];
-      setMainAssignees(ownerIds);
-    } catch (err) {
-      console.error("❌ 데이터 로드 실패:", err);
-      toast.error("데이터를 불러오지 못했습니다.");
+    if (projectId) {
+      console.log("🧾 Project DetailForm check:", {
+        project_id: project?.project_id,
+        name: project?.project_name,
+        raw: project,
+      });
+    } else {
+      console.warn("⚠️ ProjectDetailForm: projectId가 없습니다!");
     }
-  };
-  fetchData();
-}, [projectId]);
 
+    const fetchData = async () => {
+      if (!projectId) return; // projectId 없으면 호출하지 않음
+      try {
+        console.log("📡 getProject 호출:", projectId);
+        const [projectData, employeeData] = await Promise.all([
+          getProject(projectId),
+          getEmployees(),
+        ]);
+        console.log("📦 getProject 응답:", projectData);
+        setProject(projectData);
+        setEmployees(employeeData);
+        const ownerIds = projectData?.projectmember?.map(pm => pm.emp_id) || [];
+        setMainAssignees(ownerIds);
+      } catch (err) {
+        console.error("❌ 데이터 로드 실패:", err);
+        toast.error("데이터를 불러오지 못했습니다.");
+      }
+    };
+    fetchData();
+  }, [projectId]);
 
   if (!project) return <p style={{ padding: 20 }}>⏳ 로딩 중...</p>;
 
@@ -292,9 +287,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
               type="date"
               value={project.start_date || ""}
               disabled={!isEditing}
-              onChange={e =>
-                setProject({ ...project, start_date: e.target.value })
-              }
+              onChange={e => setProject({ ...project, start_date: e.target.value })}
               style={{
                 marginLeft: 8,
                 background: !isEditing ? "#f6f6f6" : "white",
@@ -305,9 +298,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
               type="date"
               value={project.end_date || ""}
               disabled={!isEditing}
-              onChange={e =>
-                setProject({ ...project, end_date: e.target.value })
-              }
+              onChange={e => setProject({ ...project, end_date: e.target.value })}
               style={{
                 marginLeft: 8,
                 background: !isEditing ? "#f6f6f6" : "white",
@@ -443,20 +434,20 @@ export default function ProjectDetailForm({ projectId, onClose }) {
 
       {/* ✅ Task 패널 연결 */}
       {uiState?.panel?.selectedTask && uiState?.panel?.projectId && (
-  <ProjectDetailProvider>
-    <TaskDetailPanel
-      taskId={uiState.panel.selectedTask}
-      projectId={uiState.panel.projectId}
-      onClose={() =>
-        setUiState(prev => ({
-          ...prev,
-          drawer: { ...prev.drawer, task: false },
-          panel: { ...prev.panel, selectedTask: null, projectId: null }, // ✅ null로 초기화
-        }))
-      }
-    />
-  </ProjectDetailProvider>
-)}
+        <ProjectDetailProvider>
+          <TaskDetailPanel
+            taskId={uiState.panel.selectedTask}
+            projectId={uiState.panel.projectId}
+            onClose={() =>
+              setUiState(prev => ({
+                ...prev,
+                drawer: { ...prev.drawer, task: false },
+                panel: { ...prev.panel, selectedTask: null, projectId: null }, // ✅ null로 초기화
+              }))
+            }
+          />
+        </ProjectDetailProvider>
+      )}
     </div>
   );
 }

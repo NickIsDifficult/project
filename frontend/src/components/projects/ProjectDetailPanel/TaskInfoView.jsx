@@ -94,59 +94,100 @@ const handleAddSubtask = () => {
     }
   };
 
+  // 💄 디자인 추가 — 메인 카드 컨테이너
   return (
-    <div style={{ padding: 16 }}>
+  <div
+    style={{
+      padding: 24,
+      background: "linear-gradient(180deg,#fdfdfd,#f7f8fa)",
+      borderRadius: 12,
+      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+      maxWidth: 800,
+      margin: "0 auto",
+    }}
+  >
+
       {/* 상위업무 표시 */}
       {parentTask && (
-        <p style={{ color: "#666", fontSize: 14, marginBottom: 6 }}>
+  <p
+    style={{
+      color: "#666",
+      fontSize: 14,
+      marginBottom: 6,
+      padding: "4px 8px",
+      background: "#eef2ff",
+      borderRadius: 6,
+      display: "inline-block",
+    }}
+  >
           <strong style={{ color: "#444" }}>📁 상위업무:</strong> {parentTask.title} &gt;{" "}
           <span style={{ color: "#1976d2" }}>{taskData.title || "제목 없음"}</span>
         </p>
       )}
 
-      <h2 style={{ marginTop: 4 }}>📌 업무 상세정보</h2>
+      <h2
+  style={{
+    marginTop: 8,
+    fontSize: 20,
+    fontWeight: 600,
+    color: "#222",
+    borderBottom: "2px solid #1976d2",
+    paddingBottom: 6,
+    marginBottom: 16,
+  }}
+>📌 업무 상세정보</h2>
 
       <label>업무 제목</label>
       <input
-        value={taskData.title || ""}
-        onChange={e => setTaskData({ ...taskData, title: e.target.value })}
-        disabled={!isEditing}
-        style={{
-          width: "100%",
-          marginBottom: 10,
-          background: !isEditing ? "#f6f6f6" : "white",
-        }}
-      />
+  value={taskData.title || ""}
+  onChange={e => setTaskData({ ...taskData, title: e.target.value })}
+  disabled={!isEditing}
+  style={{
+    width: "100%",
+    marginBottom: 12,
+    background: !isEditing ? "#f6f6f6" : "white",
+    border: "1px solid #ccc",
+    borderRadius: 8,
+    padding: "8px 12px",
+    fontSize: 15,
+    transition: "all 0.2s",
+  }}
+/>
 
-      <label>업무 설명</label>
+      <label style={{ fontWeight: 500, color: "#444" }}>업무 설명</label>
       <textarea
-        value={taskData.description || ""}
-        onChange={e => setTaskData({ ...taskData, description: e.target.value })}
-        disabled={!isEditing}
-        style={{
-          width: "100%",
-          minHeight: 80,
-          background: !isEditing ? "#f6f6f6" : "white",
-          borderRadius: 6,
-          padding: 6,
-        }}
-      />
+  value={taskData.description || ""}
+  onChange={e => setTaskData({ ...taskData, description: e.target.value })}
+  disabled={!isEditing}
+  style={{
+    width: "100%",
+    minHeight: 100,
+    padding: 10,
+    borderRadius: 8,
+    border: "1px solid #ccc",
+    fontSize: 15,
+    background: !isEditing ? "#f6f6f6" : "white",
+    resize: "vertical",
+  }}
+/>
 
       {/* 상세입력 토글 */}
       <button
-        onClick={() => setShowDetails(!showDetails)}
-        style={{
-          background: showDetails ? "#555" : "#1976d2",
-          color: "white",
-          border: "none",
-          borderRadius: 6,
-          padding: "6px 10px",
-          cursor: "pointer",
-          marginTop: 10,
-        }}
-      >
-        {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
-      </button>
+  onClick={() => setShowDetails(!showDetails)}
+  style={{
+    background: showDetails ? "#444" : "#1976d2",
+    color: "white",
+    border: "none",
+    borderRadius: 8,
+    padding: "10px 16px",
+    cursor: "pointer",
+    marginTop: 16,
+    fontSize: 15,
+    boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
+  }}
+>
+  {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
+</button>
 
       {showDetails && (
         <div
@@ -210,8 +251,16 @@ const handleAddSubtask = () => {
       </div>
 
       {/* 하위업무 목록 */}
-      <div style={{ marginTop: 20 }}>
-  <h3>📋 하위업무 목록</h3>
+      <div
+  style={{
+    marginTop: 24,
+    background: "#fafafa",
+    border: "1px solid #eee",
+    borderRadius: 10,
+    padding: 16,
+  }}
+>
+  <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>📋 하위업무 목록</h3>
   {taskData.subtask?.length ? (
     taskData.subtask.map((st, i) => (
       <TaskNode
@@ -255,15 +304,15 @@ const handleAddSubtask = () => {
 
       {/* 하단 버튼 */}
       <div
-        style={{
-          borderTop: "1px solid #eee",
-          paddingTop: 16,
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 8,
-          marginTop: 20,
-        }}
-      >
+  style={{
+    borderTop: "1px solid #eee",
+    paddingTop: 20,
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 30,
+  }}
+>
         {isEditing ? (
           <>
             <button

@@ -420,20 +420,46 @@ export default function ProjectDetailForm({ projectId, onClose }) {
   }
 };
   return (
-    <div style={{ padding: 16 }}>
-      <h2>📌 프로젝트 상세정보</h2>
+  <div
+    style={{
+      padding: 24,
+      background: "linear-gradient(180deg,#fdfdfd,#f7f8fa)",
+      borderRadius: 12,
+      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+      maxWidth: 900,
+      margin: "0 auto",
+    }}
+  >
+    <h2
+      style={{
+        fontSize: 22,
+        fontWeight: 600,
+        color: "#222",
+        borderBottom: "2px solid #1976d2",
+        paddingBottom: 8,
+        marginBottom: 20,
+      }}
+    >
+      📌 프로젝트 상세정보
+    </h2>
 
-      <label>프로젝트 이름</label>
-      <input
-        value={project.project_name || ""}
-        onChange={e => setProject({ ...project, project_name: e.target.value })}
-        disabled={!isEditing}
-        style={{
-          width: "100%",
-          marginBottom: 12,
-          background: !isEditing ? "#f6f6f6" : "white",
-        }}
-      />
+
+      <label style={{ fontWeight: 500, color: "#444" }}>프로젝트 이름</label>
+<input
+  value={project.project_name || ""}
+  onChange={e => setProject({ ...project, project_name: e.target.value })}
+  disabled={!isEditing}
+  style={{
+    width: "100%",
+    marginBottom: 12,
+    background: !isEditing ? "#f6f6f6" : "white",
+    border: "1px solid #ccc",
+    borderRadius: 8,
+    padding: "8px 12px",
+    fontSize: 15,
+    transition: "all 0.2s",
+  }}
+/>
 
       <label>프로젝트 설명</label>
       <textarea
@@ -450,8 +476,17 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         }}
       />
       {/* 📎 프로젝트 첨부파일 영역 */}
-<div style={{ marginTop: 16 }}>
-  <strong>📎 프로젝트 첨부파일</strong>
+<div
+  style={{
+    marginTop: 24,
+    background: "#fff",
+    border: "1px solid #eee",
+    borderRadius: 10,
+    padding: 16,
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+  }}
+>
+  <strong style={{ fontSize: 16, color: "#333" }}>📎 프로젝트 첨부파일</strong>
 
   {/* 업로드 버튼 */}
   <div style={{ marginTop: 8 }}>
@@ -543,19 +578,21 @@ export default function ProjectDetailForm({ projectId, onClose }) {
 </div>
       {/* 상세입력 버튼 */}
       <button
-        onClick={() => setShowDetails(!showDetails)}
-        style={{
-          background: showDetails ? "#555" : "#1976d2",
-          color: "white",
-          border: "none",
-          borderRadius: 6,
-          padding: "8px 12px",
-          cursor: "pointer",
-          marginTop: 10,
-        }}
-      >
-        {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
-      </button>
+  onClick={() => setShowDetails(!showDetails)}
+  style={{
+    background: showDetails ? "#444" : "#1976d2",
+    color: "white",
+    border: "none",
+    borderRadius: 6,
+    padding: "10px 16px",
+    cursor: "pointer",
+    marginTop: 20,
+    fontSize: 15,
+    boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
+  }}
+>
+  {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
+</button>
 
       {showDetails && (
         <div
@@ -604,8 +641,16 @@ export default function ProjectDetailForm({ projectId, onClose }) {
       )}
 
       {/* 업무 목록 */}
-      <div style={{ marginTop: 20 }}>
-        <h3>📋 업무 목록</h3>
+      <div
+  style={{
+    marginTop: 30,
+    background: "#fafafa",
+    border: "1px solid #eee",
+    borderRadius: 10,
+    padding: 16,
+  }}
+>
+  <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>📋 업무 목록</h3>
         {rootTasks.length > 0 ? (
           rootTasks.map((task, i) => (
             <TaskNode
@@ -667,15 +712,15 @@ export default function ProjectDetailForm({ projectId, onClose }) {
 
       {/* 하단 버튼 */}
       <div
-        style={{
-          borderTop: "1px solid #eee",
-          paddingTop: 16,
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 8,
-          marginTop: 20,
-        }}
-      >
+  style={{
+    borderTop: "1px solid #eee",
+    paddingTop: 20,
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 30,
+  }}
+>
         {isEditing ? (
           <>
             <button

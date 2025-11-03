@@ -110,6 +110,8 @@ class TaskUpdate(BaseModel):
     due_date: Optional[date] = None
     estimate_hours: Optional[float] = None
     progress: Optional[int] = None
+    assignee_ids: Optional[List[int]] = []
+    end_date: Optional[date] = None
 
     _ser_date = field_serializer("start_date", "due_date", when_used="always")(
         _serialize_date
@@ -168,6 +170,8 @@ class ProjectBase(BaseModel):
     owner_emp_id: Optional[int] = None
     task: Optional[List[Task]] = Field(default_factory=list)
     attachments: Optional[List[Attachment]] = Field(default_factory=list)
+    assignees: list[str] = Field(default_factory=list)
+    assignee_ids: list[int] = Field(default_factory=list)
 
     _ser_date = field_serializer("start_date", "end_date", when_used="always")(
         _serialize_date
@@ -187,8 +191,10 @@ class ProjectUpdate(BaseModel):
     end_date: Optional[date] = None
     status: Optional[ProjectStatus] = None
     owner_emp_id: Optional[int] = None
+    assignee_ids: Optional[List[int]] = None
     task: Optional[List[Task]] = Field(default_factory=list)
     attachments: Optional[List[Attachment]] = Field(default_factory=list)
+
 
     _ser_date = field_serializer("start_date", "end_date", when_used="always")(
         _serialize_date
@@ -207,9 +213,14 @@ class Project(ProjectBase):
     updated_at: Optional[datetime] = None
     attachments: List[Attachment] = Field(default_factory=list)
     project_name: str | None = None
+
+    # 🔹 추가
+    assignee_ids: List[int] = Field(default_factory=list)
+
     _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(
         _serialize_datetime
     )
+
     model_config = ConfigDict(from_attributes=True)
 
 

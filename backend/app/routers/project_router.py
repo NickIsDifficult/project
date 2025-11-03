@@ -118,6 +118,7 @@ def create_project_full(
 # ✅ 프로젝트 수정
 # =====================================================
 @router.put("/{project_id}", response_model=schemas.project.Project)
+@router.put("/{project_id}", response_model=schemas.project.Project)
 def update_project(
     project_id: int,
     data: schemas.project.ProjectUpdate,
@@ -130,20 +131,42 @@ def update_project(
 
     update_data = data.dict(exclude_unset=True)
 
-    # 🔹 필드 갱신
+    # 🔹 1. 필드 갱신 (assignee_ids 제외)
     for key, value in update_data.items():
-        if key in ["task", "attachments", "projectmember", "taskcomment", "milestone"]:
+        if key in ["task", "attachments", "projectmember", "taskcomment", "milestone", "assignee_ids"]:
             continue
         setattr(db_project, key, value)
 
+    # 🔹 2. 프로젝트 담당자(assignee_ids) 동기화
+    if "assignee_ids" in update_data:
+        new_ids = [int(i) for i in update_data.get("assignee_ids") or []]
+        old_ids = {m.emp_id for m in db_project.projectmember} if db_project.projectmember else set()
 
-    # 🔹 태스크 갱신
+        # 삭제
+        for m in list(db_project.projectmember or []):
+            if m.emp_id not in new_ids:
+                db.delete(m)
+
+        # 추가
+        for emp_id in new_ids:
+            if emp_id not in old_ids:
+                db.add(models.ProjectMember(project_id=db_project.project_id, emp_id=emp_id))
+
+    # 🔹 3. 태스크 갱신
     if "task" in update_data:
         for t_data in update_data["task"]:
             db_task = db.query(models.Task).filter(models.Task.task_id == t_data["task_id"]).first()
             if db_task:
                 for field, val in t_data.items():
-                    if field in ["task_id", "project_id", "assignee_ids", "taskmember", "taskcomment", "subtask", "attachments"]:
+                    if field in [
+                        "task_id",
+                        "project_id",
+                        "assignee_ids",  # ✅ 읽기 전용 속성
+                        "taskmember",
+                        "taskcomment",
+                        "subtask",
+                        "attachments",
+                    ]:
                         continue
                     if hasattr(db_task, field):
                         try:
@@ -151,12 +174,18 @@ def update_project(
                         except AttributeError:
                             continue
             else:
-                # 새로운 Task 생성
+                # ✅ 새로운 Task 생성 전 불필요 필드 제거
+                t_data.pop("assignee_ids", None)
+                t_data.pop("taskmember", None)
+                t_data.pop("subtask", None)
+                t_data.pop("attachments", None)
+                t_data.pop("taskcomment", None)
+
                 new_task = models.Task(**t_data)
                 new_task.project_id = project_id
                 db.add(new_task)
 
-    # 🔹 첨부파일 갱신
+    # 🔹 4. 첨부파일 갱신
     if "attachments" in update_data:
         for a_data in update_data["attachments"]:
             db_attach = db.query(models.Attachment).filter(
@@ -167,28 +196,28 @@ def update_project(
                     if hasattr(db_attach, field):
                         setattr(db_attach, field, val)
             else:
-                # 신규 파일 등록
                 new_attach = models.Attachment(**a_data)
                 new_attach.project_id = project_id
                 db.add(new_attach)
+
+    # 🔹 5. 커밋 및 갱신
     db.commit()
     db.refresh(db_project)
+
     db_project = (
-    db.query(models.Project)
-    .options(
-        joinedload(models.Project.task)
-        .joinedload(models.Task.subtask)
-        .joinedload(models.Task.attachment),
-        joinedload(models.Project.attachment),
-        joinedload(models.Project.projectmember),
+        db.query(models.Project)
+        .options(
+            joinedload(models.Project.task)
+            .joinedload(models.Task.subtask)
+            .joinedload(models.Task.attachment),
+            joinedload(models.Project.attachment),
+            joinedload(models.Project.projectmember),
+        )
+        .filter(models.Project.project_id == project_id)
+        .first()
     )
-    .filter(models.Project.project_id == project_id)
-    .first()
-)
 
-    # ✅ ORM → Pydantic 변환
     return ProjectSchema.model_validate(db_project, from_attributes=True)
-
 # =====================================================
 # ✅ 프로젝트 삭제
 # =====================================================

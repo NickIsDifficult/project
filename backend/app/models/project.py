@@ -34,51 +34,114 @@ from app.models.enums import (
 class Project(Base):
     __tablename__ = "project"
 
+    # --------------------------------------------
+    # 📌 기본 컬럼
+    # --------------------------------------------
     project_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     project_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date)
-    status: Mapped[ProjectStatus] = mapped_column(Enum(ProjectStatus), default=ProjectStatus.PLANNED, nullable=False)
+    status: Mapped[ProjectStatus] = mapped_column(
+        Enum(ProjectStatus),
+        default=ProjectStatus.PLANNED,
+        nullable=False
+    )
 
     owner_emp_id: Mapped[int | None] = mapped_column(
         ForeignKey("employee.emp_id", ondelete="SET NULL")
     )
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
 
-    # ✅ Relations
+    # --------------------------------------------
+    # 📌 관계 설정
+    # --------------------------------------------
     employee = relationship(
-        "Employee", backref="project", foreign_keys=[owner_emp_id], lazy="selectin"
+        "Employee",
+        backref="project",
+        foreign_keys=[owner_emp_id],
+        lazy="selectin"
     )
     projectmember = relationship(
-        "ProjectMember", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+        "ProjectMember",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
     task = relationship(
-        "Task", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+        "Task",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
     milestone = relationship(
-        "Milestone", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+        "Milestone",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
     taskcomment = relationship(
-        "TaskComment", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+        "TaskComment",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
     attachment = relationship(
-        "Attachment", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+        "Attachment",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
     activitylog = relationship(
-        "ActivityLog", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+        "ActivityLog",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
     notification = relationship(
-        "Notification", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+        "Notification",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
-    events = relationship("Event", back_populates="project", cascade="all, delete-orphan")
+    events = relationship(
+        "Event",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
 
+    # --------------------------------------------
+    # 📌 담당자 리스트 프로퍼티
+    # --------------------------------------------
+    @property
+    def assignee_ids(self) -> list[int]:
+        """프로젝트 담당자 emp_id 목록 반환"""
+        return [m.emp_id for m in self.projectmember] if self.projectmember else []
+
+    @assignee_ids.setter
+    def assignee_ids(self, ids: list[int]):
+        """FastAPI에서 setattr 호출 시 무시 (읽기 전용으로 유지)"""
+        # setter를 비워두면 AttributeError 방지용
+        pass
+    # --------------------------------------------
+    # 📌 담당자 이름 리스트 프로퍼티 (추가)
+    # --------------------------------------------
+    @property
+    def assignees(self) -> list[str]:
+        """프로젝트 담당자 이름 목록 반환"""
+        return [m.employee.name for m in self.projectmember if m.employee]
+    # --------------------------------------------
+    # 📌 문자열 표현
+    # --------------------------------------------
     def __repr__(self):
         return f"<Project {self.project_id} {self.project_name}>"
-
-
 # ============================================================
 # 👥 ProjectMember
 # ============================================================
@@ -161,7 +224,7 @@ class Task(Base):
         overlaps="taskmember"
     )
 
-    @hybrid_property
+    @property
     def assignee_ids(self):
         return [m.emp_id for m in self.taskmember] if self.taskmember else []
 

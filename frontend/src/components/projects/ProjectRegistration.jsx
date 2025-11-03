@@ -16,7 +16,7 @@ export default function ProjectRegistration({ onClose }) {
   const [showDetails, setShowDetails] = useState(false);
   const [priority, setPriority] = useState("MEDIUM");
   const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [endDate, setDueDate] = useState("");
   const [tasks, setTasks] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -24,6 +24,11 @@ export default function ProjectRegistration({ onClose }) {
   const { members, loading } = useProjectMembers(selectedProjectId);
   const fileInputRef = useRef(null);
 
+  const generateNextTaskId = (tasks) => {
+  const ids = tasks.map(t => t.task_id).filter(Boolean);
+  const maxId = ids.length ? Math.max(...ids) : 0;
+  return maxId + 1;
+};
   // ✅ 직원 목록 로드
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -54,12 +59,14 @@ export default function ProjectRegistration({ onClose }) {
     setTasks(prev => [
       ...prev,
       {
-        id: Date.now(),
+         id: generateNextTaskId(prev),
         title: "",
-        startDate: "",
-        endDate: "",
+        start_date: "",
+        end_date: "",
         assignees: [],
-        children: [],
+        subtask: [],
+        attachments: [],
+        isEditing: true,
       },
     ]);
 
@@ -74,15 +81,15 @@ export default function ProjectRegistration({ onClose }) {
 
   // ✅ 하위업무 재귀 직렬화 함수
   const serializeTasks = (list = []) =>
-    list.map(t => ({
-      title: t.title,
-      start_date: t.startDate || null,
-      due_date: t.endDate || null,
-      priority: "MEDIUM",
-      progress: 0,
-      assignee_ids: Array.isArray(t.assignees) ? t.assignees : [],
-      subtasks: serializeTasks(t.children || []), // ✅ 재귀 호출
-    }));
+  list.map(t => ({
+    title: t.title,
+    start_date: t.start_date?.trim?.() ? t.start_date : null,
+    due_date: t.due_date?.trim?.() ? t.due_date : null,
+    priority: "MEDIUM",
+    progress: 0,
+    assignee_ids: Array.isArray(t.assignees) ? t.assignees.map(Number) : [],
+    subtask: serializeTasks(t.subtask || []),
+  }));
 
   // ✅ 유효성 검사
   const validateForm = useCallback(() => {
@@ -313,6 +320,7 @@ export default function ProjectRegistration({ onClose }) {
             onUpdate={u => handleTaskUpdate(i, u)}
             depth={0}
             onAddSibling={handleAddRootTask}
+            isEditing={true}
           />
         ))}
         {tasks.length === 0 && (

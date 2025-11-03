@@ -1,4 +1,3 @@
-import React from "react";
 
 export default function ProjectList({ projects = [], onSelectProject }) {
   return (
@@ -21,8 +20,15 @@ export default function ProjectList({ projects = [], onSelectProject }) {
             >
               <strong>{project.project_name}</strong>
               <p style={{ margin: "4px 0", color: "#555", fontSize: "13px" }}>
-                {project.description || "설명 없음"}
-              </p>
+  {project.description || "설명 없음"}
+</p>
+
+{/* 담당자 표시 */}
+{project.assignees && project.assignees.length > 0 && (
+  <p style={{ margin: "4px 0", color: "#777", fontSize: "12px" }}>
+    담당자: {project.assignees.join(", ")}
+  </p>
+)}
             </li>
           ))
         ) : (

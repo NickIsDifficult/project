@@ -29,7 +29,57 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
   }
 };
 
+const handleAddSibling = () => {
+  const newTask = {
+    title: "새 업무",
+    description: "",
+    status: "PLANNED",
+    priority: "MEDIUM",
+    start_date: null,
+    end_date: null,
+    estimate_hours: 0,
+    progress: 0,
+    project_id: taskData.project_id,
+    assignees: [],
+    subtask: [],
+  };
 
+  // 현재 업무의 상위(parentTask)가 있는 경우, 그쪽에 추가 이벤트를 전달해야 함
+  if (parentTask) {
+    if (!parentTask.subtask) parentTask.subtask = [];
+    parentTask.subtask.push(newTask);
+    toast.success("동일 레벨 업무가 추가되었습니다.");
+  } else {
+    toast("현재 구조에서는 동일 레벨 추가 기능은 루트 수준에서 처리해야 합니다.");
+  }
+
+  onRefresh?.();
+};
+
+// ✅ 세부업무 추가
+const handleAddSubtask = () => {
+  const newSub = {
+    title: "새 하위업무",
+    description: "",
+    status: "PLANNED",
+    priority: "MEDIUM",
+    start_date: null,
+    end_date: null,
+    estimate_hours: 0,
+    progress: 0,
+    project_id: taskData.project_id,
+    parent_task_id: taskData.task_id,
+    assignees: [],
+    subtask: [],
+  };
+
+  setTaskData(prev => ({
+    ...prev,
+    subtask: [...(prev.subtask || []), newSub],
+  }));
+
+  toast.success("새 하위업무가 추가되었습니다.");
+};
 
 
 
@@ -161,21 +211,47 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
 
       {/* 하위업무 목록 */}
       <div style={{ marginTop: 20 }}>
-        <h3>📋 하위업무 목록</h3>
-        {taskData.subtask?.length ? (
-          taskData.subtask.map((st, i) => (
-            <TaskNode
-              key={st.task_id ?? `sub-${i}`}
-              task={st}
-              employees={employees}
-              disabled={!isEditing}
-              depth={1}
-            />
-          ))
-        ) : (
-          <p style={{ color: "#999" }}>등록된 하위업무가 없습니다.</p>
-        )}
-      </div>
+  <h3>📋 하위업무 목록</h3>
+  {taskData.subtask?.length ? (
+    taskData.subtask.map((st, i) => (
+      <TaskNode
+        key={st.task_id ?? `sub-${i}`}
+        task={st}
+        employees={employees}
+        depth={1}
+        isEditing={isEditing}  // ✅ 편집모드 내려보내기
+
+        // ✅ 자식이 바뀌면 1레벨 배열에 반영
+        onUpdate={updatedChild =>
+          setTaskData(prev => ({
+            ...prev,
+            subtask: (prev.subtask || []).map((t, idx) =>
+              idx === i ? updatedChild : t
+            ),
+          }))
+        }
+
+        // ✅ 동일 레벨(형제) 추가: target 바로 뒤에 삽입
+        onAddSibling={(newSibling, target) =>
+          setTaskData(prev => {
+            const list = [...(prev.subtask || [])];
+            const tid = t => t.task_id ?? t.id;
+            const idx = list.findIndex(t => tid(t) === tid(target));
+            if (idx >= 0) list.splice(idx + 1, 0, {
+              ...newSibling,
+              isEditing: true,
+            });
+            return { ...prev, subtask: list };
+          })
+        }
+      />
+    ))
+  ) : (
+    <p style={{ color: "#999" }}>등록된 하위업무가 없습니다.</p>
+  )}
+</div>
+
+
 
       {/* 하단 버튼 */}
       <div

@@ -5,11 +5,166 @@ import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { getEmployees } from "../../../services/api/employee";
 import { deleteProject, getProject, updateProject } from "../../../services/api/project";
 import TaskNode from "../TaskNode"; // ✅ 외부 TaskNode 가져오기
-import TaskDetailPanel from "./TaskInfoView"; // ✅ 패널 컴포넌트 연결
+import TaskDetailPanel from "./TaskInfoView";
+
+const transformTaskFromApi = (t) => {
+  // 안전 복사
+  const task = { ...t };
+
+  // 1) assignees 필드 보강 (UI가 assignees 배열을 읽음)
+  // - 서버가 assignee_ids 로 주면 그걸 사용
+  // - 서버가 task_member/employee 구조로 주면 emp_id 추출
+  if (Array.isArray(task.assignees)) {
+    // already present
+  } else if (Array.isArray(task.assignee_ids)) {
+    task.assignees = task.assignee_ids.map(id => Number(id));
+  } else if (Array.isArray(task.task_member) || Array.isArray(task.taskMembers)) {
+    const members = task.task_member || task.taskMembers || [];
+    task.assignees = members.map(m => Number(m.emp_id ?? m.empId ?? m.emp_id));
+  } else {
+    task.assignees = [];
+  }
+
+  // 2) 날짜 필드 보강 — UI는 "" 로 렌더링하므로 null -> "" 로 변환
+  task.start_date =
+  task.start_date ??
+  task.startDate ??
+  task.start_date ??
+  task.start_at ??
+  "";
+task.end_date =
+  task.end_date ??
+  task.endDate ??
+  task.due_date ??
+  task.end_at ??
+  "";
+
+  // 3) ensure attachments & subtask arrays exist
+  task.attachments = Array.isArray(task.attachments) ? task.attachments : [];
+  task.subtask = Array.isArray(task.subtask) ? task.subtask.map(transformTaskFromApi) : [];
+
+  return task;
+};
+
+const transformProject = (p) => {
+  const proj = { ...p };
+  const tasks = Array.isArray(proj.task) ? proj.task : [];
+  proj.task = tasks.map(transformTaskFromApi);
+  return proj;
+};
 /* =========================================
  ✅ 담당자 선택 컴포넌트
 ========================================= */
+// ✅ 공통: 빈 문자열 날짜 → null
+const normalizeDate = v => (v === "" || v === undefined ? null : v);
+function generateNextTaskId(tasks = []) {
+  let maxId = 0;
+  const traverse = arr => {
+    for (const t of arr) {
+      if (t.task_id && Number(t.task_id) > maxId) maxId = Number(t.task_id);
+      if (t.subtask?.length) traverse(t.subtask);
+    }
+  };
+  traverse(tasks);
+  return maxId + 1;
+}
+// ✅ 태스크/하위태스크 재귀 정규화
+const normalizeTask = (t, projectId) => {
+  const safe = { ...t };
 
+  // ✅ 숫자 변환 보강
+  if (safe.task_id != null) safe.task_id = Number(safe.task_id);
+  safe.project_id = Number(safe.project_id ?? projectId);
+
+  // 날짜
+  safe.start_date = normalizeDate(safe.start_date);
+  safe.end_date = normalizeDate(safe.end_date);
+  safe.due_date = normalizeDate(safe.due_date);
+
+  // 기본값 보강
+  if (safe.status == null) safe.status = "PLANNED";
+  if (safe.priority == null) safe.priority = "MEDIUM";
+  if (safe.progress == null) safe.progress = 0;
+
+  // ✅ 담당자 배열 숫자 변환
+  if (!Array.isArray(safe.assignee_ids)) {
+    safe.assignee_ids = Array.isArray(safe.assignees)
+      ? safe.assignees.map(a => Number(a))
+      : [];
+  } else {
+    safe.assignee_ids = safe.assignee_ids.map(a => Number(a));
+  }
+  delete safe.assignees;
+
+  // 첨부파일 보정
+  if (!Array.isArray(safe.attachments)) safe.attachments = [];
+
+  // ✅ 하위업무 재귀 호출
+  safe.subtask = (safe.subtask || []).map(st => normalizeTask(st, projectId));
+
+  return safe;
+};
+
+// ✅ 프로젝트 저장용 정규화
+const normalizeProjectForSave = (project, fallbackProjectId) => {
+  const pid = Number(project?.project_id ?? fallbackProjectId);
+  const safe = { ...project, project_id: pid };
+
+  safe.start_date = normalizeDate(safe.start_date);
+  safe.end_date = normalizeDate(safe.end_date);
+
+  // ✅ 태스크 정규화
+  const normalizeTask2 = (t, projectId) => {
+    const safeTask = { ...t };
+    safeTask.task_id = Number(safeTask.task_id ?? 0);
+    safeTask.project_id = Number(projectId);
+    safeTask.start_date = normalizeDate(safeTask.start_date);
+    safeTask.end_date = normalizeDate(safeTask.end_date);
+    safeTask.due_date = normalizeDate(safeTask.due_date);
+
+    // ✅ assignee_ids → taskmember 변환
+    let ids = [];
+    if (Array.isArray(safeTask.assignee_ids)) {
+      ids = safeTask.assignee_ids.map(a => Number(a));
+    } else if (Array.isArray(safeTask.assignees)) {
+      ids = safeTask.assignees.map(a => Number(a));
+    }
+
+    // ✅ taskmember 생성
+    safeTask.taskmember = ids.map(id => ({
+      emp_id: Number(id),
+      project_id: Number(projectId),
+    }));
+
+    // ✅ 하위업무 재귀
+    safeTask.subtask = (safeTask.subtask || []).map(st => normalizeTask2(st, projectId));
+
+    // 불필요한 필드 제거
+    delete safeTask.assignee_ids;
+    delete safeTask.assignees;
+
+    return safeTask;
+  };
+
+  const tasks = Array.isArray(safe.task)
+    ? safe.task.map(t => normalizeTask2(t, pid))
+    : [];
+
+  return {
+    project_id: pid,
+    project_name: safe.project_name || safe.title || "",
+    description: safe.description ?? "",
+    start_date: safe.start_date,
+    end_date: safe.end_date,
+    status: safe.status ?? "PLANNED",
+    assignee_ids: Array.isArray(safe.assignee_ids)
+    ? safe.assignee_ids.map(id => Number(id))
+    : Array.isArray(safe.projectmember)
+      ? safe.projectmember.map(pm => Number(pm.emp_id))
+      : [],
+    task: tasks,
+  };
+};
 function AssigneeSelector({ employees, selected, setSelected, disabled }) {
   const [query, setQuery] = useState("");
 
@@ -129,26 +284,18 @@ function AssigneeSelector({ employees, selected, setSelected, disabled }) {
  ✅ 메인: 프로젝트 상세 폼
 ========================================= */
 export default function ProjectDetailForm({ projectId, onClose }) {
-  const { setProjects, uiState, setUiState } = useProjectGlobal();
+  const { refreshProjects, fetchTasksByProjectNow, updateProjectLocal, setLastUpdatedAt, setProjects, uiState, setUiState } = useProjectGlobal();
   const [isEditing, setIsEditing] = useState(false);
   const [project, setProject] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [mainAssignees, setMainAssignees] = useState([]);
   const [showDetails, setShowDetails] = useState(false);
 
-  useEffect(() => {
-    if (projectId) {
-      console.log("🧾 Project DetailForm check:", {
-        project_id: project?.project_id,
-        name: project?.project_name,
-        raw: project,
-      });
-    } else {
-      console.warn("⚠️ ProjectDetailForm: projectId가 없습니다!");
-    }
 
+  useEffect(() => {
+  if (projectId) {
+    // ✅ 기존 프로젝트 상세 보기
     const fetchData = async () => {
-      if (!projectId) return; // projectId 없으면 호출하지 않음
       try {
         console.log("📡 getProject 호출:", projectId);
         const [projectData, employeeData] = await Promise.all([
@@ -156,7 +303,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           getEmployees(),
         ]);
         console.log("📦 getProject 응답:", projectData);
-        setProject(projectData);
+        setProject(transformProject(projectData));
         setEmployees(employeeData);
         const ownerIds = projectData?.projectmember?.map(pm => pm.emp_id) || [];
         setMainAssignees(ownerIds);
@@ -166,7 +313,22 @@ export default function ProjectDetailForm({ projectId, onClose }) {
       }
     };
     fetchData();
-  }, [projectId]);
+  } else {
+    // ✅ 신규 프로젝트 작성 모드
+    console.warn("🆕 신규 프로젝트 작성 모드 진입");
+    setIsEditing(true); // ✅ 자동 편집 가능 상태로 전환
+    setProject({
+      project_name: "",
+      description: "",
+      start_date: "",
+      end_date: "",
+      status: "PLANNED",
+      task: [],
+      attachments: [],
+    });
+    getEmployees().then(setEmployees);
+  }
+}, [projectId]);
 
   if (!project) return <p style={{ padding: 20 }}>⏳ 로딩 중...</p>;
 
@@ -186,46 +348,77 @@ export default function ProjectDetailForm({ projectId, onClose }) {
   const rootTasks = allTasks.filter(t => !childIds.has(t.task_id));
 
   const handleAddRootTask = () => {
-    const newTask = {
-      task_id: Date.now(),
-      title: "",
-      start_date: "",
-      end_date: "",
-      assignees: [],
-      subtask: [],
-      isOpen: false,
-    };
-    setProject({
-      ...project,
-      task: [...(project.task || []), newTask],
-    });
+  const nextId = generateNextTaskId(project.task || []);
+  const newTask = {
+    task_id: nextId,
+    title: "",
+    description: "",
+    status: "PLANNED",
+    priority: "MEDIUM",
+    assignees: [],
+    subtask: [],
+    isEditing: true,
   };
+  setProject(prev => ({
+    ...prev,
+    task: [...(prev.task || []), newTask],
+  }));
+};
 
   const handleSave = async () => {
-    console.log("📤 updateProject payload:", project);
-    try {
-      await updateProject(projectId, project);
-      toast.success("수정 완료!");
-      setIsEditing(false);
-    } catch (err) {
-      console.error("❌ 수정 실패:", err);
-      toast.error("수정 중 오류가 발생했습니다.");
-    }
-  };
+  try {
+    console.log("🔎 PROJECT STATE BEFORE SAVE:", project);
+    await refreshProjects();
+    const projectToSave = {
+      ...project,
+      task: Array.isArray(project.task) && project.task.length ? project.task : rootTasks,
+      assignee_ids: mainAssignees.map(id => Number(id)),
+    };
 
+    console.log("🔎 PROJECT TO SAVE (merged with rootTasks if needed):", projectToSave);
+
+    const payload = normalizeProjectForSave(projectToSave, projectId);
+    console.log("📤 NORMALIZED PAYLOAD:", payload);
+    console.log("🔍 FULL PAYLOAD TO SERVER:", JSON.stringify(payload, null, 2));
+
+    await updateProject(projectId, payload)
+    updateProjectLocal(projectId, payload);
+    await refreshProjects();
+    setLastUpdatedAt(Date.now());
+    toast.success("수정 완료!");
+    // setIsEditing(false);
+  } catch (err) {
+    console.error("❌ 수정 실패:", err);
+    toast.error("수정 중 오류가 발생했습니다.");
+  }
+};
   const handleDelete = async () => {
-    if (!window.confirm("이 프로젝트를 삭제하시겠습니까?")) return;
-    try {
-      await deleteProject(projectId);
-      toast.success("프로젝트가 삭제되었습니다.");
-      setProjects(prev => prev.filter(p => p.project_id !== projectId));
-      onClose?.();
-    } catch (err) {
-      console.error("❌ 삭제 실패:", err);
-      toast.error("삭제 중 오류가 발생했습니다.");
-    }
-  };
+  if (!window.confirm("이 프로젝트를 삭제하시겠습니까?")) return;
 
+  try {
+    await deleteProject(projectId);
+    toast.success("프로젝트가 삭제되었습니다.");
+
+    setLastUpdatedAt(Date.now());
+    // 삭제 후 UI 상태 갱신
+    setProjects(prev => prev.filter(p => p.project_id !== projectId));
+    setUiState(prev => ({
+      ...prev,
+      drawer: { ...prev.drawer, project: false },
+      panel: { ...prev.panel, selectedTask: null, projectId: null },
+    }));
+    onClose?.();
+  } catch (err) {
+    console.error("❌ 프로젝트 삭제 실패:", err);
+
+    // ✅ 백엔드에서 '소유자만 삭제 가능'일 경우 친절한 안내
+    if (String(err).includes("소유자만 삭제할 수 있습니다")) {
+      toast.error("삭제 권한이 없습니다. 프로젝트 소유자만 삭제할 수 있습니다.");
+    } else {
+      toast.error("프로젝트 삭제 중 오류가 발생했습니다.");
+    }
+  }
+};
   return (
     <div style={{ padding: 16 }}>
       <h2>📌 프로젝트 상세정보</h2>
@@ -416,23 +609,39 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         {rootTasks.length > 0 ? (
           rootTasks.map((task, i) => (
             <TaskNode
-              key={task.task_id ?? `root-${i}`}
-              task={{ ...task, attachments: task.attachments || [] }}
-              employees={employees}
-              onUpdate={updatedTask => {
-                setProject(prev => {
-                  const newTasks = [...project.task];
-                  const index = newTasks.findIndex(t => t.task_id === task.task_id);
-                  if (updatedTask === null) newTasks.splice(index, 1);
-                    else newTasks[index] = updatedTask;
-                  return { ...prev, task: newTasks };
-                });
-              }}
-              disabled={!isEditing}
-              isEditing={isEditing}
-              depth={0}
-              projectId={project?.project_id ?? projectId}
-            />
+  key={task.task_id ?? `root-${i}`}
+  task={{ ...task, attachments: task.attachments || [] }}
+  employees={employees}
+  isEditing={isEditing}
+  projectId={project?.project_id ?? projectId}
+  depth={0}
+  disabled={!isEditing}
+  onUpdate={updatedTask => {
+  setProject(prev => {
+    const key = (x) => (x?.task_id ?? x?.temp_id);
+    const updateRecursive = (tasks) =>
+      tasks.map(t => {
+        // ✅ 타입 차이/임시ID(temp_id)까지 모두 커버
+        if (Number(key(t)) === Number(key(updatedTask))) return updatedTask;
+        if (t.subtask?.length)
+          return { ...t, subtask: updateRecursive(t.subtask) };
+        return t;
+      });
+
+    const newTasks = updateRecursive(prev.task || []);
+    return { ...prev, task: newTasks };
+  });
+}}
+  onAddSibling={(newSibling, currentTask) => {
+    setProject(prev => {
+      const newTasks = [...(prev.task || [])];
+      const idx = newTasks.findIndex(t => t.task_id === currentTask.task_id);
+      if (idx === -1) return prev;
+      newTasks.splice(idx + 1, 0, newSibling);
+      return { ...prev, task: newTasks };
+    });
+  }}
+/>
           ))
         ) : (
           <p style={{ color: "#999" }}>등록된 업무가 없습니다.</p>
@@ -511,18 +720,18 @@ export default function ProjectDetailForm({ projectId, onClose }) {
               ✏️ 수정
             </button>
             <button
-              onClick={handleDelete}
-              style={{
-                background: "#f44336",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                padding: "8px 14px",
-                cursor: "pointer",
-              }}
-            >
-              🗑️ 삭제
-            </button>
+  onClick={handleDelete}
+  style={{
+    background: "#f44336",
+    color: "white",
+    border: "none",
+    borderRadius: 6,
+    padding: "8px 14px",
+    cursor: "pointer",
+  }}
+>
+  🗑️ 삭제
+</button>
           </>
         )}
       </div>

@@ -1,3 +1,4 @@
+// src/context/ProjectGlobalContext.jsx
 import { debounce } from "lodash";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { usePersistedState } from "../hooks/usePersistedState";
@@ -6,12 +7,10 @@ import API from "../services/api/http";
 const ProjectGlobalContext = createContext();
 
 export function ProjectGlobalProvider({ children }) {
-  // 📁 데이터 상태
   const [projects, setProjects] = useState([]);
   const [tasksByProject, setTasksByProject] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // ⚙️ 통합 UI 상태
   const [uiState, setUiState] = useState({
     drawer: { project: false, task: false, parentTaskId: null },
     panel: { selectedTask: null },
@@ -19,14 +18,10 @@ export function ProjectGlobalProvider({ children }) {
     expand: { list: true, kanban: true },
   });
 
-  // ✅ 전역 선택 상태 추가 (💡 새로 추가됨)
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
-
-  // ✅ viewType (localStorage 연동)
   const [viewType, setViewType] = usePersistedState("viewType_global", "list");
 
-  // ✅ 언마운트 보호
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -49,13 +44,18 @@ export function ProjectGlobalProvider({ children }) {
     }
   }, []);
 
+  // ✅ 리스트 리프레시용 별도 함수
+  const refreshProjects = useCallback(async () => {
+    await fetchAllProjects();
+  }, [fetchAllProjects]);
+
   // ✅ 프로젝트별 업무 로드
-  const fetchTasksByProjectNow = useCallback(async projectId => {
+  const fetchTasksByProjectNow = useCallback(async (projectId) => {
     if (!projectId) return;
     try {
       const { data } = await API.get(`/projects/${projectId}/tasks/tree`);
       if (mountedRef.current) {
-        setTasksByProject(prev => ({
+        setTasksByProject((prev) => ({
           ...prev,
           [projectId]: Array.isArray(data) ? data : [],
         }));
@@ -65,25 +65,36 @@ export function ProjectGlobalProvider({ children }) {
     }
   }, []);
 
-  const fetchTasksByProject = useRef(debounce(pid => fetchTasksByProjectNow(pid), 250)).current;
+  const fetchTasksByProject = useRef(debounce((pid) => fetchTasksByProjectNow(pid), 250)).current;
 
-  // ✅ Optimistic UI 업데이트 (업무)
+  // ✅ Optimistic Update
+  const updateProjectLocal = useCallback((projectId, updatedFields) => {
+    if (!projectId || !updatedFields) return;
+    setProjects((prev) => {
+    const updated = prev.map((p) =>
+      String(p.project_id) === String(projectId)
+        ? { ...p, ...updatedFields }
+        : p
+    );
+    return [...updated];
+    });
+}, []);
+
   const updateTaskLocal = useCallback((taskId, updater) => {
     if (!taskId || !updater) return;
-
-    const updateTree = list =>
-      list.map(t => {
+    const updateTree = (list) =>
+      list.map((t) => {
         if (String(t.task_id) === String(taskId)) {
-          const nextValue = typeof updater === "function" ? updater(t) : { ...t, ...updater };
-          return { ...t, ...nextValue };
+          const next = typeof updater === "function" ? updater(t) : { ...t, ...updater };
+          return { ...t, ...next };
         }
-        if (t.subtasks && t.subtasks.length > 0) {
+        if (t.subtasks && t.subtasks.length) {
           return { ...t, subtasks: updateTree(t.subtasks) };
         }
         return t;
       });
 
-    setTasksByProject(prev => {
+    setTasksByProject((prev) => {
       const updated = {};
       for (const [pid, list] of Object.entries(prev)) {
         updated[pid] = updateTree(list);
@@ -92,15 +103,7 @@ export function ProjectGlobalProvider({ children }) {
     });
   }, []);
 
-  // ✅ Optimistic UI 업데이트 (프로젝트)
-  const updateProjectLocal = useCallback((projectId, updatedFields) => {
-    if (!projectId || !updatedFields) return;
-    setProjects(prev =>
-      prev.map(p => (String(p.project_id) === String(projectId) ? { ...p, ...updatedFields } : p)),
-    );
-  }, []);
-
-  // ✅ 마운트 시 전체 프로젝트 로드
+  // ✅ 마운트 시 프로젝트 불러오기
   useEffect(() => {
     fetchAllProjects();
     return () => fetchTasksByProject.cancel?.();
@@ -108,30 +111,37 @@ export function ProjectGlobalProvider({ children }) {
 
   // ✅ 신규 프로젝트 자동 로드
   useEffect(() => {
-    const uncached = projects.filter(p => !tasksByProject[p.project_id]);
-    if (uncached.length > 0) {
-      setTimeout(() => {
-        Promise.all(uncached.map(p => fetchTasksByProjectNow(p.project_id))).catch(err =>
-          console.warn("⚠️ 일부 프로젝트 로드 실패:", err),
-        );
-      }, 200);
-    }
-  }, [projects, tasksByProject, fetchTasksByProjectNow]);
+    const uncached = projects.filter((p) => !tasksByProject[p.project_id]);
+    if (uncached.length === 0) return;
+    const timer = setTimeout(() => {
+      uncached.forEach((p) => fetchTasksByProjectNow(p.project_id));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [projects]);
 
   // ✅ 뷰 전환 시 패널/드로어 닫기
   useEffect(() => {
-    setUiState(prev => ({
+    setUiState((prev) => ({
       ...prev,
-      drawer: { ...prev.drawer, project: false, task: false },
+      drawer: { project: false, task: false },
       panel: { selectedTask: null },
     }));
     setSelectedTask(null);
     setSelectedProject(null);
   }, [viewType]);
-
-  // 🌐 Context value 정의
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(Date.now());
+  useEffect(() => {
+  if (!lastUpdatedAt) return;
+  const timer = setTimeout(async () => {
+    await fetchAllProjects();
+    for (const p of projects) {
+      await fetchTasksByProjectNow(p.project_id);
+    }
+  }, 500);
+  return () => clearTimeout(timer);
+}, [lastUpdatedAt]);
+  // 🌐 Context
   const value = {
-    // 데이터
     projects,
     setProjects,
     tasksByProject,
@@ -140,23 +150,27 @@ export function ProjectGlobalProvider({ children }) {
     fetchTasksByProjectNow,
     updateProjectLocal,
     updateTaskLocal,
+    refreshProjects, // ✅ 올바른 함수 export
     loading,
 
-    // 선택 상태 (💡 새로 추가)
     selectedTask,
     setSelectedTask,
     selectedProject,
     setSelectedProject,
 
-    // UI
     uiState,
     setUiState,
     viewType,
     setViewType,
+    lastUpdatedAt,
+  setLastUpdatedAt,
   };
 
-  return <ProjectGlobalContext.Provider value={value}>{children}</ProjectGlobalContext.Provider>;
+  return (
+    <ProjectGlobalContext.Provider value={value}>
+      {children}
+    </ProjectGlobalContext.Provider>
+  );
 }
 
-// ✅ export 훅
 export const useProjectGlobal = () => useContext(ProjectGlobalContext);

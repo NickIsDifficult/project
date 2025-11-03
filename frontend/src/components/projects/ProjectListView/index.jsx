@@ -10,48 +10,86 @@ import { useTaskList } from "./useTaskList";
 export default function ProjectListView() {
   const { projects, tasksByProject, loading, uiState, setUiState } = useProjectGlobal();
 
-  /* 🧱 1️⃣ 프로젝트 + 하위 업무 트리 구조 생성 */
   const projectNodes = useMemo(() => {
     if (!projects?.length) return [];
 
     return projects.map(project => {
-      // ✅ 모든 태스크 중 parent_task_id가 없는 것만 (루트)
-      const allTasks = tasksByProject?.[project.project_id] ?? [];
-      const topLevelTasks = allTasks.filter(t => !t.parent_task_id);
+      // 1) 원본 데이터에서 가능한 모든 경로로 이름/ID를 확보
+      const namesFromAssignees = Array.isArray(project.assignees) ? project.assignees : [];
+      const idsFromAssignees = Array.isArray(project.assignee_ids) ? project.assignee_ids : [];
+
+      const namesFromMembers = Array.isArray(project.projectmember)
+  ? project.projectmember
+      .map(m =>
+        m?.employee?.name       // ✅ 일반 구조
+        || m?.employee_name     // ✅ API에서 employee_name으로 바로 올 경우
+        || m?.name              // ✅ 혹시 name만 올 경우
+      )
+      .filter(Boolean)
+  : [];
+      // 2) 우선순위: assignees -> projectmember -> owner
+      const members = Array.isArray(project.projectmember) ? project.projectmember : [];
+
+let assigneesObj = members
+  .map(m => {
+    const empId = Number(m?.emp_id ?? m?.employee?.emp_id ?? m?.id ?? NaN);
+    const name =
+      m?.employee?.name ??
+      m?.employee_name ??
+      m?.name ??
+      (Number.isFinite(empId) ? `ID:${empId}` : null);
+    return name ? { emp_id: empId, name } : null;
+  })
+  .filter(Boolean);
+
+// fallback: projectmember가 비어있을 때만
+if (assigneesObj.length === 0 && Array.isArray(project.assignee_ids)) {
+  assigneesObj = project.assignee_ids.map((id, idx) => ({
+    emp_id: Number(id),
+    name: `ID:${Number(id) || idx}`,
+  }));
+}
+
+      const assigneeNamesArr = assigneesObj.map(a => a.name);
+      const assigneeNameStr = assigneeNamesArr.join(", ");
 
       return {
         project_id: project.project_id,
         task_id: null,
+        isProject: true,
+
         title: project.project_name,
         description: project.description ?? "",
-        isProject: true,
+
         status: project.status ?? "PLANNED",
         statusLabel: STATUS_LABELS[project.status] ?? "계획",
-        assignees: project.owner_name
-          ? [{ emp_id: project.owner_emp_id ?? 0, name: project.owner_name }]
-          : [],
+
+        // ✅ 리스트/훅/테이블이 어떤 걸 보든 대응되도록 모두 제공
+        assignees: assigneesObj,          // [{emp_id, name}]
+        assigneeNames: assigneeNamesArr,  // ["관리자","test"]
+        assignee_name: assigneeNameStr,   // "관리자, test"
+        members: project.projectmember ?? [],
+
         start_date: project.start_date ?? null,
         end_date: project.end_date ?? project.due_date ?? null,
+
         owner_emp_id: project.owner_emp_id,
         owner_name: project.owner_name,
-        subtasks: topLevelTasks,
+
+        subtasks: tasksByProject?.[project.project_id]?.filter(t => !t.parent_task_id) ?? [],
       };
     });
   }, [projects, tasksByProject]);
 
-  /* ⚙️ 2️⃣ 리스트뷰용 훅 (검색, 필터, 정렬 등) */
   const hook = useTaskList({ allTasks: projectNodes });
 
-  /* 🧭 3️⃣ 전체 접기 / 펼치기 상태 */
   const isExpanded = uiState.expand.list;
 
-  /* 📋 4️⃣ 현재 표시할 데이터 (프로젝트만 / 전체) */
   const visibleNodes = useMemo(() => {
-    if (isExpanded) return hook.filteredTasks; // 전체 펼치기 시 모든 프로젝트 + 업무
-    return projectNodes.filter(node => node.isProject); // 전체 접기 시 프로젝트만
+    if (isExpanded) return hook.filteredTasks;
+    return projectNodes.filter(node => node.isProject);
   }, [isExpanded, projectNodes, hook.filteredTasks]);
 
-  /* 🪟 5️⃣ 상세 패널 열기 */
   const handleTaskClick = task => {
     setUiState(prev => ({
       ...prev,
@@ -60,15 +98,12 @@ export default function ProjectListView() {
     }));
   };
 
-  /* 🌀 6️⃣ 로딩 처리 */
   if (loading) return <Loader text="📂 프로젝트 및 업무를 불러오는 중..." />;
 
-  /* 🎨 7️⃣ 렌더링 */
   return (
     <div className="p-4 space-y-4">
-      {/* 🔹 상단 필터 & 전체 접기/펼치기 버튼 */}
       <ViewHeaderSection
-        viewType="list" // ✅ 리스트뷰 전용 토글 제어
+        viewType="list"
         assigneeOptions={hook.assigneeOptions}
         setSearchKeyword={hook.setSearchKeyword}
         setFilterAssignee={hook.setFilterAssignee}
@@ -77,7 +112,6 @@ export default function ProjectListView() {
         onToggleExpandAll={hook.toggleExpandAll}
       />
 
-      {/* 🔹 리스트 테이블 영역 */}
       <TaskListTable
         filteredTasks={visibleNodes}
         collapsedTasks={hook.collapsedTasks}

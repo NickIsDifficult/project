@@ -240,10 +240,26 @@ def update_project(db: Session, project_id: int, request, current_user: models.E
 
     # 🔹 1. 프로젝트 기본 정보 갱신
     for key, value in data.items():
-        if key not in ["task", "attachments"]:
+        if key not in ["task", "attachments", "assignee_ids"]:
             setattr(proj, key, value)
 
-    # 🔹 2. 하위 태스크 갱신
+    # 🔹 2. 프로젝트 담당자(assignee_ids) 동기화
+    assignee_ids = data.get("assignee_ids", None)
+    if assignee_ids is not None:
+        new_ids = [int(i) for i in (assignee_ids or [])]
+        old_ids = {m.emp_id for m in proj.projectmember} if proj.projectmember else set()
+
+        # 삭제
+        for m in list(proj.projectmember or []):
+            if m.emp_id not in new_ids:
+                db.delete(m)
+
+        # 추가
+        for emp_id in new_ids:
+            if emp_id not in old_ids:
+                db.add(models.ProjectMember(project_id=proj.project_id, emp_id=emp_id))
+
+    # 🔹 3. 하위 태스크 갱신
     tasks = data.get("task", [])
     for t in tasks:
         db_task = db.query(models.Task).filter(models.Task.task_id == t.get("task_id")).first()
@@ -267,7 +283,7 @@ def update_project(db: Session, project_id: int, request, current_user: models.E
                 db.add(models.TaskMember(task_id=db_task.task_id, emp_id=emp_id))
                 ensure_member(db, project_id, emp_id, MemberRole.MEMBER)
 
-    # 🔹 3. 첨부파일 갱신
+    # 🔹 4. 첨부파일 갱신
     attachments = data.get("attachments", [])
     for a in attachments:
         if not a.get("file_name"):
@@ -291,9 +307,13 @@ def update_project(db: Session, project_id: int, request, current_user: models.E
                 uploaded_by=current_user.emp_id,
             )
             db.add(new_attachment)
-
+    print("🔹 기존 담당자:", [m.emp_id for m in proj.projectmember])
+    print("🔹 새 담당자:", new_ids)
+    print("💾 COMMIT 직전 ProjectMember 존재 수:",
+      db.query(models.ProjectMember).filter(models.ProjectMember.project_id == project_id).count())
     db.commit()
     db.refresh(proj)
+    print("✅ 커밋 완료")
     return proj
 
 

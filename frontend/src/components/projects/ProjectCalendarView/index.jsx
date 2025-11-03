@@ -118,8 +118,10 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
   /* 📅 오늘 날짜 강조 */
   const handleDayCellDidMount = info => {
     if (dayjs().isSame(info.date, "day")) {
-      info.el.style.border = "2px solid #2196F3";
-      info.el.style.background = "#E3F2FD";
+      info.el.style.border = "2px solid #9C27B0"; // 진한 노란색 테두리
+      info.el.style.background = "#F3E5F5"; // 연노랑 배경
+      info.el.style.borderRadius = "6px"; // 살짝 부드러운 모서리
+      info.el.style.boxShadow = "inset 0 0 4px rgba(0,0,0,0.05)";
     }
   };
 

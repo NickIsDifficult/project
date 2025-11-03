@@ -48,7 +48,6 @@ export default function AppShell({ children }) {
   const fetchMe = useCallback(async () => {
     try {
       const data = await getMe();
-      console.log("📥 /auth/me 응답:", data);
 
       const profile = data?.member ?? {};
 

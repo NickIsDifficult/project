@@ -29,13 +29,13 @@ export default function useCalendarEvents(
     return map;
   }, [projects]);
 
-  // 📁 프로젝트 기간 이벤트
+  // 📁 프로젝트 이벤트
   const projectEvents = useMemo(() => {
     return projects
       .filter(p => p.start_date && p.end_date)
       .map(p => ({
         id: `proj-${p.project_id}`,
-        title: p.project_name,
+        title: `📁 ${p.project_name}`,
         start: p.start_date,
         end: dayjs(p.end_date).add(1, "day").format("YYYY-MM-DD"),
         allDay: true,
@@ -44,58 +44,94 @@ export default function useCalendarEvents(
         textColor: "#111",
         extendedProps: {
           isProject: true,
-          project_id: Number(p.project_id), // ✅ 숫자형으로 통일
+          project_id: Number(p.project_id),
           project_name: p.project_name,
         },
       }));
   }, [projects, projectColorMap]);
 
-  // 🧩 업무(Task) 이벤트
+  // 🧩 업무(Task) + 모든 하위업무(subtasks) 재귀 처리
   const taskEvents = useMemo(() => {
     const allEvents = [];
-    for (const [projectId, tasks] of Object.entries(tasksByProject)) {
-      tasks.forEach(task => {
-        if (!task.start_date && !task.due_date) return;
 
-        allEvents.push({
-          id: task.task_id,
-          title: task.title || task.task_name || "제목 없음",
-          start: task.start_date,
-          end: dayjs(task.due_date).add(1, "day").format("YYYY-MM-DD"),
-          allDay: true,
-          color: getTaskColor(task, colorMode, projectColorMap),
-          textColor: "#111",
-          extendedProps: {
-            ...task,
-            project_id: Number(projectId),
-            isProject: false,
-          },
-        });
+    // 🔁 모든 하위 업무를 평탄화
+    const flattenTasks = (tasks, projectId) => {
+      if (!Array.isArray(tasks)) return;
+
+      tasks.forEach(task => {
+        if (!task) return;
+
+        // 일정이 있는 업무만 추가
+        if (task.start_date || task.due_date) {
+          allEvents.push({
+            id: task.task_id,
+            title: task.title || task.task_name || "제목 없음",
+            start: task.start_date,
+            end: dayjs(task.due_date).add(1, "day").format("YYYY-MM-DD"),
+            allDay: true,
+            color: getTaskColor(task, colorMode, projectColorMap),
+            textColor: "#111",
+            extendedProps: {
+              ...task,
+              project_id: Number(projectId),
+              isProject: false,
+            },
+          });
+        }
+
+        // 하위 업무가 있으면 재귀 호출
+        if (Array.isArray(task.subtasks) && task.subtasks.length > 0) {
+          flattenTasks(task.subtasks, projectId);
+        }
       });
+    };
+
+    // 각 프로젝트별 flatten 수행
+    for (const [projectId, tasks] of Object.entries(tasksByProject)) {
+      flattenTasks(tasks, projectId);
     }
+
     return allEvents;
   }, [tasksByProject, colorMode, projectColorMap]);
 
-  // 📋 날짜 미지정 업무
+  // 📋 날짜 미지정 업무 (하위 포함)
   const undatedTasks = useMemo(() => {
     const list = [];
-    for (const [pid, tasks] of Object.entries(tasksByProject)) {
+
+    const collectUndated = (tasks, projectId) => {
+      if (!Array.isArray(tasks)) return;
       tasks.forEach(task => {
-        if (!task.start_date && !task.due_date) list.push({ ...task, project_id: Number(pid) }); // ✅ 숫자형으로 통일
+        if (!task) return;
+        if (!task.start_date && !task.due_date) {
+          list.push({ ...task, project_id: Number(projectId) });
+        }
+        if (Array.isArray(task.subtasks) && task.subtasks.length > 0) {
+          collectUndated(task.subtasks, projectId);
+        }
       });
+    };
+
+    for (const [pid, tasks] of Object.entries(tasksByProject)) {
+      collectUndated(tasks, pid);
     }
+
     return list;
   }, [tasksByProject]);
 
+  // ✅ 프로젝트 + 업무 통합
   const combined = useMemo(() => [...projectEvents, ...taskEvents], [projectEvents, taskEvents]);
 
-  // 🔍 프로젝트 필터 적용
+  // 🔍 선택 + 검색 필터
   const filtered = useMemo(() => {
     let result = combined;
+
+    // 선택된 프로젝트만
     if (activeProjectIds.length > 0) {
       const ids = activeProjectIds.map(Number);
       result = result.filter(ev => ids.includes(ev.extendedProps.project_id));
     }
+
+    // 검색어 필터
     if (searchKeyword.trim()) {
       const kw = searchKeyword.toLowerCase();
       result = result.filter(
@@ -104,7 +140,9 @@ export default function useCalendarEvents(
           ev.extendedProps.project_name?.toLowerCase().includes(kw),
       );
     }
+
     return result;
   }, [combined, activeProjectIds, searchKeyword]);
+
   return { events: filtered, undatedTasks, projectColorMap };
 }

@@ -50,18 +50,16 @@ export default function useCalendarEvents(
       }));
   }, [projects, projectColorMap]);
 
-  // 🧩 업무(Task) + 모든 하위업무(subtasks) 재귀 처리
+  // 🧩 업무(Task) + 모든 하위업무(subtasks)
   const taskEvents = useMemo(() => {
     const allEvents = [];
 
-    // 🔁 모든 하위 업무를 평탄화
-    const flattenTasks = (tasks, projectId) => {
+    const flattenTasks = (tasks, projectId, projectName) => {
       if (!Array.isArray(tasks)) return;
 
       tasks.forEach(task => {
         if (!task) return;
 
-        // 일정이 있는 업무만 추가
         if (task.start_date || task.due_date) {
           allEvents.push({
             id: task.task_id,
@@ -73,50 +71,57 @@ export default function useCalendarEvents(
             textColor: "#111",
             extendedProps: {
               ...task,
-              project_id: Number(projectId),
               isProject: false,
+              project_id: Number(projectId),
+              project_name: projectName,
             },
           });
         }
 
-        // 하위 업무가 있으면 재귀 호출
         if (Array.isArray(task.subtasks) && task.subtasks.length > 0) {
-          flattenTasks(task.subtasks, projectId);
+          flattenTasks(task.subtasks, projectId, projectName);
         }
       });
     };
 
-    // 각 프로젝트별 flatten 수행
     for (const [projectId, tasks] of Object.entries(tasksByProject)) {
-      flattenTasks(tasks, projectId);
+      const project = projects.find(p => String(p.project_id) === String(projectId));
+      flattenTasks(tasks, projectId, project?.project_name || "프로젝트 미지정");
     }
 
     return allEvents;
-  }, [tasksByProject, colorMode, projectColorMap]);
+  }, [tasksByProject, colorMode, projectColorMap, projects]);
 
   // 📋 날짜 미지정 업무 (하위 포함)
   const undatedTasks = useMemo(() => {
     const list = [];
 
-    const collectUndated = (tasks, projectId) => {
+    const collectUndated = (tasks, projectId, projectName) => {
       if (!Array.isArray(tasks)) return;
       tasks.forEach(task => {
         if (!task) return;
+
         if (!task.start_date && !task.due_date) {
-          list.push({ ...task, project_id: Number(projectId) });
+          list.push({
+            ...task,
+            project_id: parseInt(projectId, 10),
+            project_name: projectName,
+          });
         }
+
         if (Array.isArray(task.subtasks) && task.subtasks.length > 0) {
-          collectUndated(task.subtasks, projectId);
+          collectUndated(task.subtasks, projectId, projectName);
         }
       });
     };
 
     for (const [pid, tasks] of Object.entries(tasksByProject)) {
-      collectUndated(tasks, pid);
+      const project = projects.find(p => String(p.project_id) === String(pid));
+      collectUndated(tasks, pid, project?.project_name || "프로젝트 미지정");
     }
 
     return list;
-  }, [tasksByProject]);
+  }, [tasksByProject, projects]);
 
   // ✅ 프로젝트 + 업무 통합
   const combined = useMemo(() => [...projectEvents, ...taskEvents], [projectEvents, taskEvents]);
@@ -125,13 +130,11 @@ export default function useCalendarEvents(
   const filtered = useMemo(() => {
     let result = combined;
 
-    // 선택된 프로젝트만
     if (activeProjectIds.length > 0) {
       const ids = activeProjectIds.map(Number);
       result = result.filter(ev => ids.includes(ev.extendedProps.project_id));
     }
 
-    // 검색어 필터
     if (searchKeyword.trim()) {
       const kw = searchKeyword.toLowerCase();
       result = result.filter(

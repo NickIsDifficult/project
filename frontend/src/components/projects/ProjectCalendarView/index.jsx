@@ -1,13 +1,13 @@
-// src/components/projects/ProjectCalendarView/index.jsx
+// ✅ FULL UPDATED FILE — src/components/projects/ProjectCalendarView/index.jsx
 import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import interactionPlugin, { Draggable } from "@fullcalendar/interaction";
 import FullCalendar from "@fullcalendar/react";
 import dayjs from "dayjs";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import tippy from "tippy.js";
 import "tippy.js/dist/tippy.css";
 
-import { useState } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { updateTask } from "../../../services/api/task";
 import { renderTooltip } from "../utils/renderTooltip";
@@ -28,7 +28,28 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     searchKeyword,
   );
 
-  /* 📦 일정 이동 (드래그로 위치 변경) */
+  const externalRef = useRef(null);
+
+  /* ✅ Draggable 설정 (날짜 미지정 업무 → 캘린더로 드래그) */
+  useEffect(() => {
+    if (externalRef.current) {
+      new Draggable(externalRef.current, {
+        itemSelector: "li[draggable='true']",
+        eventData: el => {
+          console.log("🧩 [eventData] el passed to FullCalendar =", el);
+          console.log("🧩 [eventData] dataset =", el.dataset);
+
+          const raw = JSON.parse(el.dataset.raw || "{}");
+          return {
+            title: raw.title || el.innerText || "업무",
+            extendedProps: raw, // ✅ v6 방식: drop 이벤트에서 info.event.extendedProps로 전달됨
+          };
+        },
+      });
+    }
+  }, []);
+
+  /* 📦 일정 이동 (캘린더 내 드래그 이동) */
   const handleEventDrop = async info => {
     const { id, start, end, extendedProps } = info.event;
     if (extendedProps.isProject) {
@@ -51,7 +72,7 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     }
   };
 
-  /* 📏 일정 길이 조정 (기간 늘리기/줄이기) */
+  /* 📏 일정 길이 조정 */
   const handleEventResize = async info => {
     const { id, start, end, extendedProps } = info.event;
     if (extendedProps.isProject) {
@@ -74,7 +95,7 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     }
   };
 
-  /* 🆕 날짜 선택 → 새 업무 등록 */
+  /* 🆕 날짜 선택 → 새 업무 생성 */
   const handleSelect = info => {
     const start = dayjs(info.start).format("YYYY-MM-DD");
     const end = dayjs(info.end).subtract(1, "day").format("YYYY-MM-DD");
@@ -87,7 +108,7 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     localStorage.setItem("newTask_end", end);
   };
 
-  /* 🖱️ 클릭 → 프로젝트 or 업무 상세 보기 */
+  /* 🖱️ 이벤트 클릭 → 상세 보기 */
   const handleEventClick = info => {
     const { id, extendedProps } = info.event;
     if (extendedProps.isProject) {
@@ -101,7 +122,7 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     onTaskClick?.({ ...extendedProps, task_id: id });
   };
 
-  /* 💬 Tooltip 렌더링 */
+  /* 💬 Tooltip */
   const handleEventDidMount = info => {
     const html = renderTooltip(info.event, !!info.event.extendedProps.isProject);
     tippy(info.el, {
@@ -118,14 +139,14 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
   /* 📅 오늘 날짜 강조 */
   const handleDayCellDidMount = info => {
     if (dayjs().isSame(info.date, "day")) {
-      info.el.style.border = "2px solid #9C27B0"; // 진한 노란색 테두리
-      info.el.style.background = "#F3E5F5"; // 연노랑 배경
-      info.el.style.borderRadius = "6px"; // 살짝 부드러운 모서리
+      info.el.style.border = "2px solid #9C27B0";
+      info.el.style.background = "#F3E5F5";
+      info.el.style.borderRadius = "6px";
       info.el.style.boxShadow = "inset 0 0 4px rgba(0,0,0,0.05)";
     }
   };
 
-  /* 🎨 이벤트 표시 스타일 */
+  /* 🎨 캘린더 이벤트 렌더링 */
   const handleEventContent = arg => {
     const { extendedProps } = arg.event;
     const isProject = extendedProps.isProject;
@@ -135,6 +156,7 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
       extendedProps.task_name ||
       extendedProps.project_name ||
       "제목 없음";
+
     const hasIcon = rawTitle.startsWith("📁") || rawTitle.startsWith("📝");
     const displayTitle = hasIcon ? rawTitle : `${isProject ? "📁" : "📝"} ${rawTitle}`;
     const color = arg.event.backgroundColor || arg.event.color || "#ddd";
@@ -155,6 +177,45 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
     };
   };
 
+  /* 📥 외부(미지정 업무) → 캘린더로 드롭 */
+  const handleExternalDrop = async info => {
+    console.group("📌 [DROP EVENT FIRED]");
+    console.log("📌 info.draggedEl =", info.draggedEl);
+
+    // ✅ v6 전용: 드래그 시 저장해둔 데이터 사용
+    const raw = info.draggedEl.dataset.raw;
+    console.log("📌 loaded from window.__dragPayload =", raw);
+
+    if (!raw) {
+      console.error("❌ DROP FAILED: raw data not found");
+      toast.error("업무 정보를 가져올 수 없습니다.");
+      console.groupEnd();
+      return;
+    }
+
+    const droppedData = JSON.parse(raw);
+
+    let projectId = Number(droppedData.project_id);
+    if (!projectId || isNaN(projectId)) {
+      console.error("🚨 projectId invalid:", projectId);
+      toast.error("프로젝트 정보가 없는 업무는 등록할 수 없습니다.");
+      console.groupEnd();
+      return;
+    }
+
+    const taskId = droppedData.task_id;
+    const dropDate = dayjs(info.date).format("YYYY-MM-DD");
+
+    updateTaskLocal(taskId, { start_date: dropDate, due_date: dropDate });
+    await updateTask(projectId, taskId, {
+      start_date: dropDate,
+      due_date: dropDate,
+    });
+
+    toast.success(`📆 '${droppedData.title}' 일정이 ${dropDate}로 등록되었습니다.`);
+    console.groupEnd();
+  };
+
   /* 🎨 색상 기준 라벨 */
   const getColorModeLabel = () => {
     switch (colorMode) {
@@ -172,55 +233,61 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
   };
 
   return (
-    <div className="calendar-container">
-      <CalendarFilterBar
-        projects={projects}
-        activeProjectIds={activeProjectIds}
-        setActiveProjectIds={setActiveProjectIds}
-        colorMode={colorMode}
-        setColorMode={setColorMode}
-        searchKeyword={searchKeyword}
-        setSearchKeyword={setSearchKeyword}
-      />
+    <div className="calendar-layout">
+      <div className="calendar-main">
+        <CalendarFilterBar
+          projects={projects}
+          activeProjectIds={activeProjectIds}
+          setActiveProjectIds={setActiveProjectIds}
+          colorMode={colorMode}
+          setColorMode={setColorMode}
+          searchKeyword={searchKeyword}
+          setSearchKeyword={setSearchKeyword}
+        />
 
-      {searchKeyword && (
-        <div style={{ fontSize: 12, color: "#555", margin: "4px 0 6px" }}>
-          🔍 “{searchKeyword}” 검색 결과만 표시 중
+        {searchKeyword && (
+          <div style={{ fontSize: 12, color: "#555", margin: "4px 0 6px" }}>
+            🔍 “{searchKeyword}” 검색 결과만 표시 중
+          </div>
+        )}
+
+        <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>
+          🎨 현재 색상 기준: <b>{getColorModeLabel()}</b>
         </div>
-      )}
 
-      <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>
-        🎨 현재 색상 기준: <b>{getColorModeLabel()}</b>
+        <FullCalendar
+          plugins={[dayGridPlugin, interactionPlugin]}
+          initialView="dayGridMonth"
+          selectable
+          select={handleSelect}
+          events={events || []}
+          editable
+          eventResizableFromStart
+          eventDrop={handleEventDrop}
+          eventResize={handleEventResize}
+          eventClick={handleEventClick}
+          eventDidMount={handleEventDidMount}
+          eventContent={handleEventContent}
+          dayCellDidMount={handleDayCellDidMount}
+          displayEventTime={false}
+          dayMaxEventRows={3}
+          locale="ko"
+          firstDay={1}
+          height="auto"
+          contentHeight="auto"
+          droppable
+          dragRevertDuration={0}
+          drop={handleExternalDrop}
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,dayGridWeek",
+          }}
+        />
       </div>
 
-      <FullCalendar
-        plugins={[dayGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        selectable
-        select={handleSelect}
-        events={events || []}
-        editable // ✅ 이동 & 기간조정 모두 활성화
-        eventResizableFromStart // ✅ 시작 날짜 조정 가능
-        eventDrop={handleEventDrop} // ✅ 드래그 이동
-        eventResize={handleEventResize} // ✅ 길이 조정
-        eventClick={handleEventClick}
-        eventDidMount={handleEventDidMount}
-        eventContent={handleEventContent}
-        dayCellDidMount={handleDayCellDidMount}
-        displayEventTime={false}
-        dayMaxEventRows={3}
-        locale="ko"
-        firstDay={1}
-        height="auto"
-        contentHeight="auto"
-        headerToolbar={{
-          left: "prev,next today",
-          center: "title",
-          right: "dayGridMonth,dayGridWeek",
-        }}
-      />
-
-      <div className="calendar-undated">
+      {/* 📋 날짜 미지정 업무 사이드 패널 */}
+      <aside className="calendar-undated-panel" ref={externalRef}>
         <h4 className="calendar-subtitle">📋 날짜 미지정 업무 ({undatedTasks.length})</h4>
         <UndatedProjectList
           tasks={undatedTasks}
@@ -228,7 +295,7 @@ export default function ProjectCalendarView({ onTaskClick, onProjectClick }) {
           projectColorMap={projectColorMap}
           onTaskClick={onTaskClick}
         />
-      </div>
+      </aside>
     </div>
   );
 }

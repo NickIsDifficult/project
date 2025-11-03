@@ -24,7 +24,7 @@
   color: #111;
   padding: 6px 8px;
   border-bottom: 1px solid #eee;
-  background: rgba(250, 250, 250, 0.85);
+  background: rgba(250, 250, 250, 0.9);
 }
 
 /* 아이콘 크기 */
@@ -50,7 +50,7 @@
 
 /* Hover 시 미세한 확대 효과 */
 .tippy-tooltip-content:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.25);
   transform: translateY(-1px);
 }
 
@@ -59,4 +59,74 @@
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+}
+
+/* 📅 전체 레이아웃 구성 */
+.calendar-layout {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+/* 캘린더 본체 */
+.calendar-main {
+  flex: 3;
+  min-width: 0;
+}
+
+/* 날짜 미지정 업무 패널 */
+.calendar-undated-panel {
+  flex: 1.1;
+  background: #fafafa;
+  border-left: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  height: fit-content;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.04);
+}
+
+/* 🖱️ 드래그 가능한 업무 시각 피드백 */
+.calendar-undated-panel li[draggable="true"] {
+  cursor: grab;
+  transition: transform 0.1s, background 0.2s;
+}
+.calendar-undated-panel li[draggable="true"]:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+/* 캘린더 날짜에 드래그 Hover 시 강조 */
+.fc-daygrid-day.fc-day-draggable-hover {
+  background: #f3e5f5 !important;
+  border: 2px dashed #9c27b0 !important;
+  border-radius: 6px !important;
+  transition: background 0.2s, border 0.2s;
+}
+
+/* 스크롤바 */
+.calendar-undated-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.calendar-undated-panel::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+/* 반응형: 좁은 화면에서는 하단으로 이동 */
+@media (max-width: 1024px) {
+  .calendar-layout {
+    flex-direction: column;
+  }
+  .calendar-undated-panel {
+    border-left: none;
+    border-top: 1px solid #eee;
+    box-shadow: none;
+    max-height: none;
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 8px;
+  }
 }

@@ -246,7 +246,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId, onAddSiblin
                 disabled={!isEditing}
               />
               <button
-                button onClick={() => fileInputRef.current?.click()}
+                onClick={() => fileInputRef.current?.click()}
                 disabled={!isEditing}
                 style={{
                   background: "#1976d2",

@@ -1,121 +1,251 @@
-// src/components/project/ProjectDetailPanel/TaskInfoView.jsx
-import { format } from "date-fns";
-import { ko } from "date-fns/locale";
-import { useMemo } from "react";
-import Button from "../../common/Button";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { getEmployees } from "../../../services/api/employee";
+import { deleteTask, updateTask } from "../../../services/api/task";
+import AssigneeSelector from "../AssigneeSelector"; // ✅ 분리된 컴포넌트 불러오기
+import TaskNode from "../TaskNode"; // 하위업무 렌더링용
 
-/**
- * ✅ TaskInfoView
- * - 업무 상세보기 (읽기 전용)
- */
-export default function TaskInfoView({
-  task,
-  onEdit,
-  onStatusChange,
-  onProgressChange,
-  onAddSubtask,
-  onDeleteTask, // 🔹 추가
-}) {
-  if (!task)
-    return (
-      <p className="text-gray-500 text-sm text-center mt-6">업무 데이터를 불러올 수 없습니다.</p>
-    );
+export default function TaskInfoView({ task, parentTask, onRefresh }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [taskData, setTaskData] = useState(task);
 
-  const formattedDate = useMemo(() => {
-    if (!task.start_date && !task.end_date) return "기간 미정";
-    const start = task.start_date
-      ? format(new Date(task.start_date), "yyyy.MM.dd", { locale: ko })
-      : "";
-    const end = task.end_date ? format(new Date(task.end_date), "yyyy.MM.dd", { locale: ko }) : "";
-    return `${start} ~ ${end}`;
-  }, [task.start_date, task.end_date]);
+  useEffect(() => {
+    getEmployees().then(setEmployees);
+  }, []);
 
-  const STATUS_LABELS = {
-    TODO: "🕓 대기중",
-    IN_PROGRESS: "🚧 진행중",
-    REVIEW: "🔍 검토중",
-    DONE: "✅ 완료",
-    ON_HOLD: "⏸️ 보류",
+  if (!taskData) return <p style={{ padding: 20 }}>⏳ 업무 데이터를 불러오는 중...</p>;
+
+ const handleSave = async () => {
+  try {
+    await updateTask(taskData.project_id, taskData.task_id, taskData);
+    toast.success("업무 수정 완료!");
+    setIsEditing(false);
+    onRefresh?.();
+  } catch (err) {
+    console.error("❌ 태스크 수정 중 오류:", err);
+    toast.error("태스크 수정 중 오류 발생: " + err.message);
+  }
+};
+
+
+
+
+
+  const handleDelete = async () => {
+    if (!window.confirm("이 업무를 삭제하시겠습니까?")) return;
+    try {
+      await deleteTask(taskData.task_id);
+      toast.success("업무가 삭제되었습니다.");
+      onRefresh?.();
+    } catch (err) {
+      toast.error("삭제 중 오류 발생");
+    }
   };
-
-  const PRIORITY_LABELS = {
-    HIGH: "🔥 높음",
-    MEDIUM: "⚖️ 보통",
-    LOW: "🌱 낮음",
-  };
-
-  const title = task.title || task.task_name || "제목 없음";
 
   return (
-    <div className="space-y-4">
-      {/* 🏷️ 기본 정보 */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">{title}</h2>
-        <p className="text-gray-600 whitespace-pre-wrap">{task.description || "설명 없음"}</p>
-      </div>
+    <div style={{ padding: 16 }}>
+      {/* 상위업무 표시 */}
+      {parentTask && (
+        <p style={{ color: "#666", fontSize: 14, marginBottom: 6 }}>
+          <strong style={{ color: "#444" }}>📁 상위업무:</strong> {parentTask.title} &gt;{" "}
+          <span style={{ color: "#1976d2" }}>{taskData.title || "제목 없음"}</span>
+        </p>
+      )}
 
-      {/* 📋 세부 정보 */}
-      <div className="grid grid-cols-2 gap-y-2 text-sm text-gray-700">
-        <p>
-          <span className="font-medium text-gray-600">📁 프로젝트:</span> {task.project_name || "-"}
-        </p>
-        <p>
-          <span className="font-medium text-gray-600">👤 담당자:</span>{" "}
-          {task.assignee_name || "미지정"}
-        </p>
-        <p>
-          <span className="font-medium text-gray-600">🏷️ 우선순위:</span>{" "}
-          {PRIORITY_LABELS[task.priority] || "미정"}
-        </p>
-        <p>
-          <span className="font-medium text-gray-600">📅 기간:</span> {formattedDate}
-        </p>
-      </div>
+      <h2 style={{ marginTop: 4 }}>📌 업무 상세정보</h2>
 
-      {/* 🚦 상태 변경 */}
-      <div className="flex items-center gap-2">
-        <span className="font-medium text-gray-600">상태:</span>
-        <select
-          value={task.status || "TODO"}
-          onChange={e => onStatusChange(e.target.value)}
-          className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-400"
+      <label>업무 제목</label>
+      <input
+        value={taskData.title || ""}
+        onChange={e => setTaskData({ ...taskData, title: e.target.value })}
+        disabled={!isEditing}
+        style={{
+          width: "100%",
+          marginBottom: 10,
+          background: !isEditing ? "#f6f6f6" : "white",
+        }}
+      />
+
+      <label>업무 설명</label>
+      <textarea
+        value={taskData.description || ""}
+        onChange={e => setTaskData({ ...taskData, description: e.target.value })}
+        disabled={!isEditing}
+        style={{
+          width: "100%",
+          minHeight: 80,
+          background: !isEditing ? "#f6f6f6" : "white",
+          borderRadius: 6,
+          padding: 6,
+        }}
+      />
+
+      {/* 상세입력 토글 */}
+      <button
+        onClick={() => setShowDetails(!showDetails)}
+        style={{
+          background: showDetails ? "#555" : "#1976d2",
+          color: "white",
+          border: "none",
+          borderRadius: 6,
+          padding: "6px 10px",
+          cursor: "pointer",
+          marginTop: 10,
+        }}
+      >
+        {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
+      </button>
+
+      {showDetails && (
+        <div
+          style={{
+            background: "#f9f9f9",
+            padding: 12,
+            borderRadius: 8,
+            marginTop: 10,
+          }}
         >
-          {Object.entries(STATUS_LABELS).map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
+          <div style={{ marginBottom: 8 }}>
+            <label>시작일</label>
+            <input
+              type="date"
+              value={taskData.start_date || ""}
+              disabled={!isEditing}
+              onChange={e => setTaskData({ ...taskData, start_date: e.target.value })}
+              style={{
+                marginLeft: 8,
+                background: !isEditing ? "#f6f6f6" : "white",
+              }}
+            />
+            <label style={{ marginLeft: 16 }}>종료일</label>
+            <input
+              type="date"
+              value={taskData.end_date || ""}
+              disabled={!isEditing}
+              onChange={e => setTaskData({ ...taskData, end_date: e.target.value })}
+              style={{
+                marginLeft: 8,
+                background: !isEditing ? "#f6f6f6" : "white",
+              }}
+            />
+          </div>
 
-      {/* 📊 진행률 */}
-      <div>
-        <label className="block text-sm font-medium text-gray-600 mb-1">
-          진행률: {task.progress || 0}%
-        </label>
+          <div style={{ marginTop: 12 }}>
+            <strong>담당자:</strong>
+            <AssigneeSelector
+              employees={employees}
+              selected={taskData.assignees || []}
+              setSelected={sel => setTaskData({ ...taskData, assignees: sel })}
+              disabled={!isEditing}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 진행률 */}
+      <div style={{ marginTop: 16 }}>
+        <label>📊 진행률: {taskData.progress || 0}%</label>
         <input
           type="range"
           min={0}
           max={100}
           step={5}
-          value={task.progress || 0}
-          onChange={e => onProgressChange(Number(e.target.value))}
-          className="w-full accent-blue-500"
+          value={taskData.progress || 0}
+          onChange={e => setTaskData({ ...taskData, progress: Number(e.target.value) })}
+          disabled={!isEditing}
+          style={{ width: "100%" }}
         />
       </div>
 
-      {/* 🔘 버튼 */}
-      <div className="flex gap-2 pt-2">
-        <Button variant="primary" onClick={onEdit}>
-          ✏️ 수정
-        </Button>
-        <Button variant="success" onClick={onAddSubtask}>
-          ➕ 하위 업무 추가
-        </Button>
-        {/* 🔹 삭제 버튼 추가 */}
-        <Button variant="danger" onClick={onDeleteTask}>
-          🗑️ 삭제
-        </Button>
+      {/* 하위업무 목록 */}
+      <div style={{ marginTop: 20 }}>
+        <h3>📋 하위업무 목록</h3>
+        {taskData.subtask?.length ? (
+          taskData.subtask.map((st, i) => (
+            <TaskNode
+              key={st.task_id ?? `sub-${i}`}
+              task={st}
+              employees={employees}
+              disabled={!isEditing}
+              depth={1}
+            />
+          ))
+        ) : (
+          <p style={{ color: "#999" }}>등록된 하위업무가 없습니다.</p>
+        )}
+      </div>
+
+      {/* 하단 버튼 */}
+      <div
+        style={{
+          borderTop: "1px solid #eee",
+          paddingTop: 16,
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 8,
+          marginTop: 20,
+        }}
+      >
+        {isEditing ? (
+          <>
+            <button
+              onClick={handleSave}
+              style={{
+                background: "#1976d2",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                padding: "8px 14px",
+                cursor: "pointer",
+              }}
+            >
+              저장
+            </button>
+            <button
+              onClick={() => setIsEditing(false)}
+              style={{
+                background: "#f1f1f1",
+                border: "1px solid #ccc",
+                borderRadius: 6,
+                padding: "8px 14px",
+                cursor: "pointer",
+              }}
+            >
+              취소
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setIsEditing(true)}
+              style={{
+                background: "#4caf50",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                padding: "8px 14px",
+                cursor: "pointer",
+              }}
+            >
+              ✏️ 수정
+            </button>
+            <button
+              onClick={handleDelete}
+              style={{
+                background: "#f44336",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                padding: "8px 14px",
+                cursor: "pointer",
+              }}
+            >
+              🗑️ 삭제
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

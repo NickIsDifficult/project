@@ -17,40 +17,23 @@ from app.utils.notifier import create_notifications
 # =====================================================
 # ✅ 프로젝트별 태스크 조회
 # =====================================================
-def get_tasks_by_project(db: Session, project_id: int):
-    """
-    특정 프로젝트의 태스크 전체 트리 반환
-    - 하위업무(subtask)를 재귀적으로 포함
-    """
+def get_tasks_by_project(db: Session, project_id: int) -> List[models.Task]:
+    """특정 프로젝트의 모든 태스크 조회 (다중 담당자 포함)"""
     tasks = (
         db.query(models.Task)
         .options(
             joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee),
+            joinedload(models.Task.subtask),
         )
         .filter(models.Task.project_id == project_id)
         .order_by(models.Task.due_date.asc().nulls_last())
         .all()
     )
 
-    # 모든 태스크를 딕셔너리 형태로 맵핑
-    task_map = {t.task_id: t for t in tasks}
-    root_tasks = []
-
-    # 각 태스크에 subtask 리스트 초기화
     for t in tasks:
         t.assignee_ids = [m.emp_id for m in t.taskmember]
-        t.subtask = []  # ✅ 재귀 필드 초기화
+    return tasks
 
-    # parent_task_id 기반 트리 구성
-    for t in tasks:
-        if t.parent_task_id:
-            parent = task_map.get(t.parent_task_id)
-            if parent:
-                parent.subtask.append(t)
-        else:
-            root_tasks.append(t)
-
-    return root_tasks
 
 # =====================================================
 # ✅ 단일 태스크 조회
@@ -75,20 +58,8 @@ def create_task(
     creator_emp_id: int,
     project_id: int,
 ) -> models.Task:
-    """태스크 생성 (+ 선택적으로 하위 태스크까지 재귀 생성)"""
+    """태스크 생성 + 로그 + 알림"""
     try:
-        # 🟩 단일 생성 대신, 재귀 로직으로 대체
-        if hasattr(request, "subtask") and request.subtask:
-            print(f"📦 트리형 생성 요청 감지 -> 하위 {len(request.subtask)}개 포함")
-            return create_task_recursive(
-                db,
-                project_id,
-                creator_emp_id,
-                node=request.dict(),
-                parent_task_id=request.parent_task_id,
-            )
-
-        # 🟨 기존 단일 생성 로직 (하위 없음)
         new_task = models.Task(
             project_id=project_id,
             title=request.title.strip(),
@@ -101,9 +72,42 @@ def create_task(
             estimate_hours=request.estimate_hours,
             progress=request.progress or 0,
         )
+
         db.add(new_task)
         db.commit()
         db.refresh(new_task)
+
+        # 담당자(단일 필드 기반)
+        if request.assignee_emp_id:
+            db.add(
+                models.TaskMember(
+                    task_id=new_task.task_id, emp_id=request.assignee_emp_id
+                )
+            )
+            db.commit()
+
+        # 로그 기록
+        log_task_action(
+            db=db,
+            emp_id=creator_emp_id,
+            project_id=project_id,
+            task_id=new_task.task_id,
+            action="task_created",
+            detail=f"'{new_task.title}' 생성됨",
+        )
+
+        # 알림 (담당자가 있을 때만)
+        if request.assignee_emp_id:
+            create_notifications(
+                db=db,
+                recipients=[request.assignee_emp_id],
+                actor_emp_id=creator_emp_id,
+                project_id=project_id,
+                task_id=new_task.task_id,
+                ntype=NotificationType.assignment,
+                payload={"title": new_task.title},
+            )
+
         return new_task
 
     except Exception as e:

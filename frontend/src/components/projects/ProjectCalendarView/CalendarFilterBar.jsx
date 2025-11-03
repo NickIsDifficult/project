@@ -8,8 +8,6 @@ export default function CalendarFilterBar({
   setActiveProjectIds,
   colorMode,
   setColorMode,
-  searchKeyword,
-  setSearchKeyword,
 }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -70,10 +68,9 @@ export default function CalendarFilterBar({
         {/* 🔍 검색 */}
         <input
           type="text"
-          placeholder="🔍 프로젝트 또는 업무 제목 검색..."
-          value={searchKeyword}
-          onChange={e => setSearchKeyword(e.target.value)}
-          onFocus={() => setOpen(false)}
+          placeholder="🔍 프로젝트 검색..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
           style={searchInput}
         />
 
@@ -82,7 +79,6 @@ export default function CalendarFilterBar({
           <button onClick={() => setOpen(o => !o)} style={dropdownBtn}>
             📁 프로젝트 선택 ▼
           </button>
-
           {open && (
             <div style={dropdownMenu}>
               <div style={dropdownHeader}>
@@ -97,21 +93,24 @@ export default function CalendarFilterBar({
               {filteredProjects.length === 0 ? (
                 <div style={emptyText}>검색 결과 없음</div>
               ) : (
-                filteredProjects.map(p => (
-                  <label key={p.project_id} style={dropdownItem}>
-                    <input
-                      type="checkbox"
-                      checked={activeProjectIds.includes(p.project_id)}
-                      onChange={() => toggleProject(p.project_id)}
-                      style={checkboxStyle}
-                    />
-                    <span style={projectName}>{p.project_name}</span>
-                  </label>
-                ))
+                filteredProjects.map(p => {
+                  const checked = activeProjectIds.includes(p.project_id);
+                  return (
+                    <label key={p.project_id} style={dropdownItem}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleProject(p.project_id)}
+                        style={checkboxStyle}
+                      />
+                      <span style={projectName}>{p.project_name}</span>
+                    </label>
+                  );
+                })
               )}
               <hr style={divider} />
               <div style={countText}>
-                선택됨: <b>{activeProjectIds.length}</b> / {projects.length}개
+                선택됨: <b>{selectedCount}</b> / {totalCount}개
               </div>
             </div>
           )}

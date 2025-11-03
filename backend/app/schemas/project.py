@@ -87,7 +87,7 @@ class TaskBase(BaseModel):
 class TaskCreate(TaskBase):
     project_id: Optional[int] = None
     parent_task_id: Optional[int] = None
-    subtask: Optional[List["TaskCreate"]] = []
+
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -109,7 +109,6 @@ class Task(TaskBase):
     taskmember: List[TaskMember] = Field(default_factory=list)
     taskcomment: List[TaskComment] = Field(default_factory=list)
     subtask: List["Task"] = Field(default_factory=list)
-    children: list["Task"] = []
 
     model_config = ConfigDict(from_attributes=True)
 

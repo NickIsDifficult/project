@@ -3,6 +3,11 @@ import { memo, useCallback, useState } from "react";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 import AssigneeSelector from "./AssigneeSelector";
 
+/**
+ * ✅ TaskNode
+ * - 업무 / 하위업무 재귀 컴포넌트
+ * - 담당자 선택, 시작일/종료일, 세부정보 토글, 자세히 보기 기능 포함
+ */
 function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
   const [showDetails, setShowDetails] = useState(false);
   const { setUiState } = useProjectGlobal();
@@ -16,23 +21,23 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
   /* ✅ 하위업무 추가 */
   const handleAddChild = () => {
     const newChild = {
-      id: Date.now(),
+      task_id: Date.now(),
       title: "",
-      startDate: "",
-      endDate: "",
+      start_date: "",
+      end_date: "",
       assignees: [],
-      children: [], // ✅ children으로 변경
+      subtask: [],
+      isOpen: false,
     };
-    const nextChildren = [...(task.children || []), newChild];
-    onUpdate?.({ ...task, children: nextChildren }); // ✅ 상위 반영
+    onUpdate?.({ ...task, subtask: [...(task.subtask || []), newChild] });
   };
 
   /* ✅ 하위업무 수정/삭제 */
   const handleChildUpdate = (index, updated) => {
-    const nextChildren = [...(task.children || [])];
-    if (updated === null) nextChildren.splice(index, 1);
-    else nextChildren[index] = updated;
-    onUpdate?.({ ...task, children: nextChildren }); // ✅ 상위 반영
+    const next = [...(task.subtask || [])];
+    if (updated === null) next.splice(index, 1);
+    else next[index] = updated;
+    onUpdate?.({ ...task, subtask: next });
   };
 
   /* ✅ 삭제 */
@@ -40,7 +45,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
 
   /* ✅ 자세히 보기 (우측 패널 이동) */
   const openTaskPanel = () => {
-    if (!task?.id && !task?.task_id) {
+    if (!task?.task_id) {
       console.warn("⚠️ task_id 누락");
       return;
     }
@@ -50,7 +55,7 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
       panel: {
         ...prev.panel,
         selectedTask: { ...task, project_id: projectId },
-        projectId: projectId ?? task.project_id,
+        projectId: projectId ?? task.project_id, // ✅ 반드시 포함
       },
     }));
   };
@@ -165,15 +170,15 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
             <label>시작일</label>
             <input
               type="date"
-              value={task.startDate || ""}
-              onChange={e => handleFieldChange("startDate", e.target.value)}
+              value={task.start_date || ""}
+              onChange={e => handleFieldChange("start_date", e.target.value)}
               style={{ marginLeft: 8 }}
             />
             <label style={{ marginLeft: 12 }}>종료일</label>
             <input
               type="date"
-              value={task.endDate || ""}
-              onChange={e => handleFieldChange("endDate", e.target.value)}
+              value={task.end_date || ""}
+              onChange={e => handleFieldChange("end_date", e.target.value)}
               style={{ marginLeft: 8 }}
             />
           </div>
@@ -192,14 +197,14 @@ function TaskNode({ task, onUpdate, employees, depth = 0, projectId }) {
       {/* ================================ */}
       {/* 🔁 하위업무 재귀 렌더링 */}
       {/* ================================ */}
-      {(task.children || []).map((child, i) => (
+      {(task.subtask || []).map((child, i) => (
         <TaskNode
-          key={child.id ?? i}
+          key={child.task_id ?? i}
           task={child}
           employees={employees}
           onUpdate={u => handleChildUpdate(i, u)}
           depth={depth + 1}
-          projectId={projectId}
+          projectId={projectId} // ✅ 전달 유지
         />
       ))}
     </div>

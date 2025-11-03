@@ -1,21 +1,14 @@
 // src/layout/AppShell.jsx
-
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-
-import "../pages/screens/style.css";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./appshell.css";
-
-import Sidebar from "./Sidebar";
-import TopStage from "./TopStage";
 
 import PersonalInfoModal from "../pages/screens/Setting/PersonalInfoModal";
 import useTheme from "../theme/useTheme";
+import Sidebar from "./Sidebar";
+import TopStage from "./TopStage";
 
-// 🔁 백엔드 API 래퍼 (axios 기반)
 import { changePassword, getMe, logout, updateProfile } from "../services/api/auth";
-
-import API from "../services/api/http"; // ✅ axios 인스턴스 추가
+import API from "../services/api/http";
 
 export default function AppShell({ children }) {
   const { theme, toggleTheme } = useTheme();
@@ -28,8 +21,7 @@ export default function AppShell({ children }) {
   });
   const [userStatus, setUserStatus] = useState("WORKING");
   const [showMenu, setShowMenu] = useState(false);
-  const [me, setMe] = useState(null);
-  const nav = useNavigate();
+  const statusMenuRef = useRef(null);
 
   const STATE_LABELS = {
     WORKING: "업무중",
@@ -38,20 +30,11 @@ export default function AppShell({ children }) {
     OFF: "퇴근",
   };
 
-  const REVERSE_STATE = {
-    업무중: "WORKING",
-    외근: "FIELD",
-    자리비움: "AWAY",
-    퇴근: "OFF",
-  };
-
+  // ✅ 사용자 정보 가져오기
   const fetchMe = useCallback(async () => {
     try {
       const data = await getMe();
-
       const profile = data?.member ?? {};
-
-      setMe(profile);
 
       setUserInfo({
         name: profile.name ?? "이름 없음",
@@ -64,7 +47,6 @@ export default function AppShell({ children }) {
       }
     } catch (err) {
       console.error("내 정보 불러오기 실패:", err);
-
       logout({
         redirect: true,
         message: "세션이 만료되었습니다. 다시 로그인해주세요.",
@@ -76,7 +58,19 @@ export default function AppShell({ children }) {
     fetchMe();
   }, [fetchMe]);
 
-  // ✅ 근무 상태 변경 (axios 버전)
+  // ✅ 상태 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClickOutside = e => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
+
+  // ✅ 근무 상태 변경
   const handleStatusChange = async newStatus => {
     try {
       setUserStatus(newStatus);
@@ -85,14 +79,13 @@ export default function AppShell({ children }) {
       await API.put("/employees/update-status/me", {
         current_state: newStatus,
       });
-
-      console.log("✅ 상태 변경 완료:", newStatus);
     } catch (err) {
-      console.error("❌ 상태 변경 실패:", err);
-      alert("상태 변경 중 오류가 발생했습니다.\n" + (err?.message || "네트워크 오류"));
+      console.error("상태 변경 실패:", err);
+      alert("상태 변경 중 오류가 발생했습니다.");
     }
   };
 
+  // ✅ 개인정보 수정 저장
   const handleSave = async payload => {
     try {
       await updateProfile({
@@ -107,12 +100,7 @@ export default function AppShell({ children }) {
         });
 
         alert("설정이 저장되어 로그아웃되었습니다. 다시 로그인해주세요.");
-
-        logout({
-          redirect: true,
-          message: "비밀번호가 변경되었습니다. 다시 로그인하세요.",
-        });
-
+        logout({ redirect: true });
         return;
       }
 
@@ -120,109 +108,82 @@ export default function AppShell({ children }) {
       setOpenSettings(false);
       alert("저장되었습니다.");
     } catch (err) {
-      console.error("❌ 저장 오류:", err);
-      alert("저장 중 오류가 발생했습니다.\n" + (err?.message || "알 수 없는 오류"));
+      console.error("저장 오류:", err);
+      alert("저장 중 오류가 발생했습니다.");
     }
   };
 
   return (
-    <div className="screen">
-      <TopStage />
-      <Sidebar userStatus={userStatus} />
-
-      {/* 다크모드 토글 */}
-      <button
-        className="theme-toggle-fab"
-        type="button"
-        aria-label="Toggle theme"
-        onClick={toggleTheme}
-        title={theme === "dark" ? "라이트 모드" : "다크 모드"}
-      >
-        {theme === "dark" ? "☀️" : "🌙"}
-      </button>
-
-      {/* 프로필 카드 */}
-      <div className="view-16">
-        <div className="ellipse">
-          <img
-            src="https://cdn-icons-png.flaticon.com/512/847/847969.png"
-            alt="프로필"
-            className="profile-img"
-          />
+    <div className={`app-shell theme-${theme}`}>
+      {/* 상단 헤더 */}
+      <header className="app-shell__header">
+        <div className="app-shell__header-left">
+          <TopStage />
         </div>
 
-        <div
-          className={`ellipse-2 ${userStatus}`}
-          title={STATE_LABELS[userStatus]}
-          onClick={() => setShowMenu(prev => !prev)}
-        />
+        <div className="app-shell__header-right">
+          <button
+            className="app-shell__theme-toggle"
+            type="button"
+            onClick={toggleTheme}
+            title={theme === "dark" ? "라이트 모드" : "다크 모드"}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
 
-        {showMenu && (
-          <div className="status-menu">
-            {Object.entries(STATE_LABELS).map(([key, label]) => (
-              <div key={key} className="status-option" onClick={() => handleStatusChange(key)}>
-                <div
-                  className="status-dot"
-                  style={{
-                    backgroundColor:
-                      key === "OFF"
-                        ? "#9e9e9e"
-                        : {
-                            WORKING: "#2ecc71",
-                            FIELD: "#e74c3c",
-                            AWAY: "#f1c40f",
-                          }[key],
-                    borderRadius: "50%",
-                    width: "12px",
-                    height: "12px",
-                    marginRight: "8px",
-                    position: "relative",
-                  }}
-                >
-                  {key === "OFF" && (
-                    <div
-                      style={{
-                        width: "4px",
-                        height: "4px",
-                        backgroundColor: "#616161",
-                        borderRadius: "50%",
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%)",
-                      }}
-                    />
-                  )}
-                </div>
-                <span>{label}</span>
+          <div className="app-shell__profile" ref={statusMenuRef}>
+            <div className="app-shell__avatar">
+              <img
+                src="https://cdn-icons-png.flaticon.com/512/847/847969.png"
+                alt="프로필"
+                loading="lazy"
+              />
+            </div>
+
+            <div className="app-shell__profile-text">
+              <span className="app-shell__profile-name">{userInfo.name}</span>
+              <span className="app-shell__profile-role">{userInfo.role_name}</span>
+            </div>
+
+            <button
+              type="button"
+              className={`app-shell__status-toggle app-shell__status-toggle--${(userStatus || "").toLowerCase()}`}
+              title={STATE_LABELS[userStatus]}
+              onClick={() => setShowMenu(prev => !prev)}
+            >
+              {userStatus === "OFF" && <span className="app-shell__status-toggle-inner" />}
+            </button>
+
+            {showMenu && (
+              <div className="app-shell__status-menu">
+                {Object.entries(STATE_LABELS).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className="app-shell__status-option"
+                    onClick={() => handleStatusChange(key)}
+                  >
+                    <span
+                      className={`app-shell__status-swatch app-shell__status-swatch--${key.toLowerCase()}`}
+                    >
+                      {key === "OFF" && <span className="app-shell__status-swatch-inner" />}
+                    </span>
+                    <span className="app-shell__status-label">{label}</span>
+                  </button>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
-
-        <div className="profile-info">
-          <div className="profile-name">{userInfo.name}</div>
-          <div className="profile-role">{userInfo.role_name}</div>
         </div>
+      </header>
+
+      {/* 본문 */}
+      <div className="app-shell__body">
+        <Sidebar onOpenSettings={() => setOpenSettings(true)} />
+        <main className="app-shell__content">{children}</main>
       </div>
 
-      {/* 좌하단 개인정보 수정 */}
-      <div className="view-bottom">
-        <div
-          className="nav-item settings-item"
-          role="button"
-          tabIndex={0}
-          onClick={() => setOpenSettings(true)}
-          onKeyDown={e => {
-            if (e.key === "Enter" || e.key === " ") setOpenSettings(true);
-          }}
-        >
-          <div className="rectangle-4" />
-          <div className="text-wrapper">개인정보수정</div>
-          <div className="frame" />
-        </div>
-      </div>
-
+      {/* 개인정보 수정 모달 */}
       <PersonalInfoModal
         open={openSettings}
         initial={{
@@ -232,8 +193,6 @@ export default function AppShell({ children }) {
         onClose={() => setOpenSettings(false)}
         onSave={handleSave}
       />
-
-      <main className="appstage-content">{children}</main>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "../../layout/AppShell";
-import "./style.css";
+import "./Screen.css";
 
 const routeMap = {
   ann: "/notices",
@@ -17,16 +17,7 @@ const previewEndpoints = {
   cal: "http://localhost:8000/calendar/preview",
 };
 
-/* ✅ 누락된 ProgressBar 정의 추가 */
-function ProgressBar({ value }) {
-  const clamped = Math.min(100, Math.max(0, value || 0));
-  return (
-    <div className="progress-bar">
-      <div className="progress-fill" style={{ width: `${clamped}%` }}></div>
-      <span className="progress-label">{clamped}%</span>
-    </div>
-  );
-}
+/* ✅ ProgressBar 제거됨 — 필요 없음 */
 
 function CardPreview({ type, title }) {
   const [items, setItems] = useState([]);
@@ -48,38 +39,30 @@ function CardPreview({ type, title }) {
     return () => clearInterval(interval);
   }, [type]);
 
-  const displayItems = items.slice(0, 2); // ✅ 최대 3개까지만 표시
+  const displayItems = items.slice(0, 3);
 
   return (
-    <div className="card-preview" onDoubleClick={() => nav(routeMap[type])}>
+    <div className="card-preview enhanced" onDoubleClick={() => nav(routeMap[type])}>
       <h3 className="card-title">{title}</h3>
       <ul className="card-list">
         {displayItems.length > 0 ? (
           displayItems.map((item, i) => (
             <li key={i} className="card-item">
-              <strong>{item.title}</strong>
-
-              {/* ✅ 프로젝트 전용 확장 */}
-              {type === "proj" ? (
-                <>
-                  <p className="proj-summary">{item.summary}</p>
-                  <div className="proj-meta">
-                    <span className={`proj-status status-${item.status?.toLowerCase()}`}>
-                      상태: {item.status || "미정"}
-                    </span>
-                    {item.progress !== undefined && <ProgressBar value={item.progress} />}
-                    <span className="proj-updated">🕒 {item.createdAtStr || "수정일 미상"}</span>
-                  </div>
-                </>
-              ) : type === "cal" ? (
-                <p>
-                  {item.time
-                    ? `${item.time} — ${item.summary || "세부 내용 없음"}`
-                    : item.summary || "오늘 일정 없음"}
+              <div className="card-content">
+                <strong className="item-title">{item.title}</strong>
+                <p className="item-summary">
+                  {item.summary || "내용이 없습니다."}
                 </p>
-              ) : (
-                <p>{item.summary}</p>
-              )}
+
+                {/* ✅ 프로젝트 카드에서는 상태/진행도/날짜 제거 */}
+                {type === "cal" && (
+                  <p className="calendar-time">
+                    {item.time
+                      ? `${item.time} — ${item.summary || "세부 내용 없음"}`
+                      : item.summary || "오늘 일정 없음"}
+                  </p>
+                )}
+              </div>
             </li>
           ))
         ) : (
@@ -87,13 +70,8 @@ function CardPreview({ type, title }) {
         )}
       </ul>
 
-      {/* ✅ 데이터가 3개 초과일 때 표시 */}
-      {items.length > 2 && (
-        <div
-          className="card-more"
-          onClick={() => nav(routeMap[type])}
-          style={{ cursor: "pointer" }}
-        >
+      {items.length > 3 && (
+        <div className="card-more" onClick={() => nav(routeMap[type])}>
           …더 보기
         </div>
       )}
@@ -104,11 +82,11 @@ function CardPreview({ type, title }) {
 export default function Screen() {
   return (
     <AppShell>
-      <div className="dashboard-grid">
-        <CardPreview type="ann" title="공지사항" />
-        <CardPreview type="proj" title="프로젝트 현황" /> {/* ✅ 확장된 카드 */}
-        <CardPreview type="noti" title="알림" />
-        <CardPreview type="cal" title="오늘의 일정" />
+      <div className="dashboard-grid clean-layout">
+        <CardPreview type="ann" title="📢 공지사항" />
+        <CardPreview type="proj" title="🧭 프로젝트 현황" />
+        <CardPreview type="noti" title="🔔 알림" />
+        <CardPreview type="cal" title="🗓️ 오늘의 일정" />
       </div>
     </AppShell>
   );

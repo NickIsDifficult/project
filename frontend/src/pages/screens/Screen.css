@@ -1,0 +1,98 @@
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    /* 🔹 두 개의 가로 열 */
+    grid-auto-rows: minmax(220px, auto);
+    /* 🔹 세로로 약간 긴 박스 */
+    gap: 2rem;
+    width: 100%;
+    max-width: 1400px;
+    /* 가운데 정렬용 */
+    margin: 0 auto;
+}
+
+/* 카드 스타일 */
+.card-preview {
+    background: var(--app-shell-card-bg);
+    border-radius: 16px;
+    padding: 1.75rem;
+    box-shadow: 0 12px 36px rgba(15, 23, 42, 0.12);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    cursor: pointer;
+    min-height: 200px;
+    /* 🔹 높이 확보 */
+}
+
+.card-preview:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 44px rgba(37, 99, 235, 0.15);
+}
+
+/* 제목 */
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--app-shell-fg);
+    margin-bottom: 1rem;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.2);
+    padding-bottom: 0.5rem;
+}
+
+/* 리스트 */
+.card-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* 항목 */
+.card-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.item-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--app-shell-fg);
+}
+
+.item-summary {
+    font-size: 0.9rem;
+    color: var(--app-shell-muted);
+    line-height: 1.45;
+}
+
+/* 더보기 */
+.card-more {
+    align-self: flex-end;
+    color: #2563eb;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-top: 0.75rem;
+}
+
+.card-more:hover {
+    text-decoration: underline;
+}
+
+/* 반응형 조정 */
+@media (max-width: 1280px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        /* 한 줄로 */
+        gap: 1.5rem;
+    }
+
+    .card-preview {
+        min-height: 180px;
+    }
+}

@@ -6,6 +6,7 @@ import Signup from "../pages/Signup/Signup";
 import Account from "../pages/admin/Account";
 import DeptRoles from "../pages/admin/DeptRoles";
 
+const OrgChart = lazy(() => import("../pages/org/OrgChart"));
 const Screen = lazy(() => import("../pages/screens/Screen"));
 const Calendar = lazy(() => import("../pages/calendar/CalendarView"));
 const NoticeList = lazy(() => import("../pages/notices/NoticeList"));
@@ -31,44 +32,50 @@ export const routesConfig = [
         <ProjectPage />
       </ProjectGlobalProvider>
     ),
-    isPrivate: true,
+    isPrivate: true
   },
   {
     path: "/calendar",
     element: <Calendar />,
-    isPrivate: true,
+    isPrivate: true
   },
   {
     path: "/notices",
     element: <NoticeList />,
-    isPrivate: true,
+    isPrivate: true
   },
   {
     path: "/search",
     element: <Search />,
-    isPrivate: true,
+    isPrivate: true
   },
   {
     path: "/trashbin",
     element: <TrashBin />,
-    isPrivate: true,
+    isPrivate: true
+  },
+
+  { 
+    path: "/org-chart",
+    element: <OrgChart />,
+    isPrivate: true 
   },
   {
     path: "/admin/dept_roles",
     element: <DeptRoles />,
     isPrivate: true,
-    adminOnly: true,
+    adminOnly: true
   },
   {
     path: "/admin/account",
     element: <Account />,
     isPrivate: true,
-    adminOnly: true,
+    adminOnly: true
   },
   {
     path: "*",
     element: <NotFoundPage />,
-    isPrivate: false,
+    isPrivate: false
   },
 ];
 ("// update marker $(date)");

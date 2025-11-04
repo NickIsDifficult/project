@@ -1,7 +1,7 @@
 # app/schemas/employee.py
 from datetime import date, datetime
-from typing import Optional
-from pydantic import BaseModel
+from typing import Optional, Annotated
+from pydantic import BaseModel, Field
 
 
 # -------------------------------
@@ -18,6 +18,7 @@ class EmployeeBase(BaseModel):
     mobile: str
     hire_date: Optional[date] = None
     birthday: Optional[date] = None
+    responsibility_text: Annotated[Optional[str], Field(description="개인 담당업무")] = None
 
 
 # -------------------------------
@@ -52,5 +53,6 @@ class EmployeeUpdate(BaseModel):
     mobile: Optional[str] = None
     hire_date: Optional[date] = None
     birthday: Optional[date] = None
+    responsibility_text: Optional[str] = None
 
     model_config = {"from_attributes": True}

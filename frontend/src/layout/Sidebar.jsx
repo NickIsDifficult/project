@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "./colink-2.png";
 import "./sidebar.css";
+import API from "../services/api/http";
 
 const WORK_LINKS = [
   {
@@ -46,12 +47,6 @@ const PRIMARY_LINKS = [
       "https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/vector-1.svg",
   },
   {
-    label: "알람",
-    to: "/alerts",
-    icon:
-      "https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/vector-2.svg",
-  },
-  {
     label: "조직도",
     to: "/org-chart",
     icon:
@@ -60,17 +55,34 @@ const PRIMARY_LINKS = [
 ];
 
 const ADMIN_LINKS = [
-  { label: "계정생성", to: "/signup" },
-  { label: "계정관리", to: "/admin/account" },
   { label: "부서 및 직급관리", to: "/admin/dept_roles" },
+  { label: "직원관리", to: "/admin/account" },
+  { label: "계정생성", to: "/signup" }
 ];
 
-export default function Sidebar({ onOpenSettings = () => {} }) {
+export default function Sidebar({ onOpenSettings = () => { } }) {
   const [workOpen, setWorkOpen] = useState(true);
   const [adminOpen, setAdminOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleNavigate = path => navigate(path);
+
+  const handleLogout = async () => {
+    try {
+      // [중요] 백엔드 스펙: current_state 키 사용
+      await API.put("/employees/update-status/me", { current_state: "OFF" });
+    } catch (e) {
+      // 상태 변경 실패해도 로그아웃은 진행
+      console.warn("상태 OFF 업데이트 실패(무시):", e);
+    } finally {
+      try {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("member");
+      } finally {
+        navigate("/"); // 로그인 화면 등 시작 페이지로
+      }
+    }
+  };
 
   const renderNavItem = item => (
     <button
@@ -147,6 +159,9 @@ export default function Sidebar({ onOpenSettings = () => {} }) {
 
       <button type="button" className="sidebar__settings" onClick={onOpenSettings}>
         개인정보 수정
+      </button>
+      <button type="button" className="sidebar__logout" onClick={handleLogout}>
+        로그아웃
       </button>
     </aside>
   );

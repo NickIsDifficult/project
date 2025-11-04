@@ -187,3 +187,26 @@ body.theme-dark .sidebar__settings {
         gap: 0.6rem;
     }
 }
+
+/* 로그아웃 버튼 */
+.sidebar__logout {
+  margin-top: 0.5rem;              /* 개인정보 수정과 간격 */
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--app-shell-fg);
+  background: rgba(239, 68, 68, 0.12);   /* 레드 톤 */
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.sidebar__logout:hover {
+  background: rgba(239, 68, 68, 0.2);
+  transform: translateY(-1px);
+}
+
+body.theme-dark .sidebar__logout {
+  background: rgba(239, 68, 68, 0.28);
+}

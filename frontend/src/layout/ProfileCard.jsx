@@ -4,7 +4,7 @@ import "./profile-card.css";
 
 export default function ProfileCard({ user, userStatus, onStatusChange }) {
   const STATUS_LABELS = {
-    WORKING: "출근",
+    WORKING: "업무중",
     FIELD: "외근",
     AWAY: "자리비움",
     OFF: "퇴근",

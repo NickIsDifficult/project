@@ -27,6 +27,7 @@ from app.routers.auth import login, me as me_router, signup
 from app.routers.events_router import router as events_router
 from app.routers.status_router import router as status_router
 from app.routers.trash_router import router as trash_router
+from app.routers.org.org_chart_router import router as org_chart_router
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("app")
@@ -86,6 +87,7 @@ app.include_router(comment_router.router)
 app.include_router(milestone_router.router)
 app.include_router(department_router.router)
 app.include_router(employee_router.router)
+app.include_router(org_chart_router)
 app.include_router(history_router.router)
 app.include_router(notification_router.router)
 app.include_router(activity_router.router)

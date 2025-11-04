@@ -42,3 +42,15 @@ export const updateTaskAssignees = (taskId, assigneeIds) =>
       }),
     "업무 담당자 변경",
   );
+
+  /* ---------------------------------------------
+ * 🗂 담당업무(responsibility) — 직원 개인
+ * --------------------------------------------- */
+export const getEmployeeResponsibility = (empId) =>
+  request(() => api.get(`/employees/${empId}/responsibility`), "담당업무 조회");
+
+export const updateEmployeeResponsibility = (empId, responsibility_text) =>
+  request(
+    () => api.put(`/employees/${empId}/responsibility`, { responsibility_text }),
+    "담당업무 수정",
+  );

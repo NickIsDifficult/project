@@ -4,7 +4,7 @@ import axios from "axios";
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000",
   headers: { "Content-Type": "application/json" },
-  withCredentials: true,
+  withCredentials: true
 });
 
 // ============ ✅ JWT 요청 인터셉터 ============

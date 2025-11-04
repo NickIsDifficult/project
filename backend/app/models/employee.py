@@ -1,5 +1,5 @@
 # app/models/employee.py
-from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy import Column, Date, DateTime, Enum, ForeignKey, Integer, String, func, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -31,6 +31,7 @@ class Employee(Base):
     birthday = Column(Date, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    responsibility_text = Column(Text, nullable=True, comment="개인 담당업무(조직도 상세보기용)")
 
     # ✅ Relations
     department = relationship("Department", back_populates="employees")

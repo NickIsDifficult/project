@@ -7,7 +7,13 @@ from typing import Annotated, List, Optional
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_serializer
 from pydantic.alias_generators import to_camel
 
-from app.models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
+from app.models.enums import (
+    MemberRole,
+    MilestoneStatus,
+    ProjectStatus,
+    TaskPriority,
+    TaskStatus,
+)
 from app.schemas.attachment import Attachment
 from app.schemas.employee import Employee
 
@@ -57,7 +63,9 @@ class TaskComment(TaskCommentBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(_serialize_datetime)
+    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(
+        _serialize_datetime
+    )
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -92,7 +100,9 @@ class TaskBase(BaseModel):
     estimate_hours: float = 0.0
     progress: Annotated[int, Field(ge=0, le=100)] = 0
 
-    _ser_date = field_serializer("start_date", "due_date", when_used="always")(_serialize_date)
+    _ser_date = field_serializer("start_date", "due_date", when_used="always")(
+        _serialize_date
+    )
 
 
 class TaskCreate(TaskBase):
@@ -117,7 +127,9 @@ class TaskUpdate(BaseModel):
     progress: Optional[int] = None
     assignee_ids: Optional[List[int]] = Field(default=None)
 
-    _ser_date = field_serializer("start_date", "due_date", when_used="always")(_serialize_date)
+    _ser_date = field_serializer("start_date", "due_date", when_used="always")(
+        _serialize_date
+    )
 
 
 class Task(TaskBase):
@@ -129,6 +141,18 @@ class Task(TaskBase):
     subtask: List["Task"] = Field(default_factory=list)
     attachments: List[Attachment] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
+
+    @property
+    def assignees(self) -> List[dict]:
+        return [
+            {
+                "emp_id": m.emp_id,
+                "name": getattr(m.employee, "name", None),
+                "email": getattr(m.employee, "email", None),
+                "position": getattr(m.employee, "position", None),
+            }
+            for m in (self.taskmember or [])
+        ]
 
 
 class TaskStatusUpdate(BaseModel):
@@ -181,7 +205,9 @@ class ProjectBase(BaseModel):
     assignees: List[str] = Field(default_factory=list)
     assignee_ids: List[int] = Field(default_factory=list)
 
-    _ser_date = field_serializer("start_date", "end_date", when_used="always")(_serialize_date)
+    _ser_date = field_serializer("start_date", "end_date", when_used="always")(
+        _serialize_date
+    )
     model_config = ConfigDict(from_attributes=True, extra="allow")
 
 
@@ -206,7 +232,9 @@ class ProjectUpdate(BaseModel):
     task: Optional[List[Task]] = Field(default_factory=list)
     attachments: Optional[List[Attachment]] = Field(default_factory=list)
 
-    _ser_date = field_serializer("start_date", "end_date", when_used="always")(_serialize_date)
+    _ser_date = field_serializer("start_date", "end_date", when_used="always")(
+        _serialize_date
+    )
     model_config = ConfigDict(from_attributes=True, extra="allow")
 
 
@@ -226,7 +254,9 @@ class Project(ProjectBase):
     # ✅ 호환용 필드 (응답에서 필요시 제공)
     assignee_ids: List[int] = Field(default_factory=list)
 
-    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(_serialize_datetime)
+    _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(
+        _serialize_datetime
+    )
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -261,7 +291,9 @@ class TaskTree(BaseModel):
     assignees: List[dict] = Field(default_factory=list)
     subtasks: List["TaskTree"] = Field(default_factory=list)
 
-    _ser_date = field_serializer("start_date", "due_date", when_used="always")(_serialize_date)
+    _ser_date = field_serializer("start_date", "due_date", when_used="always")(
+        _serialize_date
+    )
     model_config = ConfigDict(from_attributes=True)
 
 

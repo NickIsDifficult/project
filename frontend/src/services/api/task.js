@@ -17,8 +17,7 @@ const request = async (fn, context = "요청") => {
 const ensureInt = (value, name = "ID") => {
   // 객체 형태로 들어오는 경우 내부에서 실제 ID 추출
   if (typeof value === "object" && value !== null) {
-    const extracted =
-      value.task_id || value.id || value.value || value.taskId || value[name];
+    const extracted = value.task_id || value.id || value.value || value.taskId || value[name];
     if (extracted !== undefined) {
       value = extracted;
     }
@@ -145,6 +144,18 @@ export const updateTaskProgress = (projectId, taskId, progress) =>
         { progress: Number(progress) },
       ),
     "태스크 진행률 변경",
+  );
+
+export const getSubtasks = (projectId, parentTaskId) =>
+  request(
+    () =>
+      api.get(
+        `/projects/${ensureInt(projectId, "projectId")}/tasks?parent_task_id=${ensureInt(
+          parentTaskId,
+          "parentTaskId",
+        )}`,
+      ),
+    "하위업무 목록",
   );
 
 /* -------------------------------------------

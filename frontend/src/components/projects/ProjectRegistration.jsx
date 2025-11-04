@@ -23,6 +23,7 @@ export default function ProjectRegistration({ onClose }) {
   const [tasks, setTasks] = useState([]);
   const [saving, setSaving] = useState(false);
 
+  const focusIdRef = useRef(null); // ✅ 새로 추가된 업무에 포커스 이동 관리
   const { selectedProjectId, fetchAllProjects, setUiState } = useProjectGlobal();
   const { members, loading } = useProjectMembers(selectedProjectId);
   const fileInputRef = useRef(null);
@@ -52,23 +53,23 @@ export default function ProjectRegistration({ onClose }) {
   };
   const handleFileDelete = i => setAttachments(prev => prev.filter((_, idx) => idx !== i));
 
-  // ✅ Root 업무 추가
-  const handleAddRootTask = () =>
-    setTasks(prev => [
-      ...prev,
-      {
-        task_id: null,
-        temp_id: generateTempId(),
-        title: "",
-        start_date: "",
-        end_date: "",
-        assignees: [],
-        assignee_ids: [],
-        subtask: [], // ✅ 트리 구조 보존
-        attachments: [],
-        isEditing: true,
-      },
-    ]);
+  // ✅ Root 업무 추가 (Enter 또는 버튼 클릭 시)
+  const handleAddRootTask = useCallback(() => {
+    const newTask = {
+      task_id: null,
+      temp_id: generateTempId(),
+      title: "",
+      start_date: "",
+      end_date: "",
+      assignees: [],
+      assignee_ids: [],
+      subtask: [],
+      attachments: [],
+      isEditing: true,
+    };
+    focusIdRef.current = newTask.temp_id; // ✅ 추가된 업무 자동 포커스 대상
+    setTasks(prev => [...prev, newTask]);
+  }, []);
 
   // ✅ 업무 업데이트 (root 기준)
   const handleTaskUpdate = useCallback((i, updated) => {
@@ -80,29 +81,21 @@ export default function ProjectRegistration({ onClose }) {
     });
   }, []);
 
-  // ✅ 하위업무 직렬화 함수 (재귀)
+  // ✅ 하위업무 직렬화 (재귀)
   const serializeTasks = (list = []) =>
-    (list || []).map(t => {
-      const title = (t.title || "").trim();
-
-      return {
-        title,
-        start_date: t.start_date?.trim?.() ? t.start_date : null,
-        end_date: t.end_date?.trim?.() ? t.end_date : null,
-        priority: t.priority || "MEDIUM",
-        progress: t.progress ?? 0,
-
-        // ✅ 담당자 ID 변환 (object 또는 number 모두 대응)
-        assignee_ids: Array.isArray(t.assignee_ids)
-          ? t.assignee_ids.map(id => Number(id))
-          : Array.isArray(t.assignees)
-            ? t.assignees.map(a => (typeof a === "object" ? Number(a.emp_id || a.id) : Number(a)))
-            : [],
-
-        // ✅ 항상 존재하도록 보장 (undefined 방지)
-        subtask: serializeTasks(t.subtask || []),
-      };
-    });
+    (list || []).map(t => ({
+      title: (t.title || "").trim(),
+      start_date: t.start_date?.trim?.() ? t.start_date : null,
+      end_date: t.end_date?.trim?.() ? t.end_date : null,
+      priority: t.priority || "MEDIUM",
+      progress: t.progress ?? 0,
+      assignee_ids: Array.isArray(t.assignee_ids)
+        ? t.assignee_ids.map(Number)
+        : Array.isArray(t.assignees)
+          ? t.assignees.map(a => (typeof a === "object" ? Number(a.emp_id || a.id) : Number(a)))
+          : [],
+      subtask: serializeTasks(t.subtask || []),
+    }));
 
   // ✅ 유효성 검사
   const validateForm = useCallback(() => {
@@ -110,7 +103,7 @@ export default function ProjectRegistration({ onClose }) {
     if (startDate && endDate && new Date(startDate) > new Date(endDate))
       return toast.error("시작일은 종료일보다 이전이어야 합니다.");
 
-    const checkTasks = (list = []) => {
+    const checkTasks = list => {
       for (const t of list) {
         if (!t.title.trim()) return false;
         if (t.start_date && t.end_date && new Date(t.start_date) > new Date(t.end_date))
@@ -124,11 +117,10 @@ export default function ProjectRegistration({ onClose }) {
       toast.error("모든 업무의 제목과 날짜를 확인하세요.");
       return false;
     }
-
     return true;
   }, [projectName, startDate, endDate, tasks]);
 
-  // ✅ 취소 시 확인
+  // ✅ 취소 확인
   const hasChanges = useMemo(
     () =>
       projectName ||
@@ -328,7 +320,7 @@ export default function ProjectRegistration({ onClose }) {
 
       {/* 업무 리스트 */}
       <div style={{ marginTop: 20 }}>
-        <h3>📋 하위 업무</h3>
+        <h3>📋 업무 목록</h3>
         {tasks.map((t, i) => (
           <TaskNode
             key={t.task_id ?? t.temp_id ?? `root-${i}`}
@@ -336,26 +328,99 @@ export default function ProjectRegistration({ onClose }) {
             employees={employees}
             onUpdate={u => handleTaskUpdate(i, u)}
             depth={0}
-            onAddSibling={handleAddRootTask}
+            parentTask={null}
+            onAddSibling={(parent, current, newTask) => {
+              // ✅ 기존 형제 추가 코드 유지
+              setTasks(prev => {
+                let clone = structuredClone(prev);
+                if (!parent) {
+                  const idx = clone.findIndex(tt => tt.temp_id === current.temp_id);
+                  if (idx >= 0) clone.splice(idx + 1, 0, newTask);
+                  else clone.push(newTask);
+                } else {
+                  const insertSibling = list =>
+                    list.map(t =>
+                      t.temp_id === parent.temp_id
+                        ? {
+                            ...t,
+                            subtask: (() => {
+                              const newSubs = [...t.subtask];
+                              const idx = newSubs.findIndex(st => st.temp_id === current.temp_id);
+                              if (idx >= 0) newSubs.splice(idx + 1, 0, newTask);
+                              else newSubs.push(newTask);
+                              return newSubs;
+                            })(),
+                          }
+                        : { ...t, subtask: t.subtask ? insertSibling(t.subtask) : [] },
+                    );
+                  clone = insertSibling(clone);
+                }
+                return clone;
+              });
+            }}
+            // ✅ 삭제 처리
+            onDelete={(parent, current, { focusIdRef, triggerFromKeyboard }) => {
+              setTasks(prev => {
+                const clone = structuredClone(prev);
+
+                // ✅ 삭제 후 포커스 대상 찾기
+                const findFocusTarget = (list, parent) => {
+                  for (let i = 0; i < list.length; i++) {
+                    if (list[i].temp_id === current.temp_id) {
+                      if (i > 0) return list[i - 1].temp_id; // 위 형제
+                      if (i < list.length - 1) return list[i + 1].temp_id; // 아래 형제
+                      return parent?.temp_id ?? null; // 부모
+                    }
+                    if (list[i].subtask?.length) {
+                      const found = findFocusTarget(list[i].subtask, list[i]);
+                      if (found) return found;
+                    }
+                  }
+                  return null;
+                };
+
+                const focusTarget = findFocusTarget(clone, null);
+
+                // ✅ 실제 삭제 수행
+                const removeTask = list =>
+                  list.filter(t => {
+                    if (t.temp_id === current.temp_id) return false;
+                    if (t.subtask?.length) t.subtask = removeTask(t.subtask);
+                    return true;
+                  });
+
+                const updated = removeTask(clone);
+
+                // ✅ 삭제 후 포커스 지정 (렌더 이후 적용 보장)
+                if (focusTarget && focusIdRef) {
+                  setTimeout(() => {
+                    focusIdRef.current = focusTarget;
+                  }, 50); // 🕐 약간의 지연 후 포커스 타겟 전달
+                }
+
+                return updated;
+              });
+            }}
             isEditing={true}
+            focusIdRef={focusIdRef}
+            showDetailButton={false}
           />
         ))}
-        {tasks.length === 0 && (
-          <button
-            onClick={handleAddRootTask}
-            style={{
-              marginTop: 10,
-              background: "#1976d2",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              padding: "8px 12px",
-              cursor: "pointer",
-            }}
-          >
-            ➕ 업무 추가
-          </button>
-        )}
+
+        <button
+          onClick={handleAddRootTask}
+          style={{
+            marginTop: 10,
+            background: "#1976d2",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 12px",
+            cursor: "pointer",
+          }}
+        >
+          ➕ 업무 추가
+        </button>
       </div>
 
       {/* 하단 버튼 */}

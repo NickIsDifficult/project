@@ -1,10 +1,8 @@
-// src/components/projects/TaskNode.jsx
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useProjectDetailContext } from "../../context/ProjectDetailContext";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 import AssigneeSelector from "./AssigneeSelector";
 
-// ✅ 고유 임시 ID 생성기
 const makeTempId = () => `tmp_${crypto?.randomUUID?.() ?? Date.now()}`;
 
 export default function TaskNode({
@@ -13,29 +11,39 @@ export default function TaskNode({
   employees,
   depth = 0,
   onAddSibling = () => {},
+  onDelete = () => {},
+  parentTask = null,
   isEditing = false,
+  focusIdRef = null,
+  showDetailButton = true,
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const fileInputRef = useRef(null);
+  const titleInputRef = useRef(null);
   const { setUiState } = useProjectGlobal();
 
-  /** ✅ 안전한 Context Fallback */
+  // ✅ 자동 포커스 이동
+  useEffect(() => {
+    if (focusIdRef?.current && focusIdRef.current === task.temp_id) {
+      titleInputRef.current?.focus();
+      focusIdRef.current = null;
+    }
+  }, [focusIdRef, task.temp_id]);
+
+  // ✅ 안전한 Context
   let handleSaveEdit = async () => {};
   let handleUploadFile = async () => {};
   let handleDeleteFile = async () => {};
   let updateTaskLocal = () => {};
-
   try {
     const ctx = useProjectDetailContext();
     handleSaveEdit = ctx.handleSaveEdit || handleSaveEdit;
     handleUploadFile = ctx.handleUploadFile || handleUploadFile;
     handleDeleteFile = ctx.handleDeleteFile || handleDeleteFile;
     updateTaskLocal = ctx.updateTaskLocal || updateTaskLocal;
-  } catch {
-    // 등록 화면에서는 Provider가 없으므로 무시
-  }
+  } catch {}
 
-  /** ✅ 필드 변경 */
+  // ✅ 필드 변경
   const handleFieldChange = useCallback(
     (key, value) => {
       const updated = { ...task, [key]: value };
@@ -45,22 +53,25 @@ export default function TaskNode({
     [task, onUpdate, updateTaskLocal],
   );
 
-  /** ✅ 담당자 변경 */
+  // ✅ 담당자 변경
   const handleAssigneesChange = async list => {
     const ids = (list ?? []).map(v => (typeof v === "object" ? v.emp_id : v));
     const next = { ...task, assignee_ids: ids };
     onUpdate?.(next);
     if (task.task_id) updateTaskLocal?.(task.task_id, next);
     try {
-      if (task.task_id) await handleSaveEdit(next);
+      if (task.task_id) {
+        const updated = await handleSaveEdit(next); // ✅ 백엔드 최신 데이터 가져오기
+        if (updated) onUpdate?.(updated); // ✅ 부모/로컬 상태 즉시 갱신
+      }
     } catch (err) {
       console.error("❌ 담당자 업데이트 실패:", err);
     }
   };
 
-  /** ✅ 형제 업무 추가 */
+  // ✅ 형제 추가
   const handleAddSibling = useCallback(() => {
-    const newSibling = {
+    const newTask = {
       task_id: null,
       temp_id: makeTempId(),
       title: "",
@@ -71,10 +82,11 @@ export default function TaskNode({
       attachments: [],
       isEditing: true,
     };
-    onAddSibling(task, newSibling);
-  }, [task, onAddSibling]);
+    if (focusIdRef) focusIdRef.current = newTask.temp_id;
+    onAddSibling(parentTask, task, newTask);
+  }, [parentTask, task, onAddSibling, focusIdRef]);
 
-  /** ✅ 하위 업무 추가 */
+  // ✅ 세부 업무 추가
   const handleAddChild = useCallback(() => {
     const newChild = {
       task_id: null,
@@ -87,11 +99,12 @@ export default function TaskNode({
       attachments: [],
       isEditing: true,
     };
+    if (focusIdRef) focusIdRef.current = newChild.temp_id;
     const updated = { ...task, subtask: [...(task.subtask || []), newChild] };
     onUpdate?.(updated);
-  }, [task, onUpdate]);
+  }, [task, onUpdate, focusIdRef]);
 
-  /** ✅ 하위 업무 업데이트 */
+  // ✅ 자식 업데이트
   const handleChildUpdate = useCallback(
     (index, updated) => {
       const next = [...(task.subtask || [])];
@@ -102,7 +115,47 @@ export default function TaskNode({
     [task, onUpdate],
   );
 
-  /** ✅ 자세히 보기 → Task Detail Panel */
+  // ✅ 삭제 처리 (버튼 / Backspace 공통)
+  const handleDelete = useCallback(
+    (triggerFromKeyboard = false) => {
+      // 🔸 삭제 시 포커스 이동 처리
+      onDelete?.(parentTask, task, { focusIdRef, triggerFromKeyboard });
+    },
+    [onDelete, parentTask, task, focusIdRef],
+  );
+
+  // ✅ Enter / Shift+Enter / Backspace 처리
+  const handleKeyDown = e => {
+    if (!isEditing) return;
+
+    // Shift + Enter → 줄바꿈
+    if (e.key === "Enter" && e.shiftKey) {
+      e.preventDefault();
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      const value = task.title || "";
+      const newValue = value.slice(0, start) + "\n" + value.slice(end);
+      handleFieldChange("title", newValue);
+      requestAnimationFrame(() => {
+        e.target.selectionStart = e.target.selectionEnd = start + 1;
+      });
+      return;
+    }
+
+    // Enter → 형제 추가
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleAddSibling();
+    }
+
+    // Backspace → 제목이 비어있을 때 삭제
+    if (e.key === "Backspace" && (task.title ?? "").trim() === "") {
+      e.preventDefault();
+      handleDelete(true);
+    }
+  };
+
+  // ✅ 패널 열기
   const openTaskPanel = useCallback(() => {
     if (!task?.task_id) return;
     setUiState(prev => ({
@@ -112,7 +165,7 @@ export default function TaskNode({
     }));
   }, [task, setUiState]);
 
-  /** ✅ 파일 업로드 */
+  // ✅ 파일 핸들러
   const handleFileChange = async e => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -125,7 +178,6 @@ export default function TaskNode({
     }
   };
 
-  /** ✅ 파일 삭제 */
   const handleFileDelete = async i => {
     const file = (task.attachments || [])[i];
     if (!file) return;
@@ -145,37 +197,27 @@ export default function TaskNode({
         marginTop: 10,
       }}
     >
-      {/* 제목 입력 행 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          flexWrap: "wrap",
-        }}
-      >
-        <input
-          type="text"
+      {/* 제목 입력 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <textarea
+          ref={titleInputRef}
           value={task.title || ""}
           onChange={e => handleFieldChange("title", e.target.value)}
-          placeholder="업무 제목"
+          placeholder={depth === 0 ? "업무 제목" : "세부 업무 제목"}
           disabled={!isEditing}
-          onKeyDown={e => {
-            if (isEditing && e.key === "Enter") {
-              e.preventDefault();
-              handleAddSibling();
-            }
-          }}
+          onKeyDown={handleKeyDown}
+          rows={1}
           style={{
             flex: 1,
             border: "1px solid #ccc",
             borderRadius: 6,
             padding: "6px 8px",
             background: isEditing ? "#fff" : "#f4f4f4",
+            resize: "none",
+            lineHeight: 1.5,
           }}
         />
 
-        {/* 버튼 그룹 */}
         <div style={{ display: "flex", gap: 4 }}>
           <button
             onClick={() => setShowDetails(p => !p)}
@@ -191,34 +233,43 @@ export default function TaskNode({
             {showDetails ? "▲" : "▼"}
           </button>
 
+          {showDetailButton && (
+            <button
+              onClick={openTaskPanel}
+              disabled={!task.task_id}
+              style={{
+                background: task.task_id ? "#1976d2" : "#aaa",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                padding: "6px 10px",
+                cursor: task.task_id ? "pointer" : "not-allowed",
+              }}
+            >
+              자세히
+            </button>
+          )}
+
+          {/* ✅ 삭제 버튼 */}
           <button
-            onClick={openTaskPanel}
-            disabled={!task.task_id}
+            onClick={() => handleDelete(false)}
             style={{
-              background: task.task_id ? "#1976d2" : "#aaa",
+              background: "#e53935",
               color: "white",
               border: "none",
               borderRadius: 6,
               padding: "6px 10px",
-              cursor: task.task_id ? "pointer" : "not-allowed",
+              cursor: "pointer",
             }}
-            title={task.task_id ? "이 업무로 이동" : "저장 후 이용 가능"}
           >
-            자세히
+            🗑
           </button>
         </div>
       </div>
 
-      {/* 상세입력 영역 */}
+      {/* 상세 입력 */}
       {showDetails && (
-        <div
-          style={{
-            background: "#f9f9f9",
-            borderRadius: 8,
-            padding: 8,
-            marginTop: 8,
-          }}
-        >
+        <div style={{ background: "#f9f9f9", borderRadius: 8, padding: 8, marginTop: 8 }}>
           <div style={{ marginBottom: 8 }}>
             <label>
               <strong>시작일:</strong>
@@ -228,16 +279,8 @@ export default function TaskNode({
               value={task.start_date || ""}
               onChange={e => handleFieldChange("start_date", e.target.value)}
               disabled={!isEditing}
-              style={{
-                width: "100%",
-                marginTop: 4,
-                marginBottom: 8,
-                border: "1px solid #ccc",
-                borderRadius: 6,
-                padding: "6px 8px",
-              }}
+              style={{ width: "100%", marginTop: 4, marginBottom: 8, borderRadius: 6 }}
             />
-
             <label>
               <strong>종료일:</strong>
             </label>
@@ -246,16 +289,9 @@ export default function TaskNode({
               value={task.end_date || ""}
               onChange={e => handleFieldChange("end_date", e.target.value)}
               disabled={!isEditing}
-              style={{
-                width: "100%",
-                marginTop: 4,
-                border: "1px solid #ccc",
-                borderRadius: 6,
-                padding: "6px 8px",
-              }}
+              style={{ width: "100%", marginTop: 4, borderRadius: 6 }}
             />
           </div>
-
           <div style={{ marginBottom: 8 }}>
             <strong>담당자:</strong>
             <AssigneeSelector
@@ -265,42 +301,10 @@ export default function TaskNode({
               disabled={!isEditing}
             />
           </div>
-
-          <div>
-            <strong>파일:</strong>{" "}
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleFileChange}
-              disabled={!isEditing}
-            />
-            <ul style={{ marginTop: 6 }}>
-              {(task.attachments || []).map((f, i) => (
-                <li key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>{f.file_name || f.name}</span>
-                  {isEditing && (
-                    <button
-                      onClick={() => handleFileDelete(i)}
-                      style={{
-                        background: "#e53935",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
-                        padding: "4px 8px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      삭제
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
       )}
 
-      {/* 하위 업무 추가 버튼 */}
+      {/* 세부 업무 추가 */}
       {isEditing && (
         <div
           style={{
@@ -335,8 +339,12 @@ export default function TaskNode({
           employees={employees}
           isEditing={isEditing}
           depth={depth + 1}
+          parentTask={task}
           onUpdate={updatedSub => handleChildUpdate(i, updatedSub)}
           onAddSibling={onAddSibling}
+          onDelete={onDelete}
+          focusIdRef={focusIdRef}
+          showDetailButton={false}
         />
       ))}
     </div>

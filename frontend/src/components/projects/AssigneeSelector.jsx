@@ -1,69 +1,76 @@
-// src/components/projects/AssigneeSelector.jsx
+// ✅ src/components/projects/AssigneeSelector.jsx
 import { memo, useMemo, useState } from "react";
 
 function AssigneeSelector({ employees = [], selected = [], setSelected, disabled = false }) {
   const [query, setQuery] = useState("");
   const safeSelected = Array.isArray(selected) ? selected : [];
 
+  // 🔍 검색 결과 필터링 (이미 선택된 직원 제외)
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
+    const selectedIds = safeSelected.map(s =>
+      typeof s === "object" ? Number(s.emp_id) : Number(s),
+    );
     return employees.filter(
-      e => e.name?.toLowerCase()?.includes(q) && !safeSelected.includes(e.emp_id),
+      e => e.name?.toLowerCase()?.includes(q) && !selectedIds.includes(Number(e.emp_id)),
     );
   }, [employees, safeSelected, query]);
 
-  const handleAdd = id => {
+  // ✅ 추가 (emp 객체 단위)
+  const handleAdd = emp => {
     if (disabled) return;
-    const next = [...safeSelected, id];
-    setSelected?.(next);
+    const normalized = {
+      emp_id: Number(emp.emp_id ?? emp.id ?? emp.employee_id),
+      name: emp.name ?? emp.username ?? "이름없음",
+      role: emp.role ?? "",
+    };
+    setSelected?.([...safeSelected, normalized]);
     setQuery("");
   };
 
-  const handleRemove = id => {
+  // ✅ 삭제 (emp_id 기준)
+  const handleRemove = empId => {
     if (disabled) return;
-    const safe = safeSelected.filter(s => s !== id);
-    setSelected?.(safe);
+    const next = safeSelected.filter(s => Number(s.emp_id) !== Number(empId));
+    setSelected?.(next);
   };
 
   return (
     <div style={{ marginTop: 6, position: "relative" }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {safeSelected.map(id => {
-          const emp = employees.find(e => e.emp_id === id);
-          if (!emp) return null;
-          return (
-            <span
-              key={id}
-              style={{
-                background: "#e3f2fd",
-                color: "#1976d2",
-                padding: "4px 8px",
-                borderRadius: 16,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                opacity: disabled ? 0.6 : 1,
-              }}
-            >
-              {emp.name}
-              {!disabled && (
-                <button
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                    color: "#888",
-                  }}
-                  onClick={() => handleRemove(id)}
-                >
-                  ✕
-                </button>
-              )}
-            </span>
-          );
-        })}
+        {safeSelected.map(sel => (
+          <span
+            key={sel.emp_id}
+            style={{
+              background: "#e3f2fd",
+              color: "#1976d2",
+              padding: "4px 8px",
+              borderRadius: 16,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              opacity: disabled ? 0.6 : 1,
+            }}
+          >
+            {sel.name}
+            {!disabled && (
+              <button
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  color: "#888",
+                }}
+                onClick={() => handleRemove(sel.emp_id)}
+              >
+                ✕
+              </button>
+            )}
+          </span>
+        ))}
       </div>
 
+      {/* 검색 입력 */}
       {!disabled && (
         <>
           <input
@@ -89,7 +96,7 @@ function AssigneeSelector({ employees = [], selected = [], setSelected, disabled
                 overflowY: "auto",
                 background: "#fff",
                 position: "absolute",
-                zIndex: 999999,
+                zIndex: 9999,
                 top: "100%",
                 left: 0,
                 right: 0,
@@ -104,12 +111,15 @@ function AssigneeSelector({ employees = [], selected = [], setSelected, disabled
                     cursor: "pointer",
                     borderBottom: "1px solid #eee",
                   }}
-                  onClick={() => handleAdd(emp.emp_id)}
+                  onClick={() => handleAdd(emp)}
                 >
                   {emp.name}
                   <span style={{ color: "#888", fontSize: 12, marginLeft: 6 }}>({emp.role})</span>
                 </div>
               ))}
+              {!filtered.length && (
+                <div style={{ padding: 8, color: "#999", textAlign: "center" }}>검색 결과 없음</div>
+              )}
             </div>
           )}
         </>

@@ -1,3 +1,4 @@
+// src/hooks/useProjectDetail.js
 import { debounce } from "lodash";
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -17,9 +18,24 @@ import {
   uploadAttachment,
 } from "../services/api/task";
 
+/* =============================
+ * 🧩 날짜 및 Task 정규화 유틸
+ * ============================= */
+const toDateInput = v => {
+  if (!v) return "";
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "string") return v.slice(0, 10);
+  return "";
+};
+
+const normalizeTask = t => ({
+  ...t,
+  start_date: toDateInput(t.start_date),
+  end_date: toDateInput(t.end_date ?? t.due_date),
+});
+
 /**
  * ✅ useProjectDetail (프로젝트 + 업무 상세 통합 훅)
- * - ProjectDetailPanel 및 TaskInfoView, TaskAttachments, TaskComments 등에서 사용
  */
 export function useProjectDetail(projectId, taskId = null) {
   const { fetchTasksByProject, updateTaskLocal } = useProjectGlobal();
@@ -30,39 +46,44 @@ export function useProjectDetail(projectId, taskId = null) {
   const [comments, setComments] = useState([]);
   const [attachments, setAttachments] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  // ✅ 전역 캐시
   const employeeCache = useRef(null);
+  const isFetchingRef = useRef(false);
 
   /* =============================
    * 📡 데이터 불러오기
    * ============================= */
   const fetchData = useCallback(async () => {
-    if (!projectId) {
-      setLoading(false);
-      return;
-    }
+    if (!projectId) return;
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setLoading(true);
+
     try {
       if (taskId) {
-        // ✅ 개별 업무 상세
-        const [taskData, commentData, attachData] = await Promise.all([
-          getTask(projectId, taskId),
+        // ✅ 업무 상세
+        const taskData = await getTask(projectId, taskId);
+        setTask(normalizeTask(taskData));
+
+        // ✅ 댓글 & 첨부파일 병렬
+        const [commentData, attachData] = await Promise.allSettled([
           getComments(projectId, taskId),
           getAttachments(projectId, taskId),
         ]);
-        setTask(taskData);
-        setComments(commentData || []);
-        setAttachments(attachData || []);
+        if (commentData.status === "fulfilled") setComments(commentData.value || []);
+        if (attachData.status === "fulfilled") setAttachments(attachData.value || []);
       } else {
-        // ✅ 프로젝트 상세
+        // ✅ 프로젝트 전체 상세
         const projectData = await getProject(projectId);
         setProject(projectData);
-        setTasks(Array.isArray(projectData.task) ? projectData.task : []);
+        setTasks(Array.isArray(projectData.task) ? projectData.task.map(normalizeTask) : []);
         setComments([]);
         setAttachments([]);
       }
 
-      // ✅ 직원 목록 (캐시 1회만)
+      // ✅ 직원 목록 (캐시)
       if (!employeeCache.current) {
         const list = await getEmployees();
         employeeCache.current = list;
@@ -71,10 +92,11 @@ export function useProjectDetail(projectId, taskId = null) {
         setEmployees(employeeCache.current);
       }
     } catch (err) {
-      console.error("❌ 상세 불러오기 실패:", err);
-      toast.error("상세 정보를 불러올 수 없습니다.");
+      if (err?.response?.status !== 404) toast.error("상세 정보를 불러올 수 없습니다.");
+      console.error("❌ fetchData 실패:", err);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [projectId, taskId]);
 
@@ -184,7 +206,6 @@ export function useProjectDetail(projectId, taskId = null) {
         await updateTask(pid, tid, { progress: progressValue });
       } catch (err) {
         console.error("❌ 진행률 업데이트 실패:", err);
-        toast.error("진행률 저장 실패");
       }
     }, 600),
     [],
@@ -201,20 +222,33 @@ export function useProjectDetail(projectId, taskId = null) {
    * ✏️ 업무 저장 / 편집
    * ============================= */
   const handleSaveEdit = async payload => {
-    if (!taskId) return;
+    if (!taskId) return null;
     try {
-      const updated = await updateTask(projectId, taskId, payload);
-      setTask(updated);
-      updateTaskLocal(taskId, updated);
+      // ✅ 저장 시 end_date → due_date 변환
+      const normalizedOut = {
+        ...payload,
+        due_date: payload.due_date ?? payload.end_date ?? null,
+      };
+      delete normalizedOut.end_date;
+
+      const updated = await updateTask(projectId, taskId, normalizedOut);
+
+      // ✅ 다시 화면 표시용 end_date 세팅
+      const normalizedIn = normalizeTask(updated);
+      setTask(normalizedIn);
+      updateTaskLocal(taskId, normalizedIn);
+
       toast.success("업무 수정 완료");
+      return normalizedIn;
     } catch (err) {
       console.error("❌ 업무 저장 실패:", err);
       toast.error("저장 실패");
+      throw err;
     }
   };
 
   /* =============================
-   * 🔁 재로딩 (외부용)
+   * 🔁 재로딩
    * ============================= */
   const reload = useCallback(fetchData, [fetchData]);
 

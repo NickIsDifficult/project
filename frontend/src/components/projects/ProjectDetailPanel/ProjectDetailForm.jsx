@@ -19,7 +19,6 @@ const normalizeDate = v => {
 };
 
 /** ✅ 업무(Task) 정규화 함수 */
-/** ✅ 업무(Task) 정규화 함수 (강화 버전) */
 const normalizeTask = (task, projectId, parentTaskId = null) => {
   const safeNum = v => (v === "" || v == null || isNaN(v) ? null : Number(v));
 
@@ -48,11 +47,43 @@ const normalizeTask = (task, projectId, parentTaskId = null) => {
       : [],
   };
 
-  // ✅ null이면 task_id 키 자체 제거
   const tid = safeNum(task.task_id);
   if (tid !== null) obj.task_id = tid;
-
   return obj;
+};
+
+/** ✅ 평면 배열 → 트리 구조 변환 함수 */
+const buildTaskTree = (tasks = []) => {
+  const map = {};
+  const roots = [];
+
+  // 모든 태스크를 맵에 등록
+  tasks.forEach(t => {
+    map[t.task_id] = { ...t, subtask: [] };
+  });
+
+  // 부모-자식 관계 구성
+  tasks.forEach(t => {
+    if (t.parent_task_id && map[t.parent_task_id]) {
+      map[t.parent_task_id].subtask.push(map[t.task_id]);
+    } else {
+      roots.push(map[t.task_id]);
+    }
+  });
+
+  return roots;
+};
+
+/** ✅ 트리 안 특정 업무 갱신 */
+const updateTaskInTree = (tasks, updatedTask) => {
+  if (!Array.isArray(tasks)) return tasks;
+  return tasks.map(t => {
+    if (t.task_id === updatedTask.task_id) return updatedTask;
+    if (t.subtask && t.subtask.length > 0) {
+      return { ...t, subtask: updateTaskInTree(t.subtask, updatedTask) };
+    }
+    return t;
+  });
 };
 
 /** ✅ 프로젝트 전체 페이로드 정규화 */
@@ -67,7 +98,6 @@ const normalizeProjectPayload = (project, projectId, mainAssignees) => {
     start_date: normalizeDate(project.start_date),
     end_date: normalizeDate(project.end_date),
     status: project.status || "PLANNED",
-    // ✅ 담당자 숫자 변환
     assignee_ids: (mainAssignees || [])
       .filter(v => v !== "" && v != null)
       .map(v => Number(v))
@@ -107,21 +137,28 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           getEmployees(),
         ]);
 
-        // 업무 및 담당자 정리
+        // 🔹 평면 배열 형태로 온 업무 데이터 정리
+        const flatTasks = Array.isArray(projectData.task)
+          ? projectData.task.map(t => ({
+              ...t,
+              assignees:
+                Array.isArray(t.assignee_ids) && t.assignee_ids.length > 0
+                  ? t.assignee_ids
+                  : Array.isArray(t.taskmember)
+                    ? t.taskmember.map(m => m.emp_id)
+                    : [],
+            }))
+          : [];
+
+        // 🔥 트리형으로 변환
+        const treeTasks = buildTaskTree(flatTasks);
+
         setProject({
           ...projectData,
-          task: Array.isArray(projectData.task)
-            ? projectData.task.map(t => ({
-                ...t,
-                assignees:
-                  Array.isArray(t.assignee_ids) && t.assignee_ids.length > 0
-                    ? t.assignee_ids
-                    : Array.isArray(t.taskmember)
-                      ? t.taskmember.map(m => m.emp_id)
-                      : [],
-              }))
-            : [],
+          task: treeTasks,
         });
+
+        console.log("🌳 트리 변환된 project.task:", treeTasks);
 
         setEmployees(employeeData);
         setMainAssignees(projectData?.projectmember?.map(pm => pm.emp_id) || []);
@@ -159,14 +196,6 @@ export default function ProjectDetailForm({ projectId, onClose }) {
     try {
       const payload = normalizeProjectPayload(project, projectId, mainAssignees);
       console.log("📤 최종 전송 Payload:", JSON.stringify(payload, null, 2));
-      console.log("📤 타입 확인:", {
-        project_id: typeof payload.project_id,
-        assignee_ids: Array.isArray(payload.assignee_ids)
-          ? payload.assignee_ids.map(a => typeof a)
-          : [],
-        taskIds: Array.isArray(payload.tasks) ? payload.tasks.map(t => typeof t.task_id) : [],
-      });
-
       await updateProject(projectId, payload);
       updateProjectLocal(projectId, payload);
       await refreshProjects();
@@ -331,7 +360,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
               onUpdate={updated => {
                 setProject(prev => ({
                   ...prev,
-                  task: (prev.task || []).map(t => (t.task_id === updated.task_id ? updated : t)),
+                  task: updateTaskInTree(prev.task || [], updated),
                 }));
               }}
             />

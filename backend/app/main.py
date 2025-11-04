@@ -46,9 +46,9 @@ app = FastAPI(title="업무툴 프로젝트 관리")
 origins = [
     "http://localhost:5173",
     "http://localhost:5174",
+    "http://localhost:8000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
-    "http://localhost:8000",
     "http://127.0.0.1:8000",
 ]
 
@@ -141,7 +141,9 @@ def create_default_admin():
         log.info("⚙️ 기본 관리자/부서/직급/사원/멤버 생성 시작...")
 
         # 1) 부서
-        dept = db.scalar(select(models.Department).where(models.Department.dept_no == "99"))
+        dept = db.scalar(
+            select(models.Department).where(models.Department.dept_no == "99")
+        )
         if not dept:
             dept = models.Department(dept_no="99", dept_name="관리자")
             db.add(dept)

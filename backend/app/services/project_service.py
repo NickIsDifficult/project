@@ -7,7 +7,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from app import models
-from app.models.enums import ActivityAction, MemberRole, ProjectStatus, TaskPriority, TaskStatus
+from app.models.enums import (
+    ActivityAction,
+    MemberRole,
+    ProjectStatus,
+    TaskPriority,
+    TaskStatus,
+)
 
 
 # =====================================================
@@ -144,21 +150,73 @@ def get_all_projects(db: Session):
 
 
 def get_project_by_id(db: Session, project_id: int):
-    """단일 프로젝트 조회 (첨부파일 포함)"""
+    """
+    ✅ 프로젝트 상세 조회 + 트리형 태스크 구조 포함
+    (ORM 관계 필드에 dict를 직접 할당하지 않음)
+    """
     project = (
         db.query(models.Project)
         .options(
-            # ✅ 프로젝트 첨부파일
             joinedload(models.Project.attachments),
-            # ✅ 하위 업무(Tasks)와 그 업무의 첨부파일까지
-            joinedload(models.Project.task).joinedload(models.Task.attachments),
-            # ✅ 멤버 및 마일스톤 정보
             joinedload(models.Project.projectmember),
             joinedload(models.Project.milestone),
         )
         .filter(models.Project.project_id == project_id)
         .first()
     )
+
+    if not project:
+        return None
+
+    # 🔹 모든 태스크 로드
+    tasks = (
+        db.query(models.Task)
+        .options(
+            joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee),
+            joinedload(models.Task.attachments),
+        )
+        .filter(models.Task.project_id == project_id)
+        .order_by(models.Task.created_at.asc())
+        .all()
+    )
+
+    # 🔹 트리 빌드 함수
+    def build_tree(all_tasks, parent_id=None):
+        tree = []
+        for t in all_tasks:
+            if (t.parent_task_id or None) == parent_id:
+                node = {
+                    "task_id": t.task_id,
+                    "project_id": t.project_id,
+                    "title": t.title or "(제목 없음)",
+                    "description": t.description or "",
+                    "status": t.status.value if t.status else None,
+                    "priority": t.priority.value if t.priority else None,
+                    "progress": t.progress,
+                    "start_date": t.start_date,
+                    "due_date": t.due_date,
+                    "assignees": [
+                        {
+                            "emp_id": m.emp_id,
+                            "name": m.employee.name if m.employee else None,
+                        }
+                        for m in t.taskmember
+                    ],
+                    "attachments": [
+                        {
+                            "attachment_id": a.attachment_id,
+                            "file_name": a.file_name,
+                            "file_path": a.file_path,
+                        }
+                        for a in getattr(t, "attachments", [])
+                    ],
+                    "subtask": build_tree(all_tasks, t.task_id),
+                }
+                tree.append(node)
+        return tree
+
+    # ✅ ORM 관계를 건드리지 않고, 별도 속성으로 저장
+    project.task_tree = build_tree(tasks, None)
 
     return project
 
@@ -182,7 +240,9 @@ def create_project(db: Session, request, current_user: models.Employee):
     return proj
 
 
-def create_project_full(db: Session, payload: Dict[str, Any], current_user: models.Employee):
+def create_project_full(
+    db: Session, payload: Dict[str, Any], current_user: models.Employee
+):
     """프로젝트 + 태스크 트리 전체 생성"""
     print("\n" + "=" * 80)
     print("📦 [요청 payload]", payload)
@@ -236,7 +296,9 @@ def create_project_full(db: Session, payload: Dict[str, Any], current_user: mode
         raise e
 
 
-def update_project(db: Session, project_id: int, request, current_user: models.Employee):
+def update_project(
+    db: Session, project_id: int, request, current_user: models.Employee
+):
     """프로젝트 수정 (OWNER만 가능 + task/attachment 반영)"""
     proj = get_project_by_id(db, project_id)
     if not proj:
@@ -255,7 +317,9 @@ def update_project(db: Session, project_id: int, request, current_user: models.E
     assignee_ids = data.get("assignee_ids", None)
     if assignee_ids is not None:
         new_ids = [int(i) for i in (assignee_ids or [])]
-        old_ids = {m.emp_id for m in proj.projectmember} if proj.projectmember else set()
+        old_ids = (
+            {m.emp_id for m in proj.projectmember} if proj.projectmember else set()
+        )
 
         # 삭제
         for m in list(proj.projectmember or []):
@@ -270,7 +334,11 @@ def update_project(db: Session, project_id: int, request, current_user: models.E
     # 🔹 3. 하위 태스크 갱신
     tasks = data.get("task", [])
     for t in tasks:
-        db_task = db.query(models.Task).filter(models.Task.task_id == t.get("task_id")).first()
+        db_task = (
+            db.query(models.Task)
+            .filter(models.Task.task_id == t.get("task_id"))
+            .first()
+        )
         if not db_task:
             continue
         db_task.title = t.get("title", db_task.title)
@@ -355,7 +423,9 @@ def add_member(db: Session, project_id: int, member, current_user: models.Employ
     db.commit()
 
 
-def remove_member(db: Session, project_id: int, emp_id: int, current_user: models.Employee):
+def remove_member(
+    db: Session, project_id: int, emp_id: int, current_user: models.Employee
+):
     """프로젝트 멤버 제거 (OWNER만 가능)"""
     if not is_owner(db, project_id, current_user.emp_id):
         raise PermissionError("프로젝트 소유자만 멤버 제거 가능")
@@ -380,7 +450,9 @@ def remove_member(db: Session, project_id: int, emp_id: int, current_user: model
 # =====================================================
 # ✅ 태스크 상태 / 진행률 변경 + 활동 로그
 # =====================================================
-def update_task_status(db: Session, project_id: int, task_id: int, new_status: str, emp_id: int):
+def update_task_status(
+    db: Session, project_id: int, task_id: int, new_status: str, emp_id: int
+):
     task = (
         db.query(models.Task)
         .filter(models.Task.project_id == project_id, models.Task.task_id == task_id)
@@ -418,7 +490,9 @@ def update_task_status(db: Session, project_id: int, task_id: int, new_status: s
     return task
 
 
-def update_task_progress(db: Session, project_id: int, task_id: int, progress: int, emp_id: int):
+def update_task_progress(
+    db: Session, project_id: int, task_id: int, progress: int, emp_id: int
+):
     task = (
         db.query(models.Task)
         .filter(models.Task.project_id == project_id, models.Task.task_id == task_id)
@@ -486,7 +560,10 @@ def list_task_tree(db: Session, project_id: int) -> List[Dict[str, Any]]:
                     "due_date": t.due_date,
                     "progress": t.progress,
                     "assignees": [
-                        {"emp_id": m.emp_id, "name": m.employee.name if m.employee else None}
+                        {
+                            "emp_id": m.emp_id,
+                            "name": m.employee.name if m.employee else None,
+                        }
                         for m in t.taskmember
                     ],
                     "subtasks": build_tree(tasks, t.task_id),

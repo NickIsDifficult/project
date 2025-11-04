@@ -18,39 +18,71 @@ from app.utils.notifier import create_notifications
 # ✅ 프로젝트별 태스크 조회
 # =====================================================
 def get_tasks_by_project(db: Session, project_id: int):
-    """
-    특정 프로젝트의 태스크 전체 트리 반환
-    - 하위업무(subtask)를 재귀적으로 포함
-    """
     tasks = (
         db.query(models.Task)
         .options(
             joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee),
         )
         .filter(models.Task.project_id == project_id)
-        .order_by(models.Task.due_date.asc().nulls_last())
+        .order_by(models.Task.created_at.asc())
         .all()
     )
 
-    # 모든 태스크를 딕셔너리 형태로 맵핑
-    task_map = {t.task_id: t for t in tasks}
-    root_tasks = []
-
-    # 각 태스크에 subtask 리스트 초기화
+    task_map = {}
     for t in tasks:
-        t.assignee_ids = [m.emp_id for m in t.taskmember]
-        t.subtask = []  # ✅ 재귀 필드 초기화
+        task_map[int(t.task_id)] = {
+            "task_id": int(t.task_id),
+            "project_id": int(t.project_id),
+            "title": t.title,
+            "description": t.description,
+            "status": t.status,
+            "priority": t.priority,
+            "progress": t.progress,
+            "start_date": t.start_date,
+            "due_date": t.due_date,
+            "parent_task_id": int(t.parent_task_id) if t.parent_task_id else None,
+            "assignees": [
+                {
+                    "emp_id": m.employee.emp_id,
+                    "name": m.employee.name,
+                    "position": getattr(m.employee, "position", None),
+                }
+                for m in t.taskmember
+            ],
+            "subtask": [],
+        }
 
-    # parent_task_id 기반 트리 구성
-    for t in tasks:
-        if t.parent_task_id:
-            parent = task_map.get(t.parent_task_id)
-            if parent:
-                parent.subtask.append(t)
+    root_tasks: list[dict] = []
+    for t in task_map.values():
+        pid = t["parent_task_id"]
+        if pid is not None and pid in task_map:
+            task_map[pid]["subtask"].append(t)
         else:
             root_tasks.append(t)
 
     return root_tasks
+
+
+# =====================================================
+# ✅ 특정 부모 태스크의 하위업무 조회
+# =====================================================
+def get_subtasks_by_parent(db: Session, project_id: int, parent_task_id: int):
+    tasks = (
+        db.query(models.Task)
+        .options(
+            joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee)
+        )
+        .filter(
+            models.Task.project_id == project_id,
+            models.Task.parent_task_id == parent_task_id,
+        )
+        .order_by(models.Task.created_at.asc())
+        .all()
+    )
+
+    for t in tasks:
+        t.subtask = []
+    return tasks
 
 
 # =====================================================
@@ -59,7 +91,9 @@ def get_tasks_by_project(db: Session, project_id: int):
 def get_task_by_id(db: Session, task_id: int) -> models.Task | None:
     return (
         db.query(models.Task)
-        .options(joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee))
+        .options(
+            joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee)
+        )
         .filter(models.Task.task_id == task_id)
         .first()
     )
@@ -76,28 +110,16 @@ def create_task(
 ) -> models.Task:
     """태스크 생성 (+ 선택적으로 하위 태스크까지 재귀 생성)"""
     try:
-        # 🟩 단일 생성 대신, 재귀 로직으로 대체
-        if hasattr(request, "subtask") and request.subtask:
-            print(f"📦 트리형 생성 요청 감지 -> 하위 {len(request.subtask)}개 포함")
-            return create_task_recursive(
-                db,
-                project_id,
-                creator_emp_id,
-                node=request.dict(),
-                parent_task_id=request.parent_task_id,
-            )
-
-        # 🟨 기존 단일 생성 로직 (하위 없음)
         new_task = models.Task(
             project_id=project_id,
-            title=request.title.strip(),
+            title=request.title.strip() if request.title else "(제목 없음)",
             description=request.description,
             start_date=request.start_date,
             due_date=request.due_date,
             priority=request.priority,
             status=request.status or TaskStatus.PLANNED,
             parent_task_id=request.parent_task_id,
-            estimate_hours=request.estimate_hours,
+            estimate_hours=request.estimate_hours or 0.0,
             progress=request.progress or 0,
         )
         db.add(new_task)
@@ -111,7 +133,7 @@ def create_task(
 
 
 # =====================================================
-# ✅ 태스크 수정
+# ✅ 태스크 수정 (담당자 반영 포함)
 # =====================================================
 def update_task(
     db: Session,
@@ -119,46 +141,45 @@ def update_task(
     request: schemas.project.TaskUpdate,
     updater_emp_id: int,
 ) -> models.Task:
-    """태스크 수정 + 로그 + 선택적 알림"""
+    """태스크 수정 + 담당자 동기화 + 로그 + 알림"""
     try:
-        if updater_emp_id not in [task.project.owner_emp_id] + [m.emp_id for m in task.taskmember]:
+        # 권한 검사
+        if updater_emp_id not in [task.project.owner_emp_id] + [
+            m.emp_id for m in task.taskmember
+        ]:
             forbidden("담당자 또는 프로젝트 소유자만 수정 가능합니다.")
 
         update_data = request.model_dump(exclude_unset=True)
 
-        # --- assignee_ids 동기화 처리 ---
-        _assignee_ids = update_data.pop("assignee_ids", None)
-        if _assignee_ids is not None:
-            # 정수형 ID로 정리
-            new_ids = []
-            for i in _assignee_ids or []:
-                try:
-                    new_ids.append(int(i))
-                except Exception:
-                    continue
+        # 1️⃣ 담당자 동기화
+        assignee_ids = update_data.pop("assignee_ids", None)
+        if assignee_ids is not None:
+            new_ids = {int(i) for i in assignee_ids if i}
+            old_ids = {m.emp_id for m in (task.taskmember or [])}
 
-            # 기존 멤버(객체)를 emp_id 집합으로 파악
-            old_ids = {m.emp_id for m in task.taskmember} if task.taskmember else set()
+            # 삭제
+            if old_ids - new_ids:
+                (
+                    db.query(models.TaskMember)
+                    .filter(
+                        models.TaskMember.task_id == task.task_id,
+                        models.TaskMember.emp_id.in_(list(old_ids - new_ids)),
+                    )
+                    .delete(synchronize_session=False)
+                )
 
-            # 삭제: DB의 TaskMember 중 new_ids에 없는 것 제거
-            for m in list(task.taskmember or []):
-                if m.emp_id not in new_ids:
-                    db.delete(m)
+            # 추가
+            for emp_id in new_ids - old_ids:
+                db.add(models.TaskMember(task_id=task.task_id, emp_id=emp_id))
 
-            # 추가: new_ids에 있고 old_ids에 없는 것은 새로 추가
-            for emp_id in new_ids:
-                if emp_id not in old_ids:
-                    db.add(models.TaskMember(task_id=task.task_id, emp_id=emp_id))
-        # ---------------------------------
-
-        before_progress = task.progress
+        # 2️⃣ 일반 필드 업데이트
         for key, value in update_data.items():
             setattr(task, key, value)
 
         db.commit()
         db.refresh(task)
 
-        # 로그
+        # 3️⃣ 로그 기록
         log_task_action(
             db=db,
             emp_id=updater_emp_id,
@@ -168,7 +189,7 @@ def update_task(
             detail=f"'{task.title}' 수정됨",
         )
 
-        # 진행률 변경 알림
+        # 4️⃣ 진행률 변경 시 알림
         if "progress" in update_data and task.taskmember:
             for member in task.taskmember:
                 if member.emp_id != updater_emp_id:
@@ -192,7 +213,9 @@ def update_task(
 # =====================================================
 # ✅ 상태 변경
 # =====================================================
-def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int):
+def change_task_status(
+    db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int
+):
     """상태 변경 + 로그 + 이력 + 알림"""
     old_status = task.status
     task.status = new_status
@@ -201,7 +224,6 @@ def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, a
         db.commit()
         db.refresh(task)
 
-        # 이력 저장
         history_service.create_task_history(
             db=db,
             task_id=task.task_id,
@@ -210,7 +232,6 @@ def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, a
             changed_by=actor_emp_id,
         )
 
-        # 로그
         log_task_action(
             db=db,
             emp_id=actor_emp_id,
@@ -220,7 +241,6 @@ def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, a
             detail=f"{old_status} → {new_status}",
         )
 
-        # 알림
         if task.taskmember:
             for member in task.taskmember:
                 if member.emp_id != actor_emp_id:
@@ -247,7 +267,9 @@ def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, a
 def delete_task(db: Session, task: models.Task, actor_emp_id: int):
     """태스크 삭제 + 로그"""
     try:
-        if actor_emp_id not in [task.project.owner_emp_id] + [m.emp_id for m in task.taskmember]:
+        if actor_emp_id not in [task.project.owner_emp_id] + [
+            m.emp_id for m in task.taskmember
+        ]:
             forbidden("담당자 또는 프로젝트 소유자만 삭제할 수 있습니다.")
 
         title = task.title

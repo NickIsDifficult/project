@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
+import { useProjectGlobal } from "../../../context/ProjectGlobalContext"; // ✅ 추가
+import { getSubtasks } from "../../../services/api/task";
 import AssigneeSelector from "../AssigneeSelector";
 import TaskNode from "../TaskNode";
 import TaskAttachments from "./TaskAttachments";
@@ -16,27 +18,66 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
     task: contextTask,
   } = useProjectDetailContext();
 
+  const { setUiState } = useProjectGlobal(); // ✅ 판넬 제어용 추가
+
   const [isEditing, setIsEditing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [taskData, setTaskData] = useState(task || contextTask);
+  const [subtasks, setSubtasks] = useState([]);
+
+  /* -----------------------------
+   * ✅ 하위업무 자동 로드
+   * ----------------------------- */
+  useEffect(() => {
+    if (!taskData?.task_id || !taskData?.project_id) return;
+    const fetchSubtasks = async () => {
+      try {
+        const data = await getSubtasks(taskData.project_id, taskData.task_id);
+        setSubtasks(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("❌ 하위업무 불러오기 실패:", err);
+        setSubtasks([]);
+      }
+    };
+    fetchSubtasks();
+  }, [taskData?.task_id, taskData?.project_id]);
+
+  /* ✅ 전역 contextTask 변경 시 자동 반영 */
+  useEffect(() => {
+    if (contextTask && contextTask.task_id === taskData?.task_id) {
+      setTaskData(contextTask);
+    }
+  }, [contextTask]);
 
   if (!taskData) return <p style={{ padding: 20 }}>⏳ 업무 데이터를 불러오는 중...</p>;
 
-  // ✅ 수정 저장
+  /* ✅ 수정 저장 */
   const handleSave = async () => {
     try {
-      await handleSaveEdit(taskData);
-      toast.success("업무 수정 완료!");
+      const payload = {
+        ...taskData,
+        due_date: taskData.end_date ?? null, // ✅ end_date → due_date 변환
+      };
+      delete payload.end_date;
+
+      const updated = await handleSaveEdit(payload);
+      if (updated) setTaskData(updated);
+      toast.success("업무가 저장되었습니다.");
+
       setIsEditing(false);
-      reload?.();
-      onRefresh?.();
+
+      // ✅ 저장 후 판넬 닫기
+      setUiState(prev => ({
+        ...prev,
+        panel: { ...prev.panel, selectedTask: null },
+      }));
     } catch (err) {
       console.error("❌ 업무 저장 오류:", err);
       toast.error("업무 저장 실패");
     }
   };
 
-  // ✅ 하위업무 추가
+  /* ✅ 하위업무 추가 */
   const handleAddSubtask = () => {
     const newSub = {
       title: "새 하위업무",
@@ -49,26 +90,31 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
       assignees: [],
       subtask: [],
     };
-    setTaskData(prev => ({
-      ...prev,
-      subtask: [...(prev.subtask || []), newSub],
-    }));
+    setSubtasks(prev => [...prev, newSub]);
     toast.success("새 하위업무가 추가되었습니다.");
   };
 
-  // ✅ 삭제 (Context로 일원화할 수 있지만 현재는 직접 처리)
+  /* ✅ 삭제 */
   const handleDelete = async () => {
     if (!window.confirm("이 업무를 삭제하시겠습니까?")) return;
     try {
-      // Context 기반 reload로 대체
       toast.success("업무가 삭제되었습니다.");
       reload?.();
       onRefresh?.();
+
+      // ✅ 삭제 후 판넬 닫기
+      setUiState(prev => ({
+        ...prev,
+        panel: { ...prev.panel, selectedTask: null },
+      }));
     } catch (err) {
       toast.error("삭제 중 오류 발생");
     }
   };
 
+  /* ============================
+   * 📦 렌더링
+   * ============================ */
   return (
     <div
       style={{
@@ -206,8 +252,24 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
             <strong>담당자:</strong>
             <AssigneeSelector
               employees={employees}
-              selected={taskData.assignees || []}
-              setSelected={sel => setTaskData({ ...taskData, assignees: sel })}
+              selected={
+                (taskData.assignees?.length
+                  ? taskData.assignees
+                  : employees.filter(e =>
+                      (taskData.assignee_ids || []).includes(Number(e.emp_id)),
+                    )) || []
+              }
+              setSelected={sel => {
+                const next = {
+                  ...taskData,
+                  assignee_ids: sel.map(emp => Number(emp.emp_id ?? emp.id)),
+                  assignees: sel.map(emp => ({
+                    emp_id: Number(emp.emp_id ?? emp.id),
+                    name: emp.name,
+                  })),
+                };
+                setTaskData(next);
+              }}
               disabled={!isEditing}
             />
           </div>
@@ -239,7 +301,7 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
       {/* 💬 댓글 */}
       <TaskComments />
 
-      {/* 하위업무 */}
+      {/* 📋 하위업무 목록 */}
       <div
         style={{
           marginTop: 24,
@@ -250,8 +312,9 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
         }}
       >
         <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>📋 하위업무 목록</h3>
-        {taskData.subtask?.length ? (
-          taskData.subtask.map((st, i) => (
+
+        {subtasks.length ? (
+          subtasks.map((st, i) => (
             <TaskNode
               key={st.task_id ?? `sub-${i}`}
               task={st}
@@ -259,16 +322,15 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
               depth={1}
               isEditing={isEditing}
               onUpdate={updatedChild =>
-                setTaskData(prev => ({
-                  ...prev,
-                  subtask: (prev.subtask || []).map((t, idx) => (idx === i ? updatedChild : t)),
-                }))
+                setSubtasks(prev => prev.map((t, idx) => (idx === i ? updatedChild : t)))
               }
+              showDetailButton={false}
             />
           ))
         ) : (
           <p style={{ color: "#999" }}>등록된 하위업무가 없습니다.</p>
         )}
+
         {isEditing && (
           <button
             onClick={handleAddSubtask}

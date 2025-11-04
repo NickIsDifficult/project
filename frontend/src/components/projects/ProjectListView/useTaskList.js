@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { useTaskActions } from "./useTaskActions";
-
 export function useTaskList({ allTasks = [] }) {
   const { uiState, setUiState, setSelectedTask } = useProjectGlobal();
   const { handleStatusChange, handleDelete } = useTaskActions();
@@ -42,12 +41,22 @@ export function useTaskList({ allTasks = [] }) {
 
   // ✅ 프로젝트/업무 리스트 갱신 시 담당자 이름 추가
   useEffect(() => {
-    const enriched = allTasks.map(t => ({
-      ...t,
-      assigneeNames: extractAssigneeNames(t),
-    }));
+  if (!Array.isArray(allTasks)) return;
+
+  // 새로 계산
+  const enriched = allTasks.map(t => ({
+    ...t,
+    assigneeNames: extractAssigneeNames(t),
+  }));
+
+  // JSON 기반으로 깊은 변경이 있을 때만 setState
+  const current = JSON.stringify(tasks);
+  const next = JSON.stringify(enriched);
+
+  if (current !== next) {
     setTasks(enriched);
-  }, [allTasks, extractAssigneeNames]);
+  }
+}, [allTasks]);
 
   // ✅ 트리 평탄화
   const flattenTasks = useCallback((nodes = []) => {
@@ -65,9 +74,16 @@ export function useTaskList({ allTasks = [] }) {
   const assigneeOptions = useMemo(() => {
     const names = new Set(["ALL"]);
     flatTasks.forEach(t => {
-      if (t.assigneeNames?.length) t.assigneeNames.forEach(n => names.add(n));
-      else names.add("미지정");
-    });
+  // 문자열이 들어올 수도 있으니 안전하게 배열로 변환
+  const list = Array.isArray(t.assigneeNames)
+    ? t.assigneeNames
+    : typeof t.assigneeNames === "string"
+    ? t.assigneeNames.split(",").map(s => s.trim()).filter(Boolean)
+    : [];
+
+  if (list.length > 0) list.forEach(n => names.add(n));
+  else names.add("미지정");
+});
     return Array.from(names);
   }, [flatTasks]);
 

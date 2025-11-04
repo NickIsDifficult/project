@@ -6,8 +6,11 @@ const ProjectDetailContext = createContext(null);
 
 export function ProjectDetailProvider({ projectId, children }) {
   const projectState = useProjectDetail(projectId);
+
   return (
-    <ProjectDetailContext.Provider value={projectState}>{children}</ProjectDetailContext.Provider>
+    <ProjectDetailContext.Provider value={{ ...projectState, isReady: projectState.isReady }}>
+      {children}
+    </ProjectDetailContext.Provider>
   );
 }
 

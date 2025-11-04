@@ -6,8 +6,6 @@ import Button from "../../common/Button";
 import { Drawer } from "../../common/Drawer";
 import { Loader } from "../../common/Loader";
 import ProjectInfoView from "./ProjectInfoView";
-import TaskAttachments from "./TaskAttachments";
-import TaskComments from "./TaskComments";
 import TaskEditForm from "./TaskEditForm";
 import TaskInfoView from "./TaskInfoView";
 import { useTaskDetail } from "./useTaskDetail";
@@ -36,30 +34,10 @@ function decodeJwt(token) {
  */
 export default function ProjectDetailPanel({ projectId, taskId, onClose, onAddSubtask }) {
   const { fetchTasksByProject, setUiState } = useProjectGlobal();
-  const {
-    task,
-    comments,
-    attachments,
-    employees,
-    loading,
-    handleAddComment,
-    handleUpdateComment,
-    handleDeleteComment,
-    handleUploadFile,
-    handleDeleteFile,
-    handleStatusChange,
-    handleProgressChange,
-    handleSaveEdit,
-  } = useTaskDetail(projectId, taskId);
+  const { task, employees, loading, handleStatusChange, handleProgressChange, handleSaveEdit } =
+    useTaskDetail(projectId, taskId);
 
-  const [jwtUser, setJwtUser] = useState(null);
   const [openEditDrawer, setOpenEditDrawer] = useState(false);
-
-  // ✅ JWT 디코딩
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) setJwtUser(decodeJwt(token));
-  }, []);
 
   // ✅ ESC 닫기 핸들러
   useEffect(() => {
@@ -132,30 +110,6 @@ export default function ProjectDetailPanel({ projectId, taskId, onClose, onAddSu
               onAddSubtask={onAddSubtask}
               onDeleteTask={handleDeleteTask}
             />
-          )}
-
-          {/* 업무 상세 전용: 첨부 + 댓글 */}
-          {!isProject && (
-            <>
-              <TaskAttachments
-                attachments={attachments}
-                onUpload={async file => {
-                  await handleUploadFile(file);
-                  await fetchTasksByProject(projectId);
-                }}
-                onDelete={async id => {
-                  await handleDeleteFile(id);
-                  await fetchTasksByProject(projectId);
-                }}
-              />
-              <TaskComments
-                comments={comments}
-                currentUser={jwtUser}
-                onAdd={handleAddComment}
-                onEdit={handleUpdateComment}
-                onDelete={handleDeleteComment}
-              />
-            </>
           )}
         </div>
       </Drawer>

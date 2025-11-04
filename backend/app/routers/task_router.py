@@ -67,9 +67,19 @@ def get_tasks_by_project(project_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{project_id}/tasks/{task_id}", response_model=schemas.project.Task)
 def get_task(project_id: int, task_id: int, db: Session = Depends(get_db)):
-    task = task_service.get_task_by_id(db, task_id)
+    task = (
+        db.query(models.Task)
+        .options(
+            joinedload(models.Task.attachments),  # ✅ 첨부파일까지 로드
+            joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee),
+        )
+        .filter(models.Task.task_id == task_id)
+        .first()
+    )
+
     if not task or task.project_id != project_id:
         _error("태스크를 찾을 수 없습니다.", status.HTTP_404_NOT_FOUND)
+
     return task
 
 

@@ -154,22 +154,33 @@ export default function TaskListRow({
           {(() => {
             // ✅ 1️⃣ 프로젝트 행 (isProject === true)
             if (isProject) {
-              // ✅ 소유자 ID 및 이름 확인
-              const ownerId = task.owner_emp_id ?? null;
-              const ownerName =
-                task.owner_name || // 백엔드 스키마에 추가된 owner_name
-                task.manager_name || // 혹시 기존 필드가 있다면
-                null;
+  // 담당자 후보: projectmember, assignees, owner_name
+  const memberNames = Array.isArray(task.members)
+    ? task.members
+        .map(m => m?.employee?.name || m?.employee_name || m?.name)
+        .filter(Boolean)
+    : [];
 
-              return ownerName ? (
-                <span style={{ color: "#1e40af", fontWeight: 500 }}>{ownerName}</span>
-              ) : ownerId ? (
-                // owner_emp_id는 있지만 이름 필드가 없을 때 (백엔드 미수정 상태)
-                <span style={{ color: "#6b7280" }}>ID: {ownerId}</span>
-              ) : (
-                <span style={{ color: "#9ca3af", fontStyle: "italic" }}>— 미지정 —</span>
-              );
-            }
+  const assigneeNames =
+    Array.isArray(task.assignees) && task.assignees.length
+      ? task.assignees.map(a => a.name).filter(Boolean)
+      : [];
+
+  const allNames = [
+    ...new Set([
+      ...(memberNames || []),
+      ...(assigneeNames || []),
+    ].filter(Boolean)),
+  ];
+
+  return allNames.length > 0 ? (
+    <span style={{ color: "#1e40af", fontWeight: 500 }}>
+      {allNames.join(", ")}
+    </span>
+  ) : (
+    <span style={{ color: "#9ca3af", fontStyle: "italic" }}>— 미지정 —</span>
+  );
+}
 
             // ✅ 2️⃣ 업무 행 (task)
             const assignees = task.assignees || [];

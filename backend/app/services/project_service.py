@@ -2,17 +2,12 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-from sqlalchemy.orm import Session, joinedload
+
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, joinedload
 
 from app import models
-from app.models.enums import (
-    MemberRole,
-    ProjectStatus,
-    TaskPriority,
-    TaskStatus,
-    ActivityAction,
-)
+from app.models.enums import ActivityAction, MemberRole, ProjectStatus, TaskPriority, TaskStatus
 
 
 # =====================================================
@@ -107,12 +102,7 @@ def create_task_recursive(
     db.flush()
 
     # 3️⃣ 하위 태스크 처리 (subtask, subtasks 등 모든 이름 지원)
-    subtasks = (
-    node.get("subtasks")
-    or node.get("subtask")
-    or node.get("children")
-    or []
-)
+    subtasks = node.get("subtasks") or node.get("subtask") or node.get("children") or []
     if subtasks:
         print(f"🔽 [하위 태스크 탐색] '{title}' 하위 {len(subtasks)}개")
         for child in subtasks:
@@ -129,6 +119,7 @@ def create_task_recursive(
 
     print(f"🏁 [생성 완료] '{title}' (id={task.task_id})")
     return task
+
 
 # =====================================================
 # ✅ 프로젝트 CRUD
@@ -149,12 +140,23 @@ def get_all_projects(db: Session):
 
 
 def get_project_by_id(db: Session, project_id: int):
-    """단일 프로젝트 조회"""
-    return (
+    """단일 프로젝트 조회 (첨부파일 포함)"""
+    project = (
         db.query(models.Project)
+        .options(
+            # ✅ 프로젝트 첨부파일
+            joinedload(models.Project.attachments),
+            # ✅ 하위 업무(Tasks)와 그 업무의 첨부파일까지
+            joinedload(models.Project.task).joinedload(models.Task.attachments),
+            # ✅ 멤버 및 마일스톤 정보
+            joinedload(models.Project.projectmember),
+            joinedload(models.Project.milestone),
+        )
         .filter(models.Project.project_id == project_id)
         .first()
     )
+
+    return project
 
 
 def create_project(db: Session, request, current_user: models.Employee):
@@ -212,12 +214,14 @@ def create_project_full(db: Session, payload: Dict[str, Any], current_user: mode
             create_task_recursive(db, proj.project_id, current_user.emp_id, root)
 
         # Activity Log 기록
-        db.add(models.ActivityLog(
-            project_id=proj.project_id,
-            emp_id=current_user.emp_id,
-            action=ActivityAction.project_created,
-            detail=f"프로젝트 생성: {proj.project_name}"
-        ))
+        db.add(
+            models.ActivityLog(
+                project_id=proj.project_id,
+                emp_id=current_user.emp_id,
+                action=ActivityAction.project_created,
+                detail=f"프로젝트 생성: {proj.project_name}",
+            )
+        )
 
         db.commit()
         db.refresh(proj)
@@ -229,7 +233,7 @@ def create_project_full(db: Session, payload: Dict[str, Any], current_user: mode
 
 
 def update_project(db: Session, project_id: int, request, current_user: models.Employee):
-    """프로젝트 수정 (OWNER만 가능)"""
+    """프로젝트 수정 (OWNER만 가능 + task/attachment 반영)"""
     proj = get_project_by_id(db, project_id)
     if not proj:
         raise ValueError("수정할 프로젝트를 찾을 수 없습니다.")
@@ -237,11 +241,89 @@ def update_project(db: Session, project_id: int, request, current_user: models.E
         raise PermissionError("프로젝트 소유자만 수정할 수 있습니다.")
 
     data = request.model_dump(exclude_unset=True)
-    for k, v in data.items():
-        setattr(proj, k, v)
 
+    # 🔹 1. 프로젝트 기본 정보 갱신
+    for key, value in data.items():
+        if key not in ["task", "attachments", "assignee_ids"]:
+            setattr(proj, key, value)
+
+    # 🔹 2. 프로젝트 담당자(assignee_ids) 동기화
+    assignee_ids = data.get("assignee_ids", None)
+    if assignee_ids is not None:
+        new_ids = [int(i) for i in (assignee_ids or [])]
+        old_ids = {m.emp_id for m in proj.projectmember} if proj.projectmember else set()
+
+        # 삭제
+        for m in list(proj.projectmember or []):
+            if m.emp_id not in new_ids:
+                db.delete(m)
+
+        # 추가
+        for emp_id in new_ids:
+            if emp_id not in old_ids:
+                db.add(models.ProjectMember(project_id=proj.project_id, emp_id=emp_id))
+
+    # 🔹 3. 하위 태스크 갱신
+    tasks = data.get("task", [])
+    for t in tasks:
+        db_task = db.query(models.Task).filter(models.Task.task_id == t.get("task_id")).first()
+        if not db_task:
+            continue
+        db_task.title = t.get("title", db_task.title)
+        db_task.description = t.get("description", db_task.description)
+        db_task.start_date = t.get("start_date", db_task.start_date)
+        db_task.due_date = t.get("due_date", db_task.due_date)
+        db_task.progress = t.get("progress", db_task.progress)
+        db_task.status = (
+            models.TaskStatus[t["status"]]
+            if t.get("status") and t["status"] in models.TaskStatus.__members__
+            else db_task.status
+        )
+
+        # 🔸 담당자 동기화
+        if "assignee_ids" in t:
+            db.query(models.TaskMember).filter(
+                models.TaskMember.task_id == db_task.task_id
+            ).delete()
+            for emp_id in t["assignee_ids"]:
+                db.add(models.TaskMember(task_id=db_task.task_id, emp_id=emp_id))
+                ensure_member(db, project_id, emp_id, MemberRole.MEMBER)
+
+    # 🔹 4. 첨부파일 갱신
+    attachments = data.get("attachments", [])
+    for a in attachments:
+        if not a.get("file_name"):
+            continue
+        db_attachment = (
+            db.query(models.Attachment)
+            .filter(models.Attachment.attachment_id == a.get("attachment_id"))
+            .first()
+        )
+        if db_attachment:
+            db_attachment.file_name = a.get("file_name", db_attachment.file_name)
+            db_attachment.file_path = a.get("file_path", db_attachment.file_path)
+            db_attachment.file_size = a.get("file_size", db_attachment.file_size)
+        else:
+            new_attachment = models.Attachment(
+                project_id=project_id,
+                task_id=a.get("task_id"),
+                file_name=a.get("file_name"),
+                file_path=a.get("file_path"),
+                file_size=a.get("file_size"),
+                uploaded_by=current_user.emp_id,
+            )
+            db.add(new_attachment)
+    print("🔹 기존 담당자:", [m.emp_id for m in proj.projectmember])
+    print("🔹 새 담당자:", new_ids)
+    print(
+        "💾 COMMIT 직전 ProjectMember 존재 수:",
+        db.query(models.ProjectMember)
+        .filter(models.ProjectMember.project_id == project_id)
+        .count(),
+    )
     db.commit()
     db.refresh(proj)
+    print("✅ 커밋 완료")
     return proj
 
 
@@ -309,19 +391,23 @@ def update_task_status(db: Session, project_id: int, task_id: int, new_status: s
     task.status = TaskStatus[new_status]
     db.flush()
 
-    db.add(models.TaskHistory(
-        task_id=task.task_id,
-        old_status=old_status,
-        new_status=task.status,
-        changed_by=emp_id,
-    ))
-    db.add(models.ActivityLog(
-        project_id=project_id,
-        task_id=task.task_id,
-        emp_id=emp_id,
-        action=ActivityAction.status_changed,
-        detail=f"상태 변경: {old_status.value} → {task.status.value}"
-    ))
+    db.add(
+        models.TaskHistory(
+            task_id=task.task_id,
+            old_status=old_status,
+            new_status=task.status,
+            changed_by=emp_id,
+        )
+    )
+    db.add(
+        models.ActivityLog(
+            project_id=project_id,
+            task_id=task.task_id,
+            emp_id=emp_id,
+            action=ActivityAction.status_changed,
+            detail=f"상태 변경: {old_status.value} → {task.status.value}",
+        )
+    )
 
     db.commit()
     db.refresh(task)
@@ -342,13 +428,15 @@ def update_task_progress(db: Session, project_id: int, task_id: int, progress: i
     old_progress = task.progress
     task.progress = progress
 
-    db.add(models.ActivityLog(
-        project_id=project_id,
-        task_id=task.task_id,
-        emp_id=emp_id,
-        action=ActivityAction.progress_changed,
-        detail=f"진행률 변경: {old_progress}% → {progress}%"
-    ))
+    db.add(
+        models.ActivityLog(
+            project_id=project_id,
+            task_id=task.task_id,
+            emp_id=emp_id,
+            action=ActivityAction.progress_changed,
+            detail=f"진행률 변경: {old_progress}% → {progress}%",
+        )
+    )
 
     db.commit()
     db.refresh(task)
@@ -378,6 +466,7 @@ def list_task_tree(db: Session, project_id: int) -> List[Dict[str, Any]]:
     프로젝트의 태스크 트리 구조 반환
     - 각 Task에 subtasks 포함
     """
+
     def build_tree(tasks, parent_id=None):
         tree = []
         for t in tasks:

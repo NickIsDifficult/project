@@ -15,10 +15,19 @@ const request = async (fn, context = "요청") => {
 
 // ✅ 숫자형 ID 보장
 const ensureInt = (value, name = "ID") => {
+  // 객체 형태로 들어오는 경우 내부에서 실제 ID 추출
+  if (typeof value === "object" && value !== null) {
+    const extracted =
+      value.task_id || value.id || value.value || value.taskId || value[name];
+    if (extracted !== undefined) {
+      value = extracted;
+    }
+  }
+
   const num = Number(value);
   if (isNaN(num)) {
     console.error(`🚨 잘못된 ${name} 값:`, value);
-    throw new Error(`${name}는 숫자여야 합니다 (현재: ${value})`);
+    throw new Error(`${name}는 숫자여야 합니다 (현재: ${typeof value})`);
   }
   return num;
 };

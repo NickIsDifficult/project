@@ -1,5 +1,6 @@
-// src/pages/projects/ProjectPanelSection.jsx
+// ✅ 수정된 src/pages/projects/ProjectPanelSection.jsx
 import ProjectDetailPanel from "../../components/projects/ProjectDetailPanel";
+import { ProjectDetailProvider } from "../../context/ProjectDetailContext";
 import { useProjectGlobal } from "../../context/ProjectGlobalContext";
 
 export default function ProjectPanelSection() {
@@ -9,25 +10,29 @@ export default function ProjectPanelSection() {
   if (!selectedTask) return null;
 
   const isProject = !!selectedTask.isProject;
+  const projectId = selectedTask.project_id;
 
   return (
-    <ProjectDetailPanel
-      projectId={selectedTask.project_id}
-      taskId={isProject ? undefined : selectedTask.task_id}
-      isProject={selectedTask.isProject}
-      onClose={() =>
-        setUiState(prev => ({
-          ...prev,
-          panel: { selectedTask: null },
-        }))
-      }
-      onAddSubtask={taskId => {
-        setUiState(prev => ({
-          ...prev,
-          drawer: { ...prev.drawer, task: true, parentTaskId: taskId },
-          panel: { selectedTask: null },
-        }));
-      }}
-    />
+    // ✅ Context Provider로 감싸기
+    <ProjectDetailProvider projectId={projectId}>
+      <ProjectDetailPanel
+        projectId={projectId}
+        taskId={isProject ? undefined : selectedTask.task_id}
+        isProject={isProject}
+        onClose={() =>
+          setUiState(prev => ({
+            ...prev,
+            panel: { selectedTask: null },
+          }))
+        }
+        onAddSubtask={taskId => {
+          setUiState(prev => ({
+            ...prev,
+            drawer: { ...prev.drawer, task: true, parentTaskId: taskId },
+            panel: { selectedTask: null },
+          }));
+        }}
+      />
+    </ProjectDetailProvider>
   );
 }

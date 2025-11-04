@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from datetime import date, datetime
 from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from app.models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
+from app.schemas.attachment import Attachment
 from app.schemas.employee import Employee
 
 
@@ -89,6 +92,7 @@ class TaskCreate(TaskBase):
     parent_task_id: Optional[int] = None
     subtask: Optional[List["TaskCreate"]] = []
 
+
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
@@ -98,6 +102,8 @@ class TaskUpdate(BaseModel):
     due_date: Optional[date] = None
     estimate_hours: Optional[float] = None
     progress: Optional[int] = None
+    assignee_ids: Optional[List[int]] = []
+    end_date: Optional[date] = None
 
     _ser_date = field_serializer("start_date", "due_date", when_used="always")(_serialize_date)
 
@@ -108,9 +114,10 @@ class Task(TaskBase):
     assignee_ids: Optional[List[int]] = []
     taskmember: List[TaskMember] = Field(default_factory=list)
     taskcomment: List[TaskComment] = Field(default_factory=list)
+    # subtask: List["Task"] = Field(default_factory=list)
+    # children: list["Task"] = []
     subtask: List["Task"] = Field(default_factory=list)
-    children: list["Task"] = []
-
+    attachments: List[Attachment] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -145,16 +152,20 @@ class Milestone(MilestoneBase):
 # 🧩 Project 기본
 # ============================================================
 class ProjectBase(BaseModel):
-    project_id: Optional[int] = None
-    project_name: str
+    title: Optional[str] = None
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    status: ProjectStatus = ProjectStatus.PLANNED
+    status: Optional[ProjectStatus] = None
     owner_emp_id: Optional[int] = None
+    task: Optional[List[Task]] = Field(default_factory=list)
+    attachments: Optional[List[Attachment]] = Field(default_factory=list)
+    assignees: list[str] = Field(default_factory=list)
+    assignee_ids: list[int] = Field(default_factory=list)
 
     _ser_date = field_serializer("start_date", "end_date", when_used="always")(_serialize_date)
-    model_config = ConfigDict(from_attributes=True)
+
+    model_config = ConfigDict(from_attributes=True, extra="allow")
 
 
 class ProjectCreate(ProjectBase):
@@ -168,9 +179,12 @@ class ProjectUpdate(BaseModel):
     end_date: Optional[date] = None
     status: Optional[ProjectStatus] = None
     owner_emp_id: Optional[int] = None
+    assignee_ids: Optional[List[int]] = None
+    task: Optional[List[Task]] = Field(default_factory=list)
+    attachments: Optional[List[Attachment]] = Field(default_factory=list)
 
     _ser_date = field_serializer("start_date", "end_date", when_used="always")(_serialize_date)
-    model_config = ConfigDict(from_attributes=True, extra="ignore")
+    model_config = ConfigDict(from_attributes=True, extra="allow")
 
 
 class Project(ProjectBase):
@@ -182,8 +196,14 @@ class Project(ProjectBase):
     owner_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    attachments: List[Attachment] = Field(default_factory=list)
+    project_name: str | None = None
+
+    # 🔹 추가
+    assignee_ids: List[int] = Field(default_factory=list)
 
     _ser_dt = field_serializer("created_at", "updated_at", when_used="always")(_serialize_datetime)
+
     model_config = ConfigDict(from_attributes=True)
 
 

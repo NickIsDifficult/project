@@ -19,13 +19,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.enums import (
-    MemberRole,
-    MilestoneStatus,
-    ProjectStatus,
-    TaskPriority,
-    TaskStatus,
-)
+from app.models.enums import MemberRole, MilestoneStatus, ProjectStatus, TaskPriority, TaskStatus
 
 
 # ============================================================
@@ -34,21 +28,30 @@ from app.models.enums import (
 class Project(Base):
     __tablename__ = "project"
 
+    # --------------------------------------------
+    # 📌 기본 컬럼
+    # --------------------------------------------
     project_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     project_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date)
-    status: Mapped[ProjectStatus] = mapped_column(Enum(ProjectStatus), default=ProjectStatus.PLANNED, nullable=False)
+    status: Mapped[ProjectStatus] = mapped_column(
+        Enum(ProjectStatus), default=ProjectStatus.PLANNED, nullable=False
+    )
 
     owner_emp_id: Mapped[int | None] = mapped_column(
         ForeignKey("employee.emp_id", ondelete="SET NULL")
     )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
 
-    # ✅ Relations
+    # --------------------------------------------
+    # 📌 관계 설정
+    # --------------------------------------------
     employee = relationship(
         "Employee", backref="project", foreign_keys=[owner_emp_id], lazy="selectin"
     )
@@ -64,7 +67,7 @@ class Project(Base):
     taskcomment = relationship(
         "TaskComment", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
-    attachment = relationship(
+    attachments = relationship(
         "Attachment", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
     activitylog = relationship(
@@ -73,8 +76,35 @@ class Project(Base):
     notification = relationship(
         "Notification", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
     )
-    events = relationship("Event", back_populates="project", cascade="all, delete-orphan")
+    events = relationship(
+        "Event", back_populates="project", cascade="all, delete-orphan", lazy="selectin"
+    )
 
+    # --------------------------------------------
+    # 📌 담당자 리스트 프로퍼티
+    # --------------------------------------------
+    @property
+    def assignee_ids(self) -> list[int]:
+        """프로젝트 담당자 emp_id 목록 반환"""
+        return [m.emp_id for m in self.projectmember] if self.projectmember else []
+
+    @assignee_ids.setter
+    def assignee_ids(self, ids: list[int]):
+        """FastAPI에서 setattr 호출 시 무시 (읽기 전용으로 유지)"""
+        # setter를 비워두면 AttributeError 방지용
+        pass
+
+    # --------------------------------------------
+    # 📌 담당자 이름 리스트 프로퍼티 (추가)
+    # --------------------------------------------
+    @property
+    def assignees(self) -> list[str]:
+        """프로젝트 담당자 이름 목록 반환"""
+        return [m.employee.name for m in self.projectmember if m.employee]
+
+    # --------------------------------------------
+    # 📌 문자열 표현
+    # --------------------------------------------
     def __repr__(self):
         return f"<Project {self.project_id} {self.project_name}>"
 
@@ -89,7 +119,9 @@ class ProjectMember(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.project_id", ondelete="CASCADE"))
     emp_id: Mapped[int] = mapped_column(ForeignKey("employee.emp_id", ondelete="CASCADE"))
-    role: Mapped[MemberRole] = mapped_column(Enum(MemberRole), default=MemberRole.MEMBER, nullable=False)
+    role: Mapped[MemberRole] = mapped_column(
+        Enum(MemberRole), default=MemberRole.MEMBER, nullable=False
+    )
 
     project = relationship("Project", back_populates="projectmember", lazy="selectin")
     employee = relationship("Employee", back_populates="projectmember", lazy="selectin")
@@ -106,12 +138,18 @@ class Task(Base):
 
     task_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.project_id", ondelete="CASCADE"))
-    parent_task_id: Mapped[int | None] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"), nullable=True)
+    parent_task_id: Mapped[int | None] = mapped_column(
+        ForeignKey("task.task_id", ondelete="CASCADE"), nullable=True
+    )
 
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
-    status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), default=TaskStatus.PLANNED, nullable=False)
-    priority: Mapped[TaskPriority] = mapped_column(Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False)
+    status: Mapped[TaskStatus] = mapped_column(
+        Enum(TaskStatus), default=TaskStatus.PLANNED, nullable=False
+    )
+    priority: Mapped[TaskPriority] = mapped_column(
+        Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False
+    )
     start_date: Mapped[date | None] = mapped_column(Date)
     due_date: Mapped[date | None] = mapped_column(Date)
     estimate_hours: Mapped[float] = mapped_column(Float, default=0.0)
@@ -133,7 +171,7 @@ class Task(Base):
         back_populates="task",
         cascade="all, delete-orphan",
         lazy="selectin",
-        overlaps="employees,employee"
+        overlaps="employees,employee",
     )
 
     taskcomment = relationship(
@@ -142,7 +180,7 @@ class Task(Base):
     taskhistory = relationship(
         "TaskHistory", back_populates="task", cascade="all, delete-orphan", lazy="selectin"
     )
-    attachment = relationship(
+    attachments = relationship(
         "Attachment", back_populates="task", cascade="all, delete-orphan", lazy="selectin"
     )
     activitylog = relationship(
@@ -158,10 +196,10 @@ class Task(Base):
         secondary="task_member",
         back_populates="tasks",
         lazy="selectin",
-        overlaps="taskmember"
+        overlaps="taskmember",
     )
 
-    @hybrid_property
+    @property
     def assignee_ids(self):
         return [m.emp_id for m in self.taskmember] if self.taskmember else []
 
@@ -182,21 +220,14 @@ class TaskMember(Base):
     assigned_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     task = relationship(
-        "Task",
-        back_populates="taskmember",
-        lazy="selectin",
-        overlaps="employee,employees,tasks"
+        "Task", back_populates="taskmember", lazy="selectin", overlaps="employee,employees,tasks"
     )
     employee = relationship(
-        "Employee",
-        back_populates="taskmember",
-        lazy="selectin",
-        overlaps="task,employee,tasks"
+        "Employee", back_populates="taskmember", lazy="selectin", overlaps="task,employee,tasks"
     )
 
     def __repr__(self):
         return f"<TaskMember T{self.task_id} E{self.emp_id}>"
-
 
 
 # ============================================================
@@ -205,12 +236,8 @@ class TaskMember(Base):
 class Milestone(Base):
     __tablename__ = "milestone"
 
-    milestone_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
-    project_id: Mapped[int] = mapped_column(
-        ForeignKey("project.project_id", ondelete="CASCADE")
-    )
+    milestone_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.project_id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     due_date: Mapped[date | None] = mapped_column(Date)
@@ -230,16 +257,10 @@ class Milestone(Base):
 class TaskComment(Base):
     __tablename__ = "task_comment"
 
-    comment_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
-    project_id: Mapped[int] = mapped_column(
-        ForeignKey("project.project_id", ondelete="CASCADE")
-    )
+    comment_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.project_id", ondelete="CASCADE"))
     task_id: Mapped[int] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"))
-    emp_id: Mapped[int] = mapped_column(
-        ForeignKey("employee.emp_id", ondelete="CASCADE")
-    )
+    emp_id: Mapped[int] = mapped_column(ForeignKey("employee.emp_id", ondelete="CASCADE"))
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -260,9 +281,7 @@ class TaskComment(Base):
 class TaskHistory(Base):
     __tablename__ = "task_history"
 
-    history_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
+    history_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("task.task_id", ondelete="CASCADE"))
     old_status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus))
     new_status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus))

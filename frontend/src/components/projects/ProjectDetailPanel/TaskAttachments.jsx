@@ -1,63 +1,48 @@
 // src/components/project/ProjectDetailPanel/TaskAttachments.jsx
 import { useRef } from "react";
-import toast from "react-hot-toast";
+import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
 import Button from "../../common/Button";
 
-/**
- * ✅ TaskAttachments
- * - 첨부파일 업로드 / 삭제 섹션
- * - ProjectDetailPanel 및 useTaskDetail과 연동
- */
-export default function TaskAttachments({ attachments = [], onUpload, onDelete }) {
-  const fileInputRef = useRef(null);
+export default function TaskAttachments() {
+  const { attachments, handleUploadFile, handleDeleteFile } = useProjectDetailContext();
+  const fileRef = useRef(null);
 
-  const handleFileChange = e => {
+  const handleChange = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("10MB 이하의 파일만 업로드 가능합니다.");
-      e.target.value = "";
-      return;
-    }
-    onUpload(file);
-    e.target.value = ""; // 파일 선택 초기화
+    handleUploadFile(file);
+    e.target.value = "";
   };
 
   return (
-    <section className="mt-6">
-      <h3 className="text-base font-semibold text-gray-800 mb-3">📎 첨부파일</h3>
+    <section className="mt-4">
+      <h3 className="text-base font-semibold mb-2">📎 첨부파일</h3>
 
-      {/* 업로드 버튼 */}
       <div className="mb-3">
-        <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
-        <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+        <input type="file" ref={fileRef} className="hidden" onChange={handleChange} />
+        <Button variant="secondary" onClick={() => fileRef.current?.click()}>
           📤 파일 업로드
         </Button>
       </div>
 
-      {/* 첨부 파일 목록 */}
       {attachments.length === 0 ? (
-        <p className="text-gray-500 text-sm">첨부된 파일이 없습니다.</p>
+        <p className="text-sm text-gray-500">첨부된 파일이 없습니다.</p>
       ) : (
-        <ul className="divide-y divide-gray-200">
+        <ul className="divide-y border rounded-md">
           {attachments.map(file => (
-            <li key={file.attachment_id} className="flex justify-between items-center py-2">
+            <li key={file.attachment_id} className="flex justify-between items-center px-3 py-2">
               <a
-                href={file.url}
+                href={file.url || file.file_path}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline break-all"
               >
-                {file.filename}
+                {file.filename || file.file_name}
               </a>
               <Button
                 size="sm"
                 variant="danger"
-                onClick={() => {
-                  if (window.confirm("이 파일을 삭제하시겠습니까?")) {
-                    onDelete(file.attachment_id);
-                  }
-                }}
+                onClick={() => handleDeleteFile(file.attachment_id)}
               >
                 삭제
               </Button>

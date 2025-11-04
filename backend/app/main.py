@@ -12,6 +12,7 @@ from app.routers import search  # ✅ 추가
 from app.routers import (
     activity_router,
     ai_router,
+    attachment_router,
     comment_router,
     department_router,
     employee_router,
@@ -97,6 +98,7 @@ app.include_router(trash_router)
 app.include_router(ai_router.router)
 app.include_router(search.router)
 app.include_router(preview_router.router)
+app.include_router(attachment_router.router)
 
 
 # ✅ notices (프런트가 /api 프록시를 탄다면 prefix="/api" 권장)

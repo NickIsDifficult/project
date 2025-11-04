@@ -52,15 +52,14 @@ def get_tasks_by_project(db: Session, project_id: int):
 
     return root_tasks
 
+
 # =====================================================
 # ✅ 단일 태스크 조회
 # =====================================================
 def get_task_by_id(db: Session, task_id: int) -> models.Task | None:
     return (
         db.query(models.Task)
-        .options(
-            joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee)
-        )
+        .options(joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee))
         .filter(models.Task.task_id == task_id)
         .first()
     )
@@ -122,12 +121,35 @@ def update_task(
 ) -> models.Task:
     """태스크 수정 + 로그 + 선택적 알림"""
     try:
-        if updater_emp_id not in [task.project.owner_emp_id] + [
-            m.emp_id for m in task.taskmember
-        ]:
+        if updater_emp_id not in [task.project.owner_emp_id] + [m.emp_id for m in task.taskmember]:
             forbidden("담당자 또는 프로젝트 소유자만 수정 가능합니다.")
 
         update_data = request.model_dump(exclude_unset=True)
+
+        # --- assignee_ids 동기화 처리 ---
+        _assignee_ids = update_data.pop("assignee_ids", None)
+        if _assignee_ids is not None:
+            # 정수형 ID로 정리
+            new_ids = []
+            for i in _assignee_ids or []:
+                try:
+                    new_ids.append(int(i))
+                except Exception:
+                    continue
+
+            # 기존 멤버(객체)를 emp_id 집합으로 파악
+            old_ids = {m.emp_id for m in task.taskmember} if task.taskmember else set()
+
+            # 삭제: DB의 TaskMember 중 new_ids에 없는 것 제거
+            for m in list(task.taskmember or []):
+                if m.emp_id not in new_ids:
+                    db.delete(m)
+
+            # 추가: new_ids에 있고 old_ids에 없는 것은 새로 추가
+            for emp_id in new_ids:
+                if emp_id not in old_ids:
+                    db.add(models.TaskMember(task_id=task.task_id, emp_id=emp_id))
+        # ---------------------------------
 
         before_progress = task.progress
         for key, value in update_data.items():
@@ -170,9 +192,7 @@ def update_task(
 # =====================================================
 # ✅ 상태 변경
 # =====================================================
-def change_task_status(
-    db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int
-):
+def change_task_status(db: Session, task: models.Task, new_status: TaskStatus, actor_emp_id: int):
     """상태 변경 + 로그 + 이력 + 알림"""
     old_status = task.status
     task.status = new_status
@@ -227,9 +247,7 @@ def change_task_status(
 def delete_task(db: Session, task: models.Task, actor_emp_id: int):
     """태스크 삭제 + 로그"""
     try:
-        if actor_emp_id not in [task.project.owner_emp_id] + [
-            m.emp_id for m in task.taskmember
-        ]:
+        if actor_emp_id not in [task.project.owner_emp_id] + [m.emp_id for m in task.taskmember]:
             forbidden("담당자 또는 프로젝트 소유자만 삭제할 수 있습니다.")
 
         title = task.title

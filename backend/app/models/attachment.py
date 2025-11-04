@@ -22,9 +22,7 @@ class Attachment(Base):
     # -----------------------------------------------------------------
     # 기본 컬럼
     # -----------------------------------------------------------------
-    attachment_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
+    attachment_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     project_id: Mapped[int | None] = mapped_column(
         ForeignKey("project.project_id", ondelete="CASCADE"),
@@ -62,9 +60,11 @@ class Attachment(Base):
     # -----------------------------------------------------------------
     # 관계 설정 (모델명 기준으로 통일)
     # -----------------------------------------------------------------
-    project = relationship("Project", back_populates="attachment", lazy="selectin")
-    task = relationship("Task", back_populates="attachment", lazy="selectin")
-    uploader = relationship("Employee", back_populates="attachment", foreign_keys=[uploaded_by], lazy="selectin")
+    project = relationship("Project", back_populates="attachments", lazy="selectin")
+    task = relationship("Task", back_populates="attachments", lazy="selectin")
+    uploader = relationship(
+        "Employee", back_populates="attachment", foreign_keys=[uploaded_by], lazy="selectin"
+    )
 
     # -----------------------------------------------------------------
     # 표현

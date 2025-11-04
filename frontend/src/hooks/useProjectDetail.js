@@ -7,13 +7,11 @@ import { getTaskTree } from "../services/api/task";
 /**
  * ✅ useProjectDetail
  * 프로젝트 상세 + 업무 트리 데이터 관리 훅
- * - ProjectDetailContext의 핵심 로직
- * - fetchTasks(), updateTaskLocal() 등은 다른 컴포넌트에서 직접 사용됨
  */
 export function useProjectDetail(projectId) {
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState({ project: true, tasks: true });
 
   /* ----------------------------------------
    * 🔹 프로젝트 상세 불러오기
@@ -22,10 +20,12 @@ export function useProjectDetail(projectId) {
     try {
       const data = await getProject(projectId);
       setProject(data);
+      setLoading(prev => ({ ...prev, project: false }));
       return data;
     } catch (err) {
       console.error("❌ 프로젝트 불러오기 실패:", err);
       toast.error("프로젝트 정보를 불러오지 못했습니다.");
+      setLoading(prev => ({ ...prev, project: false }));
       return null;
     }
   }, [projectId]);
@@ -36,11 +36,13 @@ export function useProjectDetail(projectId) {
   const fetchTasks = useCallback(async () => {
     try {
       const data = await getTaskTree(projectId);
-      setTasks(data || []);
+      setTasks(Array.isArray(data) ? data : []);
+      setLoading(prev => ({ ...prev, tasks: false }));
       return data;
     } catch (err) {
       console.error("❌ 업무 불러오기 실패:", err);
       toast.error("업무 목록을 불러오지 못했습니다.");
+      setLoading(prev => ({ ...prev, tasks: false }));
       return [];
     }
   }, [projectId]);
@@ -51,14 +53,24 @@ export function useProjectDetail(projectId) {
   const updateTaskLocal = useCallback((taskId, updatedFields) => {
     if (!taskId) return;
 
-    const updateTree = tree =>
-      tree.map(t =>
-        t.task_id === taskId
-          ? { ...t, ...updatedFields } // 해당 Task 업데이트
-          : t.children?.length
-            ? { ...t, children: updateTree(t.children) } // 하위 트리 탐색
-            : t,
-      );
+    const updateTree = tree => {
+      let updated = false;
+      const newTree = tree.map(t => {
+        if (t.task_id === taskId) {
+          updated = true;
+          return { ...t, ...updatedFields };
+        }
+        if (t.children?.length) {
+          const nextChildren = updateTree(t.children);
+          if (nextChildren !== t.children) {
+            updated = true;
+            return { ...t, children: nextChildren };
+          }
+        }
+        return t;
+      });
+      return updated ? newTree : tree;
+    };
 
     setTasks(prev => updateTree(prev));
   }, []);
@@ -67,32 +79,34 @@ export function useProjectDetail(projectId) {
    * 🔹 전체 데이터 새로고침
    * ---------------------------------------- */
   const reload = useCallback(async () => {
-    setLoading(true);
+    if (!projectId) return;
+    setLoading({ project: true, tasks: true });
     try {
       await Promise.all([fetchProject(), fetchTasks()]);
     } catch (err) {
       console.error("❌ 프로젝트 전체 불러오기 실패:", err);
-    } finally {
-      setLoading(false);
     }
-  }, [fetchProject, fetchTasks]);
+  }, [projectId, fetchProject, fetchTasks]);
 
   /* ----------------------------------------
-   * 🔹 최초 로딩
+   * 🔹 최초 로딩 + projectId 변경 시 초기화
    * ---------------------------------------- */
   useEffect(() => {
+    setProject(null);
+    setTasks([]);
     if (projectId) reload();
   }, [projectId, reload]);
 
   /* ----------------------------------------
-   * 📤 반환 (Context에서 직접 사용)
+   * 📤 반환
    * ---------------------------------------- */
   return {
-    project, // 프로젝트 정보
-    tasks, // 업무 트리 구조
-    loading, // 로딩 상태
-    reload, // 전체 새로고침
-    fetchTasks, // 업무 목록 갱신
-    updateTaskLocal, // 로컬 UI 즉시 반영
+    project,
+    tasks,
+    loading,
+    reload,
+    fetchTasks,
+    updateTaskLocal,
+    isReady: !loading.project && !loading.tasks && !!project,
   };
 }

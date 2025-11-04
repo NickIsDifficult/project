@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../../components/common/Button";
 import Popup from "../../components/common/Popup";
 import { getDepartments, getRoles, signup } from "../../services/api/auth";
-import "./Signup.css"; // ★ 추가
+import "./Signup.css";
 
 export default function Signup() {
   const nav = useNavigate();
@@ -13,14 +13,25 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [company, setCompany] = useState("");
-
   const [deptList, setDeptList] = useState([]);
   const [roleList, setRoleList] = useState([]);
   const [deptId, setDeptId] = useState("");
   const [roleId, setRoleId] = useState("");
-
   const [error, setError] = useState("");
   const [popup, setPopup] = useState({ open: false, title: "", msg: "" });
+  const [formKey, setFormKey] = useState(0);
+
+  const resetForm = () => {
+    setUserType("EMPLOYEE");
+    setName("");
+    setEmail("");
+    setMobile("");
+    setCompany("");
+    setDeptId("");
+    setRoleId("");
+    setError("");
+    setFormKey(k => k + 1);
+  };
 
   useEffect(() => {
     if (userType === "EMPLOYEE") {
@@ -64,7 +75,7 @@ export default function Signup() {
       setPopup({
         open: true,
         title: "계정생성 완료",
-        msg: `아이디: ${res.login_id}\n초기 비밀번호: 0000\n\n확인을 누르면 로그인 화면으로 이동합니다.`,
+        msg: `아이디: ${res.login_id}\n초기 비밀번호: 0000\n\n`
       });
     } catch (err) {
       const msg = err?.response?.data?.detail || "계정생성 중 오류가 발생했습니다.";
@@ -74,7 +85,7 @@ export default function Signup() {
 
   const goLogin = () => {
     setPopup({ open: false, title: "", msg: "" });
-    nav("/");
+    resetForm();
   };
 
   return (
@@ -95,6 +106,7 @@ export default function Signup() {
       <p className="signup-sub">유저 유형을 선택하고 필수 정보를 입력하세요.</p>
 
       {error && <div className="signup-error">{error}</div>}
+      <form key={formKey} onSubmit={onSubmit} className="signup-form"></form>
 
       <form onSubmit={onSubmit} className="signup-form">
         {/* 유저 유형 */}

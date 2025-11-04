@@ -10,6 +10,8 @@ from app.database import get_db
 from app.schemas.employee import Employee, EmployeeCreate, EmployeeUpdate
 from app.utils.token import get_current_user
 
+from pydantic import BaseModel, Field
+
 router = APIRouter(prefix="/employees", tags=["employees"])
 
 
@@ -209,3 +211,55 @@ def delete_employee(
     db.delete(employee)
     db.commit()
     return {"success": True, "message": f"직원 {emp_id} 삭제 완료"}
+
+# -------------------------------
+# 담당업무(responsibility_text) 조회/수정
+# -------------------------------
+
+class ResponsibilityUpdatePayload(BaseModel):
+    responsibility_text: str = Field("", description="개인 담당업무(조직도 상세보기용)")
+
+@router.get("/{emp_id}/responsibility")
+def get_responsibility(
+    emp_id: int,
+    db: Session = Depends(get_db),
+    current: models.Member = Depends(get_current_user),
+):
+    """
+    특정 직원의 담당업무를 조회.
+    - 조직도 상세보기에서 anyone(로그인 사용자)이 열람(조회) 가능하도록 제한하지 않음.
+    """
+    emp = db.query(models.Employee).filter(models.Employee.emp_id == emp_id).first()
+    if not emp:
+        not_found("직원 정보를 찾을 수 없습니다.")
+
+    return {
+        "emp_id": emp.emp_id,
+        "responsibility_text": (emp.responsibility_text or ""),
+    }
+
+@router.put("/{emp_id}/responsibility")
+def update_responsibility(
+    emp_id: int,
+    payload: ResponsibilityUpdatePayload,
+    db: Session = Depends(get_db),
+    current: models.Member = Depends(get_current_user),
+):
+    """
+    담당업무 수정은 '해당 직원 본인'만 가능.
+    - 관리자에 의한 내용 변경은 허용하지 않음(요구사항 반영).
+    """
+    # 현재 로그인 주체가 EMPLOYEE 이고 본인 emp_id인가?
+    utype = getattr(current.user_type, "value", current.user_type)
+    if not (utype == "EMPLOYEE" and getattr(current, "emp_id", None) == emp_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="본인만 수정할 수 있습니다.")
+
+    emp = db.query(models.Employee).filter(models.Employee.emp_id == emp_id).first()
+    if not emp:
+        not_found("직원 정보를 찾을 수 없습니다.")
+
+    emp.responsibility_text = (payload.responsibility_text or "").strip()
+    db.add(emp)
+    db.commit()
+    db.refresh(emp)
+    return {"ok": True}

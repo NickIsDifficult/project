@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
-import { useProjectGlobal } from "../../../context/ProjectGlobalContext"; // ✅ 추가
+import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
+import { updateTaskAssignees } from "../../../services/api/employee";
 import { getSubtasks } from "../../../services/api/task";
 import AssigneeSelector from "../AssigneeSelector";
 import TaskNode from "../TaskNode";
@@ -13,21 +14,19 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
     employees,
     handleSaveEdit,
     handleProgressChange,
-    handleStatusChange,
     reload,
     task: contextTask,
   } = useProjectDetailContext();
 
-  const { setUiState } = useProjectGlobal(); // ✅ 판넬 제어용 추가
+  // ✅ 전역 상태 접근 (UI 제어 + 로컬/전역 업데이트)
+  const { setUiState, updateTaskLocal, fetchTasksByProjectNow } = useProjectGlobal();
 
   const [isEditing, setIsEditing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [taskData, setTaskData] = useState(task || contextTask);
   const [subtasks, setSubtasks] = useState([]);
 
-  /* -----------------------------
-   * ✅ 하위업무 자동 로드
-   * ----------------------------- */
+  /* ✅ 하위업무 자동 로드 */
   useEffect(() => {
     if (!taskData?.task_id || !taskData?.project_id) return;
     const fetchSubtasks = async () => {
@@ -36,13 +35,12 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
         setSubtasks(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("❌ 하위업무 불러오기 실패:", err);
-        setSubtasks([]);
       }
     };
     fetchSubtasks();
   }, [taskData?.task_id, taskData?.project_id]);
 
-  /* ✅ 전역 contextTask 변경 시 자동 반영 */
+  /* ✅ 전역 contextTask가 변경되면 반영 */
   useEffect(() => {
     if (contextTask && contextTask.task_id === taskData?.task_id) {
       setTaskData(contextTask);
@@ -51,22 +49,42 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
 
   if (!taskData) return <p style={{ padding: 20 }}>⏳ 업무 데이터를 불러오는 중...</p>;
 
-  /* ✅ 수정 저장 */
+  /* ✅ 저장 로직 */
   const handleSave = async () => {
     try {
-      const payload = {
-        ...taskData,
-        due_date: taskData.end_date ?? null, // ✅ end_date → due_date 변환
-      };
+      // 1️⃣ 기본 필드 저장
+      const payload = { ...taskData, due_date: taskData.end_date ?? null };
       delete payload.end_date;
-
       const updated = await handleSaveEdit(payload);
+
+      // 2️⃣ 담당자 변경 API 호출
+      try {
+        await updateTaskAssignees(taskData.task_id, taskData.assignee_ids || []);
+
+        // 2-1️⃣ 전역 상태에 즉시 반영 (Kanban/List에도 적용)
+        updateTaskLocal(taskData.task_id, {
+          assignee_ids: taskData.assignee_ids,
+          assignees: taskData.assignees,
+        });
+
+        // 2-2️⃣ 현재 패널에도 즉시 반영
+        setTaskData(prev => ({
+          ...prev,
+          assignees: taskData.assignees,
+          assignee_ids: taskData.assignee_ids,
+        }));
+      } catch (err) {
+        console.warn("⚠️ 담당자 업데이트 실패:", err);
+      }
+
+      // 3️⃣ 최신 데이터 재동기화 (프로젝트 트리 + 패널)
+      await reload();
+      await fetchTasksByProjectNow(taskData.project_id);
+
       if (updated) setTaskData(updated);
-      toast.success("업무가 저장되었습니다.");
 
+      // 4️⃣ 수정 모드 종료 및 패널 닫기
       setIsEditing(false);
-
-      // ✅ 저장 후 판넬 닫기
       setUiState(prev => ({
         ...prev,
         panel: { ...prev.panel, selectedTask: null },
@@ -101,8 +119,6 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
       toast.success("업무가 삭제되었습니다.");
       reload?.();
       onRefresh?.();
-
-      // ✅ 삭제 후 판넬 닫기
       setUiState(prev => ({
         ...prev,
         panel: { ...prev.panel, selectedTask: null },
@@ -172,7 +188,6 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
           borderRadius: 8,
           padding: "8px 12px",
           fontSize: 15,
-          transition: "all 0.2s",
         }}
       />
 
@@ -206,7 +221,6 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
           cursor: "pointer",
           marginTop: 16,
           fontSize: 15,
-          boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
         }}
       >
         {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
@@ -295,13 +309,10 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
         />
       </div>
 
-      {/* 📎 첨부파일 */}
       <TaskAttachments />
-
-      {/* 💬 댓글 */}
       <TaskComments />
 
-      {/* 📋 하위업무 목록 */}
+      {/* 하위업무 */}
       <div
         style={{
           marginTop: 24,
@@ -312,7 +323,6 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
         }}
       >
         <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>📋 하위업무 목록</h3>
-
         {subtasks.length ? (
           subtasks.map((st, i) => (
             <TaskNode
@@ -330,7 +340,6 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
         ) : (
           <p style={{ color: "#999" }}>등록된 하위업무가 없습니다.</p>
         )}
-
         {isEditing && (
           <button
             onClick={handleAddSubtask}

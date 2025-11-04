@@ -107,3 +107,117 @@
     left: 50%;
     transform: translate(-50%, -50%);
 }
+
+/* src/layout/profile-card.css */
+
+/* 부서명 타이틀(흰 박스 밖) */
+.org-dept-title {
+  text-align: center;
+  font-weight: 800;
+  font-size: 18px;
+  color: #1f2937;
+  margin: 6px 0 12px;
+}
+
+/* 직급 줄: 경계 강화 + 중앙 정렬 + 네모표시(배지) */
+.org-row {
+  margin-bottom: 20px;
+  padding: 10px 8px 16px;
+  border-top: 1px solid #d6e2ff;
+}
+.org-row:first-child { border-top: none; }
+
+.org-row-title {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: #eaf2ff;            /* 네모 배경 */
+  border: 1px solid #cfe0ff;      /* 테두리로 더 또렷하게 */
+  color: #0f172a;
+  font-weight: 900;
+  font-size: 15px;
+  text-align: center;
+  margin: 4px 0 10px;
+}
+
+/* 카드가 올라가는 박스(컨테이너)와 카드의 시각 분리 */
+.org-cards-box {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px;
+  background: #f4f7ff;            /* 컨테이너 배경 */
+  border: 1px solid #d7e2ff;      /* 컨테이너 테두리 */
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+.org-empty {
+  color: #9aa7c6;
+}
+
+/* 조직도 카드 */
+.profile-card--org {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: radial-gradient(120% 120% at 15% 20%, #eef3ff 0%, #ecf2ff 40%, #f7faff 100%);
+  border: 1px solid #e6ecff;      /* 카드 자체 테두리 */
+  box-shadow: 0 6px 16px rgba(63, 99, 233, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.profile-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resp-btn {
+  padding: 6px 10px;
+  border: 1px solid #d6defa;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* 담당업무 팝오버 */
+.org-resp-popover {
+  position: absolute;
+  right: 8px;
+  top: 54px;
+  z-index: 50;
+  width: 360px;
+  max-width: calc(100vw - 40px);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 16px 28px rgba(26, 46, 109, 0.18);
+  overflow: hidden;
+}
+.org-resp-header {
+  position: sticky;
+  top: 0;
+  background: linear-gradient(180deg, #f6f9ff 0%, #ffffff 100%);
+  border-bottom: 1px solid #eef2ff;
+  padding: 10px 12px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+.org-resp-body {
+  padding: 10px 12px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+/* 상태점 */
+.status-dot { width: 14px; height: 14px; border-radius: 50%; }
+.status-dot--off { position: relative; }
+.status-dot--off .status-dot-inner {
+  position: absolute; inset: 3px; border-radius: 50%; background: #fff;
+}

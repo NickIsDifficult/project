@@ -17,6 +17,7 @@ const ProjectGlobalContext = createContext();
 export function ProjectGlobalProvider({ children }) {
   const [projects, setProjects] = useState([]);
   const [tasksByProject, setTasksByProject] = useState({});
+  const [employees, setEmployees] = useState([]); // ✅ 전역 직원 목록 추가
   const [loading, setLoading] = useState(false);
 
   const [uiState, setUiState] = useState({
@@ -38,6 +39,20 @@ export function ProjectGlobalProvider({ children }) {
       mountedRef.current = false;
     };
   }, []);
+
+  /* ----------------------------------------
+   * 🔹 직원 목록 불러오기 (최초 1회만)
+   * ---------------------------------------- */
+  const fetchEmployees = useCallback(async () => {
+    try {
+      // 이미 불러온 적 있으면 재요청 안 함
+      if (employees.length > 0) return;
+      const { data } = await API.get("/employees/"); // ✅ '/employees/' 로 통일
+      if (mountedRef.current) setEmployees(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("❌ 직원 목록 불러오기 실패:", err);
+    }
+  }, [employees.length]);
 
   /* ----------------------------------------
    * 🔹 프로젝트 전체 불러오기
@@ -115,35 +130,32 @@ export function ProjectGlobalProvider({ children }) {
    * 🔹 초기 로드
    * ---------------------------------------- */
   useEffect(() => {
+    fetchEmployees(); // ✅ 최초 실행 시 직원 불러오기
     fetchAllProjects();
     return () => {
       fetchTasksByProject.cancel?.();
       fetchTasksByProject.flush?.();
     };
-  }, [fetchAllProjects, fetchTasksByProject]);
+  }, [fetchAllProjects, fetchTasksByProject, fetchEmployees]);
 
   /* ----------------------------------------
-   * 🔹 신규 프로젝트 자동 로드 (단회 실행)
+   * 🔹 신규 프로젝트 자동 로드
    * ---------------------------------------- */
   useEffect(() => {
     if (!projects.length) return;
     const uncached = projects.filter(p => !tasksByProject[p.project_id]);
     if (!uncached.length) return;
-
-    // ✅ 한 번만 실행 (tasksByProject 변경 시엔 다시 실행되지 않음)
     uncached.forEach(p => fetchTasksByProjectNow(p.project_id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projects.length]); // ← projects 배열 자체가 아닌 길이만 추적
+  }, [projects.length]); // ← projects 배열 전체가 아닌 길이만 추적
 
   /* ----------------------------------------
-   * 🔹 lastUpdatedAt 시 전체 새로고침 (루프 방지)
+   * 🔹 lastUpdatedAt 변경 시 전체 새로고침
    * ---------------------------------------- */
   useEffect(() => {
     let active = true;
     (async () => {
       await fetchAllProjects();
       const currentProjects = projects;
-      // ✅ fetchAllProjects 이후 projects가 갱신되더라도 중복 호출 방지
       for (const p of currentProjects) {
         if (!active) break;
         await fetchTasksByProjectNow(p.project_id);
@@ -152,8 +164,7 @@ export function ProjectGlobalProvider({ children }) {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastUpdatedAt]); // ← projects 제거, fetchAllProjects만 유지
+  }, [lastUpdatedAt]); // ← projects 제거
 
   /* ----------------------------------------
    * 🔹 뷰 전환 시 UI 초기화
@@ -183,6 +194,8 @@ export function ProjectGlobalProvider({ children }) {
       updateTaskLocal,
       refreshProjects,
       loading,
+      employees, // ✅ 추가
+      fetchEmployees, // ✅ 추가
       selectedTask,
       setSelectedTask,
       selectedProject,
@@ -198,6 +211,7 @@ export function ProjectGlobalProvider({ children }) {
       projects,
       tasksByProject,
       loading,
+      employees,
       selectedTask,
       selectedProject,
       uiState,

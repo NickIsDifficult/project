@@ -3,7 +3,6 @@ import { debounce } from "lodash";
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useProjectGlobal } from "../context/ProjectGlobalContext";
-import { getEmployees } from "../services/api/employee";
 import { getProject } from "../services/api/project";
 import {
   createComment,
@@ -36,20 +35,18 @@ const normalizeTask = t => ({
 
 /**
  * ✅ useProjectDetail (프로젝트 + 업무 상세 통합 훅)
+ * employees는 ProjectGlobalContext에서 가져옴
  */
 export function useProjectDetail(projectId, taskId = null) {
-  const { fetchTasksByProject, updateTaskLocal } = useProjectGlobal();
+  const { fetchTasksByProject, updateTaskLocal, employees } = useProjectGlobal(); // ✅ 전역 데이터 사용
 
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
   const [attachments, setAttachments] = useState([]);
-  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ✅ 전역 캐시
-  const employeeCache = useRef(null);
   const isFetchingRef = useRef(false);
 
   /* =============================
@@ -67,7 +64,7 @@ export function useProjectDetail(projectId, taskId = null) {
         const taskData = await getTask(projectId, taskId);
         setTask(normalizeTask(taskData));
 
-        // ✅ 댓글 & 첨부파일 병렬
+        // ✅ 댓글 & 첨부파일 병렬 요청
         const [commentData, attachData] = await Promise.allSettled([
           getComments(projectId, taskId),
           getAttachments(projectId, taskId),
@@ -81,15 +78,6 @@ export function useProjectDetail(projectId, taskId = null) {
         setTasks(Array.isArray(projectData.task) ? projectData.task.map(normalizeTask) : []);
         setComments([]);
         setAttachments([]);
-      }
-
-      // ✅ 직원 목록 (캐시)
-      if (!employeeCache.current) {
-        const list = await getEmployees();
-        employeeCache.current = list;
-        setEmployees(list);
-      } else {
-        setEmployees(employeeCache.current);
       }
     } catch (err) {
       if (err?.response?.status !== 404) toast.error("상세 정보를 불러올 수 없습니다.");
@@ -224,7 +212,6 @@ export function useProjectDetail(projectId, taskId = null) {
   const handleSaveEdit = async payload => {
     if (!taskId) return null;
     try {
-      // ✅ 저장 시 end_date → due_date 변환
       const normalizedOut = {
         ...payload,
         due_date: payload.due_date ?? payload.end_date ?? null,
@@ -232,8 +219,6 @@ export function useProjectDetail(projectId, taskId = null) {
       delete normalizedOut.end_date;
 
       const updated = await updateTask(projectId, taskId, normalizedOut);
-
-      // ✅ 다시 화면 표시용 end_date 세팅
       const normalizedIn = normalizeTask(updated);
       setTask(normalizedIn);
       updateTaskLocal(taskId, normalizedIn);
@@ -261,7 +246,7 @@ export function useProjectDetail(projectId, taskId = null) {
     task,
     comments,
     attachments,
-    employees,
+    employees, // ✅ 전역 employees 전달
     loading,
     reload,
     handleAddComment,

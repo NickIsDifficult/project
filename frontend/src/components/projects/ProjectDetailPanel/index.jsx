@@ -1,50 +1,39 @@
 // src/components/project/ProjectDetailPanel/index.jsx
 import { useEffect, useState } from "react";
+import {
+  ProjectDetailProvider,
+  useProjectDetailContext,
+} from "../../../context/ProjectDetailContext";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
-import { deleteTask } from "../../../services/api/task";
 import Button from "../../common/Button";
 import { Drawer } from "../../common/Drawer";
 import { Loader } from "../../common/Loader";
 import ProjectInfoView from "./ProjectInfoView";
 import TaskEditForm from "./TaskEditForm";
 import TaskInfoView from "./TaskInfoView";
-import { useTaskDetail } from "./useTaskDetail";
 
-/* ----------------------------------------
- * 🧩 JWT 디코더
- * ---------------------------------------- */
-function decodeJwt(token) {
-  try {
-    const payload = token.split(".")[1];
-    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const json = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join(""),
-    );
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
+export default function ProjectDetailPanel({ projectId, taskId, onClose }) {
+  return (
+    <ProjectDetailProvider projectId={projectId} taskId={taskId}>
+      <PanelContent onClose={onClose} />
+    </ProjectDetailProvider>
+  );
 }
 
-/**
- * ✅ ProjectDetailPanel (프로젝트/업무 상세보기)
- */
-export default function ProjectDetailPanel({ projectId, taskId, onClose, onAddSubtask }) {
+function PanelContent({ onClose }) {
+  const {
+    project,
+    task,
+    loading,
+    employees,
+    handleSaveEdit,
+    handleProgressChange,
+    handleStatusChange,
+    reload,
+  } = useProjectDetailContext();
   const { fetchTasksByProject, setUiState } = useProjectGlobal();
-  const { task, employees, loading, handleStatusChange, handleProgressChange, handleSaveEdit } =
-    useTaskDetail(projectId, taskId);
 
   const [openEditDrawer, setOpenEditDrawer] = useState(false);
-
-  // ✅ ESC 닫기 핸들러
-  useEffect(() => {
-    const onEsc = e => e.key === "Escape" && handleClose();
-    window.addEventListener("keydown", onEsc);
-    return () => window.removeEventListener("keydown", onEsc);
-  }, []);
 
   const handleClose = () => {
     setUiState(prev => ({
@@ -55,77 +44,87 @@ export default function ProjectDetailPanel({ projectId, taskId, onClose, onAddSu
     onClose?.();
   };
 
-  // 🔹 업무 삭제 처리
-  const handleDeleteTask = async () => {
-    if (!taskId) return;
-    if (!window.confirm("이 업무를 삭제하시겠습니까?")) return;
-    try {
-      await deleteTask(projectId, taskId);
-      await fetchTasksByProject(projectId);
-      handleClose(); // 패널 닫기
-    } catch (err) {
-      console.error("❌ 업무 삭제 실패:", err);
-      alert("업무 삭제 중 오류가 발생했습니다.");
-    }
-  };
+  useEffect(() => {
+    const esc = e => e.key === "Escape" && handleClose();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, []);
 
-  // ✅ 로딩 상태
-  if (loading)
+  if (loading.project || loading.tasks)
     return (
-      <div className="fixed top-0 right-0 w-[480px] h-full bg-white flex items-center justify-center shadow-lg z-50">
-        <Loader text="상세 정보 불러오는 중..." />
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          width: 480,
+          height: "100%",
+          background: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 0 20px rgba(0,0,0,0.15)",
+        }}
+      >
+        <Loader text="상세 불러오는 중..." />
       </div>
     );
 
-  if (!task)
+  if (!project && !task)
     return (
-      <div className="fixed top-0 right-0 w-[480px] h-full bg-white flex flex-col items-center justify-center shadow-lg z-50">
-        <p className="text-gray-600 mb-4">❌ 데이터를 찾을 수 없습니다.</p>
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          width: 480,
+          height: "100%",
+          background: "#fff",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 0 20px rgba(0,0,0,0.15)",
+        }}
+      >
+        <p style={{ color: "#777", marginBottom: 16 }}>❌ 데이터를 찾을 수 없습니다.</p>
         <Button variant="secondary" onClick={handleClose}>
           닫기
         </Button>
       </div>
     );
 
-  const isProject = task.isProject || task.type === "PROJECT" || task.task_type === "PROJECT";
+  const isTask = !!task;
 
   return (
     <>
-      <Drawer open title={isProject ? "📁 프로젝트 상세" : "🧩 업무 상세"} onClose={handleClose}>
-        <div className="flex flex-col gap-6 pb-6">
-          {isProject ? (
-            <ProjectInfoView project={task} onClose={handleClose} />
-          ) : (
+      <Drawer open title={isTask ? "🧩 업무 상세" : "📁 프로젝트 상세"} onClose={handleClose}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24, paddingBottom: 24 }}>
+          {isTask ? (
             <TaskInfoView
               task={task}
+              onRefresh={reload}
+              employees={employees}
+              onProgressChange={handleProgressChange}
+              onStatusChange={handleStatusChange}
               onEdit={() => setOpenEditDrawer(true)}
-              onStatusChange={async status => {
-                await handleStatusChange(status);
-                await fetchTasksByProject(projectId);
-              }}
-              onProgressChange={async progress => {
-                await handleProgressChange(progress);
-                await fetchTasksByProject(projectId);
-              }}
-              onAddSubtask={onAddSubtask}
-              onDeleteTask={handleDeleteTask}
             />
+          ) : (
+            <ProjectInfoView project={project} onClose={handleClose} />
           )}
         </div>
       </Drawer>
 
-      {/* 🔹 업무 수정 Drawer */}
-      {!isProject && (
+      {isTask && (
         <Drawer open={openEditDrawer} title="✏️ 업무 수정" onClose={() => setOpenEditDrawer(false)}>
           <TaskEditForm
             task={task}
             employees={employees}
             onSave={async formData => {
-              const updated = await handleSaveEdit(formData);
-              if (updated) {
-                await fetchTasksByProject(projectId);
-                setOpenEditDrawer(false);
-              }
+              await handleSaveEdit(formData);
+              await reload();
+              await fetchTasksByProject(project.project_id);
+              setOpenEditDrawer(false);
             }}
             onCancel={() => setOpenEditDrawer(false)}
           />

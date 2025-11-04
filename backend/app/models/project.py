@@ -108,6 +108,15 @@ class Project(Base):
     def __repr__(self):
         return f"<Project {self.project_id} {self.project_name}>"
 
+    # 🔹 title <-> project_name 매핑
+    @hybrid_property
+    def title(self) -> str | None:
+        return self.project_name
+
+    @title.setter
+    def title(self, v: str | None):
+        self.project_name = v or self.project_name
+
 
 # ============================================================
 # 👥 ProjectMember
@@ -157,15 +166,26 @@ class Task(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=datetime.utcnow)
 
-    # ✅ Relations
+    # ✅ 관계
     project = relationship("Project", back_populates="task", lazy="selectin")
-    parenttask = relationship(
-        "Task", remote_side="Task.task_id", back_populates="subtask", lazy="selectin"
+
+    # ✅ 자기참조 (하위업무 트리 구조)
+    parent = relationship(
+        "Task",
+        remote_side="Task.task_id",
+        back_populates="subtasks",
+        lazy="selectin",
     )
-    subtask = relationship(
-        "Task", back_populates="parenttask", cascade="all, delete-orphan", lazy="selectin"
+    subtasks = relationship(
+        "Task",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+        single_parent=True,  # ✅ 중요!
+        lazy="selectin",
+        order_by="Task.task_id",
     )
 
+    # ✅ 나머지 관계
     taskmember = relationship(
         "TaskMember",
         back_populates="task",

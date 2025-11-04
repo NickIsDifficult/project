@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List
-from app.schemas.project import Project as ProjectSchema
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
 from app.database import get_db
+from app.schemas.project import Project as ProjectSchema
 from app.services import project_service
 from app.utils.token import get_current_user
 
@@ -53,7 +52,7 @@ def get_project_by_id(db: Session, project_id: int):
         db.query(ProjectModel)
         .options(
             joinedload(ProjectModel.task).joinedload(TaskModel.subtask),
-            joinedload(ProjectModel.attachment),   # ✅ 첨부파일까지 로드
+            joinedload(ProjectModel.attachment),  # ✅ 첨부파일까지 로드
         )
         .filter(ProjectModel.project_id == project_id)
         .first()
@@ -133,14 +132,23 @@ def update_project(
 
     # 🔹 1. 필드 갱신 (assignee_ids 제외)
     for key, value in update_data.items():
-        if key in ["task", "attachments", "projectmember", "taskcomment", "milestone", "assignee_ids"]:
+        if key in [
+            "task",
+            "attachments",
+            "projectmember",
+            "taskcomment",
+            "milestone",
+            "assignee_ids",
+        ]:
             continue
         setattr(db_project, key, value)
 
     # 🔹 2. 프로젝트 담당자(assignee_ids) 동기화
     if "assignee_ids" in update_data:
         new_ids = [int(i) for i in update_data.get("assignee_ids") or []]
-        old_ids = {m.emp_id for m in db_project.projectmember} if db_project.projectmember else set()
+        old_ids = (
+            {m.emp_id for m in db_project.projectmember} if db_project.projectmember else set()
+        )
 
         # 삭제
         for m in list(db_project.projectmember or []):
@@ -188,9 +196,11 @@ def update_project(
     # 🔹 4. 첨부파일 갱신
     if "attachments" in update_data:
         for a_data in update_data["attachments"]:
-            db_attach = db.query(models.Attachment).filter(
-                models.Attachment.attachment_id == a_data["attachment_id"]
-            ).first()
+            db_attach = (
+                db.query(models.Attachment)
+                .filter(models.Attachment.attachment_id == a_data["attachment_id"])
+                .first()
+            )
             if db_attach:
                 for field, val in a_data.items():
                     if hasattr(db_attach, field):
@@ -208,9 +218,9 @@ def update_project(
         db.query(models.Project)
         .options(
             joinedload(models.Project.task)
-            .joinedload(models.Task.subtask)
-            .joinedload(models.Task.attachment),
-            joinedload(models.Project.attachment),
+            .joinedload(models.Task.subtasks)
+            .joinedload(models.Task.attachments),
+            joinedload(models.Project.attachments),
             joinedload(models.Project.projectmember),
         )
         .filter(models.Project.project_id == project_id)
@@ -218,6 +228,8 @@ def update_project(
     )
 
     return ProjectSchema.model_validate(db_project, from_attributes=True)
+
+
 # =====================================================
 # ✅ 프로젝트 삭제
 # =====================================================

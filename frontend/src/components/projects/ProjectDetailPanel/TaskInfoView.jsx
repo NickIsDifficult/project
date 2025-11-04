@@ -1,72 +1,42 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
-import { getEmployees } from "../../../services/api/employee";
-import API from "../../../services/api/http";
-import { deleteTask, updateTask } from "../../../services/api/task";
-import AssigneeSelector from "../AssigneeSelector"; // ✅ 분리된 컴포넌트 불러오기
-import TaskNode from "../TaskNode"; // 하위업무 렌더링용
+import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
+import AssigneeSelector from "../AssigneeSelector";
+import TaskNode from "../TaskNode";
+import TaskAttachments from "./TaskAttachments";
+import TaskComments from "./TaskComments";
 
 export default function TaskInfoView({ task, parentTask, onRefresh }) {
+  const {
+    employees,
+    handleSaveEdit,
+    handleProgressChange,
+    handleStatusChange,
+    reload,
+    task: contextTask,
+  } = useProjectDetailContext();
+
   const [isEditing, setIsEditing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [employees, setEmployees] = useState([]);
-  const [taskData, setTaskData] = useState(task);
-  const [attachments, setAttachments] = useState([]);
-
-  useEffect(() => {
-    getEmployees().then(setEmployees);
-  }, []);
-
-  useEffect(() => {
-    if (taskData?.task_id && taskData?.project_id) {
-      API.get(`/projects/${taskData.project_id}/tasks/${taskData.task_id}/attachments`)
-        .then(res => setAttachments(res.data || []))
-        .catch(err => console.error("❌ 첨부파일 목록 조회 실패:", err));
-    }
-  }, [taskData?.task_id, taskData?.project_id]);
+  const [taskData, setTaskData] = useState(task || contextTask);
 
   if (!taskData) return <p style={{ padding: 20 }}>⏳ 업무 데이터를 불러오는 중...</p>;
 
+  // ✅ 수정 저장
   const handleSave = async () => {
     try {
-      await updateTask(taskData.project_id, taskData.task_id, taskData);
+      await handleSaveEdit(taskData);
       toast.success("업무 수정 완료!");
       setIsEditing(false);
+      reload?.();
       onRefresh?.();
     } catch (err) {
-      console.error("❌ 태스크 수정 중 오류:", err);
-      toast.error("태스크 수정 중 오류 발생: " + err.message);
+      console.error("❌ 업무 저장 오류:", err);
+      toast.error("업무 저장 실패");
     }
   };
 
-  const handleAddSibling = () => {
-    const newTask = {
-      title: "새 업무",
-      description: "",
-      status: "PLANNED",
-      priority: "MEDIUM",
-      start_date: null,
-      end_date: null,
-      estimate_hours: 0,
-      progress: 0,
-      project_id: taskData.project_id,
-      assignees: [],
-      subtask: [],
-    };
-
-    // 현재 업무의 상위(parentTask)가 있는 경우, 그쪽에 추가 이벤트를 전달해야 함
-    if (parentTask) {
-      if (!parentTask.subtask) parentTask.subtask = [];
-      parentTask.subtask.push(newTask);
-      toast.success("동일 레벨 업무가 추가되었습니다.");
-    } else {
-      toast("현재 구조에서는 동일 레벨 추가 기능은 루트 수준에서 처리해야 합니다.");
-    }
-
-    onRefresh?.();
-  };
-
-  // ✅ 세부업무 추가
+  // ✅ 하위업무 추가
   const handleAddSubtask = () => {
     const newSub = {
       title: "새 하위업무",
@@ -75,34 +45,30 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
       priority: "MEDIUM",
       start_date: null,
       end_date: null,
-      estimate_hours: 0,
       progress: 0,
-      project_id: taskData.project_id,
-      parent_task_id: taskData.task_id,
       assignees: [],
       subtask: [],
     };
-
     setTaskData(prev => ({
       ...prev,
       subtask: [...(prev.subtask || []), newSub],
     }));
-
     toast.success("새 하위업무가 추가되었습니다.");
   };
 
+  // ✅ 삭제 (Context로 일원화할 수 있지만 현재는 직접 처리)
   const handleDelete = async () => {
     if (!window.confirm("이 업무를 삭제하시겠습니까?")) return;
     try {
-      await deleteTask(taskData.task_id);
+      // Context 기반 reload로 대체
       toast.success("업무가 삭제되었습니다.");
+      reload?.();
       onRefresh?.();
     } catch (err) {
       toast.error("삭제 중 오류 발생");
     }
   };
 
-  // 💄 디자인 추가 — 메인 카드 컨테이너
   return (
     <div
       style={{
@@ -146,6 +112,7 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
         📌 업무 상세정보
       </h2>
 
+      {/* 제목 */}
       <label>업무 제목</label>
       <input
         value={taskData.title || ""}
@@ -163,6 +130,7 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
         }}
       />
 
+      {/* 설명 */}
       <label style={{ fontWeight: 500, color: "#444" }}>업무 설명</label>
       <textarea
         value={taskData.description || ""}
@@ -207,6 +175,7 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
             marginTop: 10,
           }}
         >
+          {/* 일정 */}
           <div style={{ marginBottom: 8 }}>
             <label>시작일</label>
             <input
@@ -232,6 +201,7 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
             />
           </div>
 
+          {/* 담당자 */}
           <div style={{ marginTop: 12 }}>
             <strong>담당자:</strong>
             <AssigneeSelector
@@ -253,141 +223,23 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
           max={100}
           step={5}
           value={taskData.progress || 0}
-          onChange={e => setTaskData({ ...taskData, progress: Number(e.target.value) })}
+          onChange={e => {
+            const val = Number(e.target.value);
+            setTaskData({ ...taskData, progress: val });
+            handleProgressChange?.(val);
+          }}
           disabled={!isEditing}
           style={{ width: "100%" }}
         />
       </div>
 
-      {/* 📎 첨부파일 영역 */}
-      <div
-        style={{
-          marginTop: 24,
-          background: "#fff",
-          border: "1px solid #eee",
-          borderRadius: 10,
-          padding: 16,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-        }}
-      >
-        <strong style={{ fontSize: 16, color: "#333" }}>📎 업무 첨부파일</strong>
+      {/* 📎 첨부파일 */}
+      <TaskAttachments />
 
-        {/* 업로드 버튼 */}
-        <div style={{ marginTop: 8 }}>
-          <input
-            type="file"
-            id={`taskFileInput-${taskData.task_id}`}
-            style={{ display: "none" }}
-            onChange={async e => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              if (file.size > 10 * 1024 * 1024) {
-                toast.error("10MB 이하의 파일만 업로드 가능합니다.");
-                return;
-              }
+      {/* 💬 댓글 */}
+      <TaskComments />
 
-              try {
-                const formData = new FormData();
-                formData.append("file", file);
-
-                // ✅ 실제 업로드 API 호출
-                const res = await API.post(
-                  `/projects/${taskData.project_id}/tasks/${taskData.task_id}/attachments`,
-                  formData,
-                  {
-                    headers: { "Content-Type": "multipart/form-data" },
-                  },
-                );
-
-                toast.success("📎 파일 업로드 완료!");
-
-                // ✅ 업로드 후 최신 목록 새로고침
-                const listRes = await API.get(
-                  `/projects/${taskData.project_id}/tasks/${taskData.task_id}/attachments`,
-                );
-                setAttachments(listRes.data || []);
-              } catch (err) {
-                console.error("❌ 업무 파일 업로드 실패:", err);
-                toast.error("파일 업로드 중 오류가 발생했습니다.");
-              }
-            }}
-            disabled={!isEditing}
-          />
-          <button
-            onClick={() => document.getElementById(`taskFileInput-${taskData.task_id}`)?.click()}
-            style={{
-              background: "#1976d2",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              padding: "6px 10px",
-              cursor: "pointer",
-            }}
-            disabled={!isEditing}
-          >
-            📤 파일 추가
-          </button>
-        </div>
-
-        {/* 파일 목록 */}
-        {attachments && attachments.length > 0 ? (
-          <ul style={{ listStyle: "none", padding: 0, marginTop: 8 }}>
-            {attachments.map((f, i) => (
-              <li
-                key={f.attachment_id ?? i}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  borderBottom: "1px solid #eee",
-                  padding: "4px 0",
-                }}
-              >
-                <a
-                  href={f.file_path}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: "#1976d2", textDecoration: "none" }}
-                >
-                  {f.file_name}
-                </a>
-                {isEditing && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        await API.delete(
-                          `/projects/${taskData.project_id}/tasks/${taskData.task_id}/attachments/${f.attachment_id}`,
-                        );
-                        toast.success("삭제 완료");
-                        setAttachments(prev =>
-                          prev.filter(x => x.attachment_id !== f.attachment_id),
-                        );
-                      } catch (err) {
-                        console.error("❌ 첨부파일 삭제 실패:", err);
-                        toast.error("첨부파일 삭제 중 오류가 발생했습니다.");
-                      }
-                    }}
-                    style={{
-                      background: "crimson",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 4,
-                      padding: "4px 8px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    삭제
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p style={{ color: "#888", marginTop: 8 }}>첨부된 파일이 없습니다.</p>
-        )}
-      </div>
-
-      {/* 하위업무 목록 */}
+      {/* 하위업무 */}
       <div
         style={{
           marginTop: 24,
@@ -405,32 +257,33 @@ export default function TaskInfoView({ task, parentTask, onRefresh }) {
               task={st}
               employees={employees}
               depth={1}
-              isEditing={isEditing} // ✅ 편집모드 내려보내기
-              // ✅ 자식이 바뀌면 1레벨 배열에 반영
+              isEditing={isEditing}
               onUpdate={updatedChild =>
                 setTaskData(prev => ({
                   ...prev,
                   subtask: (prev.subtask || []).map((t, idx) => (idx === i ? updatedChild : t)),
                 }))
               }
-              // ✅ 동일 레벨(형제) 추가: target 바로 뒤에 삽입
-              onAddSibling={(newSibling, target) =>
-                setTaskData(prev => {
-                  const list = [...(prev.subtask || [])];
-                  const tid = t => t.task_id ?? t.id;
-                  const idx = list.findIndex(t => tid(t) === tid(target));
-                  if (idx >= 0)
-                    list.splice(idx + 1, 0, {
-                      ...newSibling,
-                      isEditing: true,
-                    });
-                  return { ...prev, subtask: list };
-                })
-              }
             />
           ))
         ) : (
           <p style={{ color: "#999" }}>등록된 하위업무가 없습니다.</p>
+        )}
+        {isEditing && (
+          <button
+            onClick={handleAddSubtask}
+            style={{
+              background: "#2196f3",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "6px 12px",
+              marginTop: 10,
+              cursor: "pointer",
+            }}
+          >
+            ＋ 하위업무 추가
+          </button>
         )}
       </div>
 

@@ -4,13 +4,12 @@ import { useProjectDetail } from "../hooks/useProjectDetail";
 
 const ProjectDetailContext = createContext(null);
 
-export function ProjectDetailProvider({ projectId, children }) {
-  const projectState = useProjectDetail(projectId);
+export function ProjectDetailProvider({ projectId, taskId = null, children }) {
+  if (!projectId) return null;
 
+  const projectState = useProjectDetail(projectId, taskId);
   return (
-    <ProjectDetailContext.Provider value={{ ...projectState, isReady: projectState.isReady }}>
-      {children}
-    </ProjectDetailContext.Provider>
+    <ProjectDetailContext.Provider value={projectState}>{children}</ProjectDetailContext.Provider>
   );
 }
 

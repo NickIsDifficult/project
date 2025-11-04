@@ -1,354 +1,149 @@
+// src/components/project/ProjectDetailPanel/ProjectDetailForm.jsx
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { ProjectDetailProvider } from "../../../context/ProjectDetailContext";
 import { useProjectGlobal } from "../../../context/ProjectGlobalContext";
 import { getEmployees } from "../../../services/api/employee";
-import API from "../../../services/api/http";
 import { deleteProject, getProject, updateProject } from "../../../services/api/project";
-import TaskNode from "../TaskNode"; // ✅ 외부 TaskNode 가져오기
-import TaskDetailPanel from "./TaskInfoView";
+import TaskNode from "../TaskNode";
+import TaskInfoView from "./TaskInfoView";
 
-const transformTaskFromApi = t => {
-  // 안전 복사
-  const task = { ...t };
-
-  // 1) assignees 필드 보강 (UI가 assignees 배열을 읽음)
-  // - 서버가 assignee_ids 로 주면 그걸 사용
-  // - 서버가 task_member/employee 구조로 주면 emp_id 추출
-  if (Array.isArray(task.assignees)) {
-    // already present
-  } else if (Array.isArray(task.assignee_ids)) {
-    task.assignees = task.assignee_ids.map(id => Number(id));
-  } else if (Array.isArray(task.task_member) || Array.isArray(task.taskMembers)) {
-    const members = task.task_member || task.taskMembers || [];
-    task.assignees = members.map(m => Number(m.emp_id ?? m.empId ?? m.emp_id));
-  } else {
-    task.assignees = [];
-  }
-
-  // 2) 날짜 필드 보강 — UI는 "" 로 렌더링하므로 null -> "" 로 변환
-  task.start_date = task.start_date ?? task.startDate ?? task.start_date ?? task.start_at ?? "";
-  task.end_date = task.end_date ?? task.endDate ?? task.due_date ?? task.end_at ?? "";
-
-  // 3) ensure attachments & subtask arrays exist
-  task.attachments = Array.isArray(task.attachments) ? task.attachments : [];
-  task.subtask = Array.isArray(task.subtask) ? task.subtask.map(transformTaskFromApi) : [];
-
-  return task;
+/* ==============================
+  ⚙️ 유틸 함수
+============================== */
+const normalizeDate = v => {
+  if (!v) return null;
+  const str = String(v).trim();
+  if (str === "" || str.toLowerCase() === "null" || str.toLowerCase() === "undefined") return null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(str) ? str : null;
 };
 
-const transformProject = p => {
-  const proj = { ...p };
-  const tasks = Array.isArray(proj.task) ? proj.task : [];
-  proj.task = tasks.map(transformTaskFromApi);
-  return proj;
-};
-/* =========================================
- ✅ 담당자 선택 컴포넌트
-========================================= */
-// ✅ 공통: 빈 문자열 날짜 → null
-const normalizeDate = v => (v === "" || v === undefined ? null : v);
-function generateNextTaskId(tasks = []) {
-  let maxId = 0;
-  const traverse = arr => {
-    for (const t of arr) {
-      if (t.task_id && Number(t.task_id) > maxId) maxId = Number(t.task_id);
-      if (t.subtask?.length) traverse(t.subtask);
-    }
-  };
-  traverse(tasks);
-  return maxId + 1;
-}
-// ✅ 태스크/하위태스크 재귀 정규화
-const normalizeTask = (t, projectId) => {
-  const safe = { ...t };
+/** ✅ 업무(Task) 정규화 함수 */
+/** ✅ 업무(Task) 정규화 함수 (강화 버전) */
+const normalizeTask = (task, projectId, parentTaskId = null) => {
+  const safeNum = v => (v === "" || v == null || isNaN(v) ? null : Number(v));
 
-  // ✅ 숫자 변환 보강
-  if (safe.task_id != null) safe.task_id = Number(safe.task_id);
-  safe.project_id = Number(safe.project_id ?? projectId);
-
-  // 날짜
-  safe.start_date = normalizeDate(safe.start_date);
-  safe.end_date = normalizeDate(safe.end_date);
-  safe.due_date = normalizeDate(safe.due_date);
-
-  // 기본값 보강
-  if (safe.status == null) safe.status = "PLANNED";
-  if (safe.priority == null) safe.priority = "MEDIUM";
-  if (safe.progress == null) safe.progress = 0;
-
-  // ✅ 담당자 배열 숫자 변환
-  if (!Array.isArray(safe.assignee_ids)) {
-    safe.assignee_ids = Array.isArray(safe.assignees) ? safe.assignees.map(a => Number(a)) : [];
-  } else {
-    safe.assignee_ids = safe.assignee_ids.map(a => Number(a));
-  }
-  delete safe.assignees;
-
-  // 첨부파일 보정
-  if (!Array.isArray(safe.attachments)) safe.attachments = [];
-
-  // ✅ 하위업무 재귀 호출
-  safe.subtask = (safe.subtask || []).map(st => normalizeTask(st, projectId));
-
-  return safe;
-};
-
-// ✅ 프로젝트 저장용 정규화
-const normalizeProjectForSave = (project, fallbackProjectId) => {
-  const pid = Number(project?.project_id ?? fallbackProjectId);
-  const safe = { ...project, project_id: pid };
-
-  safe.start_date = normalizeDate(safe.start_date);
-  safe.end_date = normalizeDate(safe.end_date);
-
-  // ✅ 태스크 정규화
-  const normalizeTask2 = (t, projectId) => {
-    const safeTask = { ...t };
-    safeTask.task_id = Number(safeTask.task_id ?? 0);
-    safeTask.project_id = Number(projectId);
-    safeTask.start_date = normalizeDate(safeTask.start_date);
-    safeTask.end_date = normalizeDate(safeTask.end_date);
-    safeTask.due_date = normalizeDate(safeTask.due_date);
-
-    // ✅ assignee_ids → taskmember 변환
-    let ids = [];
-    if (Array.isArray(safeTask.assignee_ids)) {
-      ids = safeTask.assignee_ids.map(a => Number(a));
-    } else if (Array.isArray(safeTask.assignees)) {
-      ids = safeTask.assignees.map(a => Number(a));
-    }
-
-    // ✅ taskmember 생성
-    safeTask.taskmember = ids.map(id => ({
-      emp_id: Number(id),
-      project_id: Number(projectId),
-    }));
-
-    // ✅ 하위업무 재귀
-    safeTask.subtask = (safeTask.subtask || []).map(st => normalizeTask2(st, projectId));
-
-    // 불필요한 필드 제거
-    delete safeTask.assignee_ids;
-    delete safeTask.assignees;
-
-    return safeTask;
+  const obj = {
+    project_id: safeNum(projectId),
+    parent_task_id: safeNum(parentTaskId),
+    title: task.title?.trim() || "제목 없음",
+    description: task.description || "",
+    status: task.status || "PLANNED",
+    priority: task.priority || "MEDIUM",
+    progress: safeNum(task.progress ?? 0) ?? 0,
+    start_date: normalizeDate(task.start_date),
+    due_date: normalizeDate(task.end_date || task.due_date),
+    assignee_ids:
+      Array.isArray(task.assignees) || Array.isArray(task.assignee_ids)
+        ? (task.assignees || task.assignee_ids)
+            .filter(v => v !== "" && v != null)
+            .map(a => {
+              if (typeof a === "object" && a.emp_id != null) return Number(a.emp_id);
+              return Number(a);
+            })
+            .filter(n => !isNaN(n))
+        : [],
+    subtask: Array.isArray(task.subtask)
+      ? task.subtask.map(st => normalizeTask(st, projectId, task.task_id))
+      : [],
   };
 
-  const tasks = Array.isArray(safe.task) ? safe.task.map(t => normalizeTask2(t, pid)) : [];
+  // ✅ null이면 task_id 키 자체 제거
+  const tid = safeNum(task.task_id);
+  if (tid !== null) obj.task_id = tid;
+
+  return obj;
+};
+
+/** ✅ 프로젝트 전체 페이로드 정규화 */
+const normalizeProjectPayload = (project, projectId, mainAssignees) => {
+  const safeNum = v => (v === "" || v == null || isNaN(v) ? null : Number(v));
+  const pid = safeNum(project?.project_id ?? projectId);
 
   return {
     project_id: pid,
-    project_name: safe.project_name || safe.title || "",
-    description: safe.description ?? "",
-    start_date: safe.start_date,
-    end_date: safe.end_date,
-    status: safe.status ?? "PLANNED",
-    assignee_ids: Array.isArray(safe.assignee_ids)
-      ? safe.assignee_ids.map(id => Number(id))
-      : Array.isArray(safe.projectmember)
-        ? safe.projectmember.map(pm => Number(pm.emp_id))
-        : [],
-    task: tasks,
+    project_name: project.project_name?.trim() || project.title?.trim() || "제목 없음",
+    description: project.description ?? "",
+    start_date: normalizeDate(project.start_date),
+    end_date: normalizeDate(project.end_date),
+    status: project.status || "PLANNED",
+    // ✅ 담당자 숫자 변환
+    assignee_ids: (mainAssignees || [])
+      .filter(v => v !== "" && v != null)
+      .map(v => Number(v))
+      .filter(n => !isNaN(n)),
+    tasks: Array.isArray(project.tasks || project.task)
+      ? (project.tasks || project.task).map(t => normalizeTask(t, pid, null))
+      : [],
   };
 };
-function AssigneeSelector({ employees, selected, setSelected, disabled }) {
-  const [query, setQuery] = useState("");
 
-  const findEmployee = id => {
-    const numId = Number(id);
-    return (
-      employees.find(
-        e =>
-          Number(e.emp_id) === numId ||
-          Number(e.id) === numId ||
-          Number(e.employee?.emp_id) === numId ||
-          Number(e.employee?.id) === numId,
-      ) || null
-    );
-  };
-
-  const selectedEmployees = selected.map(id => findEmployee(id)).filter(Boolean);
-  const filtered = employees.filter(e => {
-    const name = e.name || e.employee?.name || e.employee?.employee_name || "";
-    const id = e.emp_id || e.id || e.employee?.emp_id || e.employee?.id;
-    return (
-      name.toLowerCase().includes(query.toLowerCase()) &&
-      !selected.some(sid => Number(sid) === Number(id))
-    );
-  });
-
-  return (
-    <div style={{ marginTop: 6, position: "relative" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {selectedEmployees.map(emp => {
-          const id = emp?.emp_id || emp?.id || emp?.employee?.emp_id || emp?.employee?.id;
-          const name =
-            emp?.name || emp?.employee?.name || emp?.employee?.employee_name || `ID:${id}`;
-          return (
-            <span
-              key={id}
-              style={{
-                background: "#e3f2fd",
-                color: "#1976d2",
-                padding: "4px 8px",
-                borderRadius: 16,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              {name}
-              {!disabled && (
-                <button
-                  onClick={() => setSelected(selected.filter(sid => Number(sid) !== Number(id)))}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    cursor: "pointer",
-                  }}
-                >
-                  ✕
-                </button>
-              )}
-            </span>
-          );
-        })}
-      </div>
-
-      {!disabled && (
-        <>
-          <input
-            type="text"
-            placeholder="담당자 검색"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            style={{ width: "100%", marginTop: 6 }}
-          />
-          {query && (
-            <div
-              style={{
-                border: "1px solid #ccc",
-                borderRadius: 6,
-                marginTop: 4,
-                maxHeight: 160,
-                overflowY: "auto",
-                background: "#fff",
-                position: "absolute",
-                zIndex: 1000,
-                width: "100%",
-              }}
-            >
-              {filtered.map(e => {
-                const name = e.name || e.employee?.name || e.employee?.employee_name;
-                const id = e.emp_id || e.id || e.employee?.emp_id || e.employee?.id;
-                return (
-                  <div
-                    key={id}
-                    onClick={() => {
-                      setSelected([...selected, Number(id)]);
-                      setQuery("");
-                    }}
-                    style={{
-                      padding: 8,
-                      cursor: "pointer",
-                      borderBottom: "1px solid #eee",
-                    }}
-                  >
-                    {name} ({id})
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-/* =========================================
- ✅ 메인: 프로젝트 상세 폼
-========================================= */
+/* ==============================
+  📋 프로젝트 상세 폼
+============================== */
 export default function ProjectDetailForm({ projectId, onClose }) {
   const {
     refreshProjects,
-    fetchTasksByProjectNow,
     updateProjectLocal,
     setLastUpdatedAt,
     setProjects,
     uiState,
     setUiState,
   } = useProjectGlobal();
-  const [isEditing, setIsEditing] = useState(false);
+
   const [project, setProject] = useState(null);
   const [employees, setEmployees] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
   const [mainAssignees, setMainAssignees] = useState([]);
   const [showDetails, setShowDetails] = useState(false);
 
+  /* ✅ 데이터 로드 */
   useEffect(() => {
-    if (projectId) {
-      // ✅ 기존 프로젝트 상세 보기
-      const fetchData = async () => {
-        try {
-          console.log("📡 getProject 호출:", projectId);
-          const [projectData, employeeData] = await Promise.all([
-            getProject(projectId),
-            getEmployees(),
-          ]);
-          console.log("📦 getProject 응답:", projectData);
-          setProject(transformProject(projectData));
-          setEmployees(employeeData);
-          const ownerIds = projectData?.projectmember?.map(pm => pm.emp_id) || [];
-          setMainAssignees(ownerIds);
-        } catch (err) {
-          console.error("❌ 데이터 로드 실패:", err);
-          toast.error("데이터를 불러오지 못했습니다.");
-        }
-      };
-      fetchData();
-    } else {
-      // ✅ 신규 프로젝트 작성 모드
-      console.warn("🆕 신규 프로젝트 작성 모드 진입");
-      setIsEditing(true); // ✅ 자동 편집 가능 상태로 전환
-      setProject({
-        project_name: "",
-        description: "",
-        start_date: "",
-        end_date: "",
-        status: "PLANNED",
-        task: [],
-        attachments: [],
-      });
-      getEmployees().then(setEmployees);
-    }
+    if (!projectId) return;
+    const fetchData = async () => {
+      try {
+        const [projectData, employeeData] = await Promise.all([
+          getProject(projectId),
+          getEmployees(),
+        ]);
+
+        // 업무 및 담당자 정리
+        setProject({
+          ...projectData,
+          task: Array.isArray(projectData.task)
+            ? projectData.task.map(t => ({
+                ...t,
+                assignees:
+                  Array.isArray(t.assignee_ids) && t.assignee_ids.length > 0
+                    ? t.assignee_ids
+                    : Array.isArray(t.taskmember)
+                      ? t.taskmember.map(m => m.emp_id)
+                      : [],
+              }))
+            : [],
+        });
+
+        setEmployees(employeeData);
+        setMainAssignees(projectData?.projectmember?.map(pm => pm.emp_id) || []);
+      } catch (err) {
+        console.error("❌ 데이터 로드 실패:", err);
+        toast.error("프로젝트 데이터를 불러오지 못했습니다.");
+      }
+    };
+    fetchData();
   }, [projectId]);
 
-  if (!project) return <p style={{ padding: 20 }}>⏳ 로딩 중...</p>;
+  if (!project)
+    return <p style={{ padding: 20, color: "#777" }}>⏳ 프로젝트 데이터를 불러오는 중...</p>;
 
-  const allTasks = project.task || [];
-  const childIds = new Set();
-  const collectChildIds = tasks => {
-    for (const t of tasks) {
-      if (t.subtask?.length) {
-        for (const st of t.subtask) {
-          childIds.add(st.task_id);
-          collectChildIds([st]);
-        }
-      }
-    }
-  };
-  collectChildIds(allTasks);
-  const rootTasks = allTasks.filter(t => !childIds.has(t.task_id));
-
-  const handleAddRootTask = () => {
-    const nextId = generateNextTaskId(project.task || []);
+  /* ✅ 업무 추가 */
+  const handleAddTask = () => {
     const newTask = {
-      task_id: nextId,
+      task_id: Date.now(),
       title: "",
-      description: "",
       status: "PLANNED",
       priority: "MEDIUM",
+      progress: 0,
       assignees: [],
       subtask: [],
       isEditing: true,
@@ -359,60 +154,52 @@ export default function ProjectDetailForm({ projectId, onClose }) {
     }));
   };
 
+  /* ✅ 저장 */
   const handleSave = async () => {
     try {
-      console.log("🔎 PROJECT STATE BEFORE SAVE:", project);
-      await refreshProjects();
-      const projectToSave = {
-        ...project,
-        task: Array.isArray(project.task) && project.task.length ? project.task : rootTasks,
-        assignee_ids: mainAssignees.map(id => Number(id)),
-      };
-
-      console.log("🔎 PROJECT TO SAVE (merged with rootTasks if needed):", projectToSave);
-
-      const payload = normalizeProjectForSave(projectToSave, projectId);
-      console.log("📤 NORMALIZED PAYLOAD:", payload);
-      console.log("🔍 FULL PAYLOAD TO SERVER:", JSON.stringify(payload, null, 2));
+      const payload = normalizeProjectPayload(project, projectId, mainAssignees);
+      console.log("📤 최종 전송 Payload:", JSON.stringify(payload, null, 2));
+      console.log("📤 타입 확인:", {
+        project_id: typeof payload.project_id,
+        assignee_ids: Array.isArray(payload.assignee_ids)
+          ? payload.assignee_ids.map(a => typeof a)
+          : [],
+        taskIds: Array.isArray(payload.tasks) ? payload.tasks.map(t => typeof t.task_id) : [],
+      });
 
       await updateProject(projectId, payload);
       updateProjectLocal(projectId, payload);
       await refreshProjects();
       setLastUpdatedAt(Date.now());
-      toast.success("수정 완료!");
-      // setIsEditing(false);
+      toast.success("✅ 프로젝트 수정 완료!");
+      setIsEditing(false);
     } catch (err) {
-      console.error("❌ 수정 실패:", err);
-      toast.error("수정 중 오류가 발생했습니다.");
+      console.error("❌ 프로젝트 저장 실패:", err);
+      toast.error("프로젝트 저장 중 오류가 발생했습니다.");
     }
   };
-  const handleDelete = async () => {
-    if (!window.confirm("이 프로젝트를 삭제하시겠습니까?")) return;
 
+  /* ✅ 삭제 */
+  const handleDelete = async () => {
+    if (!window.confirm("정말 이 프로젝트를 삭제하시겠습니까?")) return;
     try {
       await deleteProject(projectId);
-      toast.success("프로젝트가 삭제되었습니다.");
-
-      setLastUpdatedAt(Date.now());
-      // 삭제 후 UI 상태 갱신
       setProjects(prev => prev.filter(p => p.project_id !== projectId));
+      toast.success("🗑️ 프로젝트가 삭제되었습니다.");
       setUiState(prev => ({
         ...prev,
         drawer: { ...prev.drawer, project: false },
-        panel: { ...prev.panel, selectedTask: null, projectId: null },
+        panel: { selectedTask: null },
       }));
       onClose?.();
     } catch (err) {
-      console.error("❌ 프로젝트 삭제 실패:", err);
-
-      // ✅ 백엔드에서 '소유자만 삭제 가능'일 경우 친절한 안내
-      if (String(err).includes("소유자만 삭제할 수 있습니다")) {
-        toast.error("삭제 권한이 없습니다. 프로젝트 소유자만 삭제할 수 있습니다.");
-      } else {
-        toast.error("프로젝트 삭제 중 오류가 발생했습니다.");
-      }
+      toast.error("프로젝트 삭제 실패");
     }
   };
+
+  /* ==============================
+    📦 렌더링
+  =============================== */
   return (
     <div
       style={{
@@ -437,7 +224,8 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         📌 프로젝트 상세정보
       </h2>
 
-      <label style={{ fontWeight: 500, color: "#444" }}>프로젝트 이름</label>
+      {/* 🧾 프로젝트 기본정보 */}
+      <label>프로젝트 이름</label>
       <input
         value={project.project_name || ""}
         onChange={e => setProject({ ...project, project_name: e.target.value })}
@@ -449,8 +237,6 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           border: "1px solid #ccc",
           borderRadius: 8,
           padding: "8px 12px",
-          fontSize: 15,
-          transition: "all 0.2s",
         }}
       />
 
@@ -468,140 +254,8 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           background: !isEditing ? "#f6f6f6" : "white",
         }}
       />
-      {/* 📎 프로젝트 첨부파일 영역 */}
-      <div
-        style={{
-          marginTop: 24,
-          background: "#fff",
-          border: "1px solid #eee",
-          borderRadius: 10,
-          padding: 16,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-        }}
-      >
-        <strong style={{ fontSize: 16, color: "#333" }}>📎 프로젝트 첨부파일</strong>
 
-        {/* 업로드 버튼 */}
-        <div style={{ marginTop: 8 }}>
-          <input
-            type="file"
-            id="projectFileInput"
-            style={{ display: "none" }}
-            onChange={async e => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              if (file.size > 10 * 1024 * 1024) {
-                toast.error("10MB 이하의 파일만 업로드 가능합니다.");
-                return;
-              }
-
-              try {
-                const formData = new FormData();
-                formData.append("file", file);
-
-                // ✅ 실제 업로드 API 호출
-                const res = await API.post(
-                  `/projects/${project.project_id}/attachments`,
-                  formData,
-                  {
-                    headers: { "Content-Type": "multipart/form-data" },
-                  },
-                );
-
-                toast.success("📎 파일 업로드 완료!");
-
-                // ✅ 업로드 후 최신 목록 새로고침
-                const listRes = await API.get(`/projects/${project.project_id}/attachments`);
-                setProject(prev => ({
-                  ...prev,
-                  attachments: listRes.data || [],
-                }));
-              } catch (err) {
-                console.error("❌ 프로젝트 파일 업로드 실패:", err);
-                toast.error("파일 업로드 중 오류가 발생했습니다.");
-              }
-            }}
-            disabled={!isEditing}
-          />
-          <button
-            onClick={() => document.getElementById("projectFileInput")?.click()}
-            style={{
-              background: "#1976d2",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              padding: "6px 10px",
-              cursor: "pointer",
-            }}
-            disabled={!isEditing}
-          >
-            📤 파일 추가
-          </button>
-        </div>
-
-        {/* 파일 목록 */}
-        {project.attachments && project.attachments.length > 0 ? (
-          <ul style={{ listStyle: "none", padding: 0, marginTop: 8 }}>
-            {project.attachments.map((f, i) => (
-              <li
-                key={i}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  borderBottom: "1px solid #eee",
-                  padding: "4px 0",
-                }}
-              >
-                <a
-                  href={f.file_path}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: "#1976d2", textDecoration: "none" }}
-                >
-                  {f.file_name}
-                </a>
-                {isEditing && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        await API.delete(
-                          `/projects/${project.project_id}/attachments/${f.attachment_id}`,
-                        );
-
-                        toast.success("📎 첨부파일이 삭제되었습니다.");
-
-                        setProject(prev => ({
-                          ...prev,
-                          attachments: prev.attachments.filter(
-                            att => att.attachment_id !== f.attachment_id,
-                          ),
-                        }));
-                      } catch (err) {
-                        console.error("❌ 첨부파일 삭제 실패:", err);
-                        toast.error("파일 삭제 중 오류가 발생했습니다.");
-                      }
-                    }}
-                    style={{
-                      background: "crimson",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 4,
-                      padding: "4px 8px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    삭제
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p style={{ color: "#888", marginTop: 8 }}>첨부된 파일이 없습니다.</p>
-        )}
-      </div>
-      {/* 상세입력 버튼 */}
+      {/* 📅 상세입력 */}
       <button
         onClick={() => setShowDetails(!showDetails)}
         style={{
@@ -613,7 +267,6 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           cursor: "pointer",
           marginTop: 20,
           fontSize: 15,
-          boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
         }}
       >
         {showDetails ? "▲ 상세입력 닫기" : "▼ 상세입력 보기"}
@@ -652,20 +305,10 @@ export default function ProjectDetailForm({ projectId, onClose }) {
               }}
             />
           </div>
-
-          <div style={{ marginTop: 12 }}>
-            <strong>상위업무 담당자:</strong>
-            <AssigneeSelector
-              employees={employees}
-              selected={mainAssignees}
-              setSelected={setMainAssignees}
-              disabled={!isEditing}
-            />
-          </div>
         </div>
       )}
 
-      {/* 업무 목록 */}
+      {/* 📋 업무 목록 */}
       <div
         style={{
           marginTop: 30,
@@ -676,48 +319,20 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         }}
       >
         <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>📋 업무 목록</h3>
-        {rootTasks.length > 0 ? (
-          rootTasks.map((task, i) => (
+
+        {Array.isArray(project.task) && project.task.length > 0 ? (
+          project.task.map((task, i) => (
             <TaskNode
               key={task.task_id ?? `root-${i}`}
-              task={{ ...task, attachments: task.attachments || [] }}
+              task={task}
               employees={employees}
               isEditing={isEditing}
-              projectId={project?.project_id ?? projectId}
-              depth={0}
-              disabled={!isEditing}
-              onUpdate={updatedTask => {
-                setProject(prev => {
-                  const key = x => x?.task_id ?? x?.temp_id;
-                  const updateRecursive = tasks =>
-                    tasks.map(t => {
-                      // ✅ 타입 차이/임시ID(temp_id)까지 모두 커버
-                      if (Number(key(t)) === Number(key(updatedTask))) return updatedTask;
-                      if (t.subtask?.length) return { ...t, subtask: updateRecursive(t.subtask) };
-                      return t;
-                    });
-
-                  const newTasks = updateRecursive(prev.task || []);
-                  return { ...prev, task: newTasks };
-                });
-              }}
-              onAddSibling={(newSibling, currentTask) => {
-                setProject(prev => {
-                  const newTasks = [...(prev.task || [])];
-                  const idx = newTasks.findIndex(t => t.task_id === currentTask.task_id);
-                  if (idx === -1) return prev;
-                  newTasks.splice(idx + 1, 0, newSibling);
-                  return { ...prev, task: newTasks };
-                });
-              }}
-              onCancel={() => {
-                // 새로 추가된(빈 제목) 업무는 목록에서 제거
-                if (!task.title.trim()) {
-                  setProject(prev => ({
-                    ...prev,
-                    task: prev.task.filter(t => t.task_id !== task.task_id),
-                  }));
-                }
+              projectId={project.project_id ?? projectId}
+              onUpdate={updated => {
+                setProject(prev => ({
+                  ...prev,
+                  task: (prev.task || []).map(t => (t.task_id === updated.task_id ? updated : t)),
+                }));
               }}
             />
           ))
@@ -727,7 +342,7 @@ export default function ProjectDetailForm({ projectId, onClose }) {
 
         {isEditing && (
           <button
-            onClick={handleAddRootTask}
+            onClick={handleAddTask}
             style={{
               background: "#2196f3",
               color: "white",
@@ -814,17 +429,20 @@ export default function ProjectDetailForm({ projectId, onClose }) {
         )}
       </div>
 
-      {/* ✅ Task 패널 연결 */}
-      {uiState?.panel?.selectedTask && uiState?.panel?.projectId && (
-        <ProjectDetailProvider>
-          <TaskDetailPanel
-            taskId={uiState.panel.selectedTask}
+      {/* ✅ Task Detail 패널 */}
+      {uiState?.panel?.selectedTask?.task_id && (
+        <ProjectDetailProvider
+          projectId={uiState?.panel?.projectId}
+          taskId={uiState?.panel?.selectedTask?.task_id}
+        >
+          <TaskInfoView
+            taskId={uiState.panel.selectedTask.task_id}
             projectId={uiState.panel.projectId}
             onClose={() =>
               setUiState(prev => ({
                 ...prev,
                 drawer: { ...prev.drawer, task: false },
-                panel: { ...prev.panel, selectedTask: null, projectId: null }, // ✅ null로 초기화
+                panel: { ...prev.panel, selectedTask: null, projectId: null },
               }))
             }
           />

@@ -69,14 +69,17 @@ def create_task_recursive(
     creator_emp_id: int,
     node: Dict[str, Any],
     parent_task_id: Optional[int] = None,
-) -> models.Task:
+) -> Optional[models.Task]:
     """태스크 및 모든 하위 태스크를 재귀적으로 생성"""
     title = (node.get("title") or "").strip()
     if not title:
-        print("⚠️ 태스크 제목이 비어 있음 -> 건너뜀")
+        print("⚠️ 태스크 제목이 비어 있음 → 건너뜀")
         return None
 
-    print(f"🟦 [생성 시작] '{title}' / parent_task_id={parent_task_id}")
+    print(f"🟦 [생성 시작] '{title}' (parent={parent_task_id})")
+
+    # ✅ end_date ↔ due_date 호환
+    due_date = node.get("due_date") or node.get("end_date")
 
     # 1️⃣ Task 생성
     task = models.Task(
@@ -84,7 +87,7 @@ def create_task_recursive(
         title=title,
         description=node.get("description") or "",
         start_date=node.get("start_date"),
-        due_date=node.get("due_date"),
+        due_date=due_date,
         priority=node.get("priority") or TaskPriority.MEDIUM,
         status=node.get("status") or TaskStatus.PLANNED,
         parent_task_id=parent_task_id,
@@ -92,7 +95,7 @@ def create_task_recursive(
     )
     db.add(task)
     db.flush()
-    print(f"✅ [등록됨] task_id={task.task_id} / title={title}")
+    print(f"✅ [등록됨] task_id={task.task_id}, title={title}")
 
     # 2️⃣ 다중 담당자 등록
     assignees = node.get("assignee_ids") or []
@@ -101,12 +104,13 @@ def create_task_recursive(
         ensure_member(db, project_id, eid, MemberRole.MEMBER)
     db.flush()
 
-    # 3️⃣ 하위 태스크 처리 (subtask, subtasks 등 모든 이름 지원)
-    subtasks = node.get("subtasks") or node.get("subtask") or node.get("children") or []
-    if subtasks:
-        print(f"🔽 [하위 태스크 탐색] '{title}' 하위 {len(subtasks)}개")
+    # 3️⃣ 하위 태스크 재귀 호출 (subtask / subtasks / children 모두 지원)
+    subtasks = node.get("subtask") or node.get("subtasks") or node.get("children") or []
+    if isinstance(subtasks, list) and subtasks:
+        print(f"🔽 [하위 {len(subtasks)}개 탐색] '{title}'")
         for child in subtasks:
-            print(f"➡️ [하위 생성 호출] '{child.get('title')}' (부모={task.task_id})")
+            if not child or not (child.get("title") or "").strip():
+                continue
             create_task_recursive(
                 db=db,
                 project_id=project_id,

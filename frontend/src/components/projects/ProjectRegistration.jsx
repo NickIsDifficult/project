@@ -7,6 +7,9 @@ import api from "../../services/api/http";
 import AssigneeSelector from "./AssigneeSelector";
 import TaskNode from "./TaskNode";
 
+// ✅ 고유 임시 ID 생성기
+const generateTempId = () => `tmp_${crypto.randomUUID?.() ?? Date.now()}`;
+
 export default function ProjectRegistration({ onClose }) {
   const [projectName, setProjectName] = useState("");
   const [description, setDescription] = useState("");
@@ -16,7 +19,7 @@ export default function ProjectRegistration({ onClose }) {
   const [showDetails, setShowDetails] = useState(false);
   const [priority, setPriority] = useState("MEDIUM");
   const [startDate, setStartDate] = useState("");
-  const [endDate, setDueDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [tasks, setTasks] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -24,11 +27,6 @@ export default function ProjectRegistration({ onClose }) {
   const { members, loading } = useProjectMembers(selectedProjectId);
   const fileInputRef = useRef(null);
 
-  const generateNextTaskId = (tasks) => {
-  const ids = tasks.map(t => t.task_id).filter(Boolean);
-  const maxId = ids.length ? Math.max(...ids) : 0;
-  return maxId + 1;
-};
   // ✅ 직원 목록 로드
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -54,22 +52,25 @@ export default function ProjectRegistration({ onClose }) {
   };
   const handleFileDelete = i => setAttachments(prev => prev.filter((_, idx) => idx !== i));
 
-  // ✅ 업무 관리
+  // ✅ Root 업무 추가
   const handleAddRootTask = () =>
     setTasks(prev => [
       ...prev,
       {
-         id: generateNextTaskId(prev),
+        task_id: null,
+        temp_id: generateTempId(),
         title: "",
         start_date: "",
         end_date: "",
         assignees: [],
-        subtask: [],
+        assignee_ids: [],
+        subtask: [], // ✅ 트리 구조 보존
         attachments: [],
         isEditing: true,
       },
     ]);
 
+  // ✅ 업무 업데이트 (root 기준)
   const handleTaskUpdate = useCallback((i, updated) => {
     setTasks(prev => {
       const copy = [...prev];
@@ -79,17 +80,29 @@ export default function ProjectRegistration({ onClose }) {
     });
   }, []);
 
-  // ✅ 하위업무 재귀 직렬화 함수
+  // ✅ 하위업무 직렬화 함수 (재귀)
   const serializeTasks = (list = []) =>
-  list.map(t => ({
-    title: t.title,
-    start_date: t.start_date?.trim?.() ? t.start_date : null,
-    due_date: t.due_date?.trim?.() ? t.due_date : null,
-    priority: "MEDIUM",
-    progress: 0,
-    assignee_ids: Array.isArray(t.assignees) ? t.assignees.map(Number) : [],
-    subtask: serializeTasks(t.subtask || []),
-  }));
+    (list || []).map(t => {
+      const title = (t.title || "").trim();
+
+      return {
+        title,
+        start_date: t.start_date?.trim?.() ? t.start_date : null,
+        end_date: t.end_date?.trim?.() ? t.end_date : null,
+        priority: t.priority || "MEDIUM",
+        progress: t.progress ?? 0,
+
+        // ✅ 담당자 ID 변환 (object 또는 number 모두 대응)
+        assignee_ids: Array.isArray(t.assignee_ids)
+          ? t.assignee_ids.map(id => Number(id))
+          : Array.isArray(t.assignees)
+            ? t.assignees.map(a => (typeof a === "object" ? Number(a.emp_id || a.id) : Number(a)))
+            : [],
+
+        // ✅ 항상 존재하도록 보장 (undefined 방지)
+        subtask: serializeTasks(t.subtask || []),
+      };
+    });
 
   // ✅ 유효성 검사
   const validateForm = useCallback(() => {
@@ -97,32 +110,42 @@ export default function ProjectRegistration({ onClose }) {
     if (startDate && endDate && new Date(startDate) > new Date(endDate))
       return toast.error("시작일은 종료일보다 이전이어야 합니다.");
 
-    for (const t of tasks) {
-      if (!t.title.trim()) return toast.error("모든 업무에 제목을 입력하세요.");
-      if (t.startDate && t.endDate && new Date(t.startDate) > new Date(t.endDate))
-        return toast.error("하위 업무의 시작일은 종료일보다 이전이어야 합니다.");
+    const checkTasks = (list = []) => {
+      for (const t of list) {
+        if (!t.title.trim()) return false;
+        if (t.start_date && t.end_date && new Date(t.start_date) > new Date(t.end_date))
+          return false;
+        if (t.subtask?.length && !checkTasks(t.subtask)) return false;
+      }
+      return true;
+    };
+
+    if (!checkTasks(tasks)) {
+      toast.error("모든 업무의 제목과 날짜를 확인하세요.");
+      return false;
     }
+
     return true;
   }, [projectName, startDate, endDate, tasks]);
 
   // ✅ 취소 시 확인
-  const hasChanges = useMemo(() => {
-    return (
+  const hasChanges = useMemo(
+    () =>
       projectName ||
       description ||
       startDate ||
       endDate ||
       tasks.length > 0 ||
-      attachments.length > 0
-    );
-  }, [projectName, description, startDate, endDate, tasks, attachments]);
+      attachments.length > 0,
+    [projectName, description, startDate, endDate, tasks, attachments],
+  );
 
   const handleCancel = () => {
     if (hasChanges && !window.confirm("작성 중인 내용이 있습니다. 정말 취소하시겠습니까?")) return;
     onClose?.();
   };
 
-  // ✅ 등록 + 자동 새로고침 + Drawer 닫기
+  // ✅ 저장
   const handleSubmit = async () => {
     if (!validateForm()) return;
     setSaving(true);
@@ -134,14 +157,16 @@ export default function ProjectRegistration({ onClose }) {
       end_date: endDate || null,
       status: "PLANNED",
       main_assignees: mainAssignees,
-      tasks: serializeTasks(tasks), // ✅ 재귀 적용
+      tasks: serializeTasks(tasks),
     };
+
+    console.log("📦 전송 Payload:", payload);
 
     try {
       const res = await api.post("/projects/full-create", payload);
       const pid = res.data.project_id;
 
-      // 첨부파일 업로드 (병렬)
+      // 첨부파일 업로드
       if (attachments.length) {
         await Promise.all(
           attachments.map(f => {
@@ -155,16 +180,8 @@ export default function ProjectRegistration({ onClose }) {
       }
 
       toast.success("✅ 프로젝트가 등록되었습니다!");
-
-      // 🔄 전체 목록 새로고침
       await fetchAllProjects();
-
-      // 🚪 Drawer 닫기
-      setUiState(prev => ({
-        ...prev,
-        drawer: { ...prev.drawer, project: false },
-      }));
-
+      setUiState(prev => ({ ...prev, drawer: { ...prev.drawer, project: false } }));
       onClose?.();
     } catch (err) {
       console.error("❌ 등록 실패:", err);
@@ -309,12 +326,12 @@ export default function ProjectRegistration({ onClose }) {
         )}
       </div>
 
-      {/* 하위 업무 */}
+      {/* 업무 리스트 */}
       <div style={{ marginTop: 20 }}>
         <h3>📋 하위 업무</h3>
         {tasks.map((t, i) => (
           <TaskNode
-            key={t.id}
+            key={t.task_id ?? t.temp_id ?? `root-${i}`}
             task={t}
             employees={employees}
             onUpdate={u => handleTaskUpdate(i, u)}

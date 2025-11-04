@@ -1,8 +1,5 @@
-// src/components/project/ProjectDetailPanel/TaskComments.jsx
 import { useState } from "react";
-import TextareaAutosize from "react-textarea-autosize";
 import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
-import Button from "../../common/Button";
 
 export default function TaskComments() {
   const { comments, handleAddComment, handleEditComment, handleDeleteComment } =
@@ -13,68 +10,124 @@ export default function TaskComments() {
   const [newComment, setNewComment] = useState("");
 
   return (
-    <section className="mt-5">
-      <h4 className="text-base font-semibold mb-3">💬 댓글</h4>
+    <section style={{ marginTop: 20 }}>
+      <h4 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>💬 댓글</h4>
 
       {comments.length === 0 ? (
-        <p className="text-gray-500 text-sm">댓글이 없습니다.</p>
+        <p style={{ color: "#777", fontSize: 14 }}>댓글이 없습니다.</p>
       ) : (
-        <ul className="divide-y border rounded-md p-2 max-h-64 overflow-y-auto">
+        <ul
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: 8,
+            padding: 8,
+            maxHeight: 260,
+            overflowY: "auto",
+            background: "#fff",
+          }}
+        >
           {comments.map(c => (
-            <li key={c.comment_id} className="py-2 text-sm flex justify-between">
+            <li
+              key={c.comment_id}
+              style={{
+                padding: "8px 6px",
+                borderBottom: "1px solid #eee",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 10,
+              }}
+            >
               {editId === c.comment_id ? (
-                <div className="flex-1">
-                  <TextareaAutosize
+                <div style={{ flex: 1 }}>
+                  <textarea
                     value={editContent}
                     onChange={e => setEditContent(e.target.value)}
-                    minRows={2}
-                    className="w-full border rounded-md px-2 py-1"
+                    rows={2}
+                    style={{
+                      width: "100%",
+                      border: "1px solid #ccc",
+                      borderRadius: 6,
+                      padding: "6px 8px",
+                      resize: "vertical",
+                      fontSize: 14,
+                    }}
                   />
-                  <div className="flex gap-2 mt-1">
-                    <Button
-                      size="sm"
-                      variant="primary"
+                  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                    <button
                       onClick={() => {
                         handleEditComment(c.comment_id, editContent);
                         setEditId(null);
                         setEditContent("");
                       }}
+                      style={{
+                        background: "#1976d2",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
                     >
                       저장
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => setEditId(null)}>
+                    </button>
+                    <button
+                      onClick={() => setEditId(null)}
+                      style={{
+                        background: "#f1f1f1",
+                        border: "1px solid #ccc",
+                        borderRadius: 6,
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
+                    >
                       취소
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ) : (
                 <>
-                  <div className="flex-1">
-                    <p className="text-gray-800 break-words">
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: "#333", marginBottom: 2, wordBreak: "break-word" }}>
                       <strong>{c.author_name || "익명"}</strong>: {c.content}
                     </p>
-                    <p className="text-gray-400 text-xs">
+                    <p style={{ color: "#999", fontSize: 12 }}>
                       {new Date(c.created_at).toLocaleString("ko-KR")}
                     </p>
                   </div>
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button
                       onClick={() => {
                         setEditId(c.comment_id);
                         setEditContent(c.content);
                       }}
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #ccc",
+                        borderRadius: 6,
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
                     >
                       수정
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
+                    </button>
+                    <button
                       onClick={() => handleDeleteComment(c.comment_id)}
+                      style={{
+                        background: "#e53935",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
                     >
                       삭제
-                    </Button>
+                    </button>
                   </div>
                 </>
               )}
@@ -84,13 +137,20 @@ export default function TaskComments() {
       )}
 
       {/* 새 댓글 입력 */}
-      <div className="mt-3 flex gap-2">
-        <TextareaAutosize
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <textarea
           value={newComment}
           onChange={e => setNewComment(e.target.value)}
           placeholder="댓글을 입력하세요"
-          minRows={2}
-          className="flex-1 border rounded-md px-3 py-2 resize-none"
+          rows={2}
+          style={{
+            flex: 1,
+            border: "1px solid #ccc",
+            borderRadius: 6,
+            padding: "8px 10px",
+            fontSize: 14,
+            resize: "vertical",
+          }}
           onKeyDown={e => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -99,15 +159,24 @@ export default function TaskComments() {
             }
           }}
         />
-        <Button
-          variant="primary"
+        <button
           onClick={() => {
             handleAddComment(newComment);
             setNewComment("");
           }}
+          style={{
+            background: "#1976d2",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 14px",
+            cursor: "pointer",
+            fontSize: 14,
+            flexShrink: 0,
+          }}
         >
           등록
-        </Button>
+        </button>
       </div>
     </section>
   );

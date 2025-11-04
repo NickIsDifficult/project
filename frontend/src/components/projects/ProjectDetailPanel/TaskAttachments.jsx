@@ -1,7 +1,5 @@
-// src/components/project/ProjectDetailPanel/TaskAttachments.jsx
 import { useRef } from "react";
 import { useProjectDetailContext } from "../../../context/ProjectDetailContext";
-import Button from "../../common/Button";
 
 export default function TaskAttachments() {
   const { attachments, handleUploadFile, handleDeleteFile } = useProjectDetailContext();
@@ -15,37 +13,76 @@ export default function TaskAttachments() {
   };
 
   return (
-    <section className="mt-4">
-      <h3 className="text-base font-semibold mb-2">📎 첨부파일</h3>
+    <section style={{ marginTop: 20 }}>
+      <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>📎 첨부파일</h3>
 
-      <div className="mb-3">
-        <input type="file" ref={fileRef} className="hidden" onChange={handleChange} />
-        <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+      <div style={{ marginBottom: 10 }}>
+        <input type="file" ref={fileRef} style={{ display: "none" }} onChange={handleChange} />
+        <button
+          onClick={() => fileRef.current?.click()}
+          style={{
+            background: "#1976d2",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            padding: "6px 10px",
+            cursor: "pointer",
+          }}
+        >
           📤 파일 업로드
-        </Button>
+        </button>
       </div>
 
       {attachments.length === 0 ? (
-        <p className="text-sm text-gray-500">첨부된 파일이 없습니다.</p>
+        <p style={{ color: "#777", fontSize: 14 }}>첨부된 파일이 없습니다.</p>
       ) : (
-        <ul className="divide-y border rounded-md">
+        <ul
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: 8,
+            overflow: "hidden",
+            listStyle: "none",
+            margin: 0,
+            padding: 0,
+          }}
+        >
           {attachments.map(file => (
-            <li key={file.attachment_id} className="flex justify-between items-center px-3 py-2">
+            <li
+              key={file.attachment_id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottom: "1px solid #eee",
+                padding: "6px 10px",
+              }}
+            >
               <a
                 href={file.url || file.file_path}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:underline break-all"
+                style={{
+                  color: "#1976d2",
+                  textDecoration: "none",
+                  wordBreak: "break-all",
+                }}
               >
                 {file.filename || file.file_name}
               </a>
-              <Button
-                size="sm"
-                variant="danger"
+              <button
                 onClick={() => handleDeleteFile(file.attachment_id)}
+                style={{
+                  background: "#e53935",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  fontSize: 13,
+                }}
               >
                 삭제
-              </Button>
+              </button>
             </li>
           ))}
         </ul>

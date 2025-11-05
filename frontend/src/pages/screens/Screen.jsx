@@ -85,7 +85,6 @@ export default function Screen() {
       <div className="dashboard-grid clean-layout">
         <CardPreview type="ann" title="📢 공지사항" />
         <CardPreview type="proj" title="🧭 프로젝트 현황" />
-        <CardPreview type="noti" title="🔔 알림" />
         <CardPreview type="cal" title="🗓️ 오늘의 일정" />
       </div>
     </AppShell>

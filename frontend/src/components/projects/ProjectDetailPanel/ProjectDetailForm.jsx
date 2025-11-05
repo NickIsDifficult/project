@@ -78,7 +78,12 @@ const buildTaskTree = (tasks = []) => {
 const updateTaskInTree = (tasks, updatedTask) => {
   if (!Array.isArray(tasks)) return tasks;
   return tasks.map(t => {
-    if (t.task_id === updatedTask.task_id) return updatedTask;
+    const same =
+      (t.task_id && updatedTask.task_id && t.task_id === updatedTask.task_id) ||
+      (t.temp_id && updatedTask.temp_id && t.temp_id === updatedTask.temp_id);
+
+    if (same) return updatedTask;
+
     if (t.subtask && t.subtask.length > 0) {
       return { ...t, subtask: updateTaskInTree(t.subtask, updatedTask) };
     }

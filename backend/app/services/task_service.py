@@ -143,15 +143,28 @@ def update_task(
 ) -> models.Task:
     """태스크 수정 + 담당자 동기화 + 로그 + 알림"""
     try:
-        # 권한 검사
-        if updater_emp_id not in [task.project.owner_emp_id] + [
-            m.emp_id for m in task.taskmember
-        ]:
-            forbidden("담당자 또는 프로젝트 소유자만 수정 가능합니다.")
+        # 0️⃣ 요청 데이터 파싱
+        try:
+            update_data = request.dict(exclude_unset=True)
+        except Exception:
+            update_data = request.model_dump(exclude_unset=True)
 
-        update_data = request.model_dump(exclude_unset=True)
+        print("🧩 [update_task] update_data =", update_data)
 
-        # 1️⃣ 담당자 동기화
+        if not update_data:
+            print("⚠️ update_data가 비어 있습니다. FastAPI 요청 바디를 확인하세요.")
+            return task
+
+        # 1️⃣ 권한 검사
+        try:
+            owner_id = getattr(task.project, "owner_emp_id", None)
+            member_ids = [m.emp_id for m in getattr(task, "taskmember", [])]
+            if updater_emp_id not in [owner_id] + member_ids:
+                forbidden("담당자 또는 프로젝트 소유자만 수정 가능합니다.")
+        except Exception as e:
+            print("⚠️ 권한 검사 중 오류:", e)
+
+        # 2️⃣ 담당자 동기화
         assignee_ids = update_data.pop("assignee_ids", None)
         if assignee_ids is not None:
             new_ids = {int(i) for i in assignee_ids if i}
@@ -172,14 +185,24 @@ def update_task(
             for emp_id in new_ids - old_ids:
                 db.add(models.TaskMember(task_id=task.task_id, emp_id=emp_id))
 
-        # 2️⃣ 일반 필드 업데이트
-        for key, value in update_data.items():
-            setattr(task, key, value)
+        # 3️⃣ 필드 매핑 변환
+        key_mapping = {
+            "end_date": "due_date",  # ✅ 프론트 호환
+        }
 
+        for key, value in update_data.items():
+            mapped_key = key_mapping.get(key, key)
+            if hasattr(task, mapped_key):
+                setattr(task, mapped_key, value)
+                print(f"🔧 [update_task] {mapped_key} → {value}")
+
+        # 4️⃣ DB 반영
+        db.add(task)  # ✅ 세션에 명시적으로 추가
         db.commit()
         db.refresh(task)
+        print(f"✅ [update_task] Task {task.task_id} 수정 완료 (due_date={task.due_date})")
 
-        # 3️⃣ 로그 기록
+        # 5️⃣ 로그 기록
         log_task_action(
             db=db,
             emp_id=updater_emp_id,
@@ -189,7 +212,7 @@ def update_task(
             detail=f"'{task.title}' 수정됨",
         )
 
-        # 4️⃣ 진행률 변경 시 알림
+        # 6️⃣ 진행률 변경 시 알림
         if "progress" in update_data and task.taskmember:
             for member in task.taskmember:
                 if member.emp_id != updater_emp_id:
@@ -203,10 +226,20 @@ def update_task(
                         payload={"progress": update_data["progress"]},
                     )
 
-        return task
+        # 7️⃣ 최신 상태로 반환
+        return (
+            db.query(models.Task)
+            .options(
+                joinedload(models.Task.taskmember).joinedload(models.TaskMember.employee),
+                joinedload(models.Task.subtasks),
+            )
+            .filter(models.Task.task_id == task.task_id)
+            .first()
+        )
 
     except Exception as e:
         db.rollback()
+        print(f"❌ [update_task] 예외 발생: {e}")
         bad_request(f"태스크 수정 중 오류 발생: {str(e)}")
 
 

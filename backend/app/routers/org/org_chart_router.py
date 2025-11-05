@@ -20,8 +20,8 @@ def _to_int(val: Optional[str]) -> Optional[int]:
         return None
 
 def _is_admin_role(role_no: Optional[str]) -> bool:
-    """role_no == 99 → 조직도에서 제외"""
-    return _to_int(role_no) == 99
+    """role_no >= 90 → 조직도에서 제외"""
+    return _to_int(role_no) >= 90
 
 def _role_sort_key(role_no: Optional[str]):
     """
@@ -100,7 +100,7 @@ def get_org_chart(
             "role_no": e.role_no,
             "role_name": getattr(r, "role_name", None),
             "responsibility_text": (e.responsibility_text or ""),
-            "current_state": e.current_state            
+            "current_state": e.current_state
         })
 
     return {

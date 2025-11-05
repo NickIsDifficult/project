@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../services/api/http";
 import logo from "./colink-2.png";
+import "./Link.svg"; // 휴지통 아이콘 임포트
 import "./sidebar.css";
 
 const WORK_LINKS = [
@@ -41,9 +42,10 @@ const PRIMARY_LINKS = [
       "https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68d62b16ff595e99e495402d/img/vector-14.svg",
   },
   {
-    label: "CO Box",
+    label: "Co Box",
     to: "/trashbin",
-
+    icon:
+      "/src/layout/Link.svg",
   },
   {
     label: "조직도",

@@ -41,6 +41,21 @@ export default function ProjectRegistration({ onClose }) {
     fetchEmployees();
   }, [selectedProjectId, members, loading]);
 
+  const updateTaskInTree = (tasks, updatedTask) => {
+  if (!Array.isArray(tasks)) return tasks;
+  return tasks.map(t => {
+    const same =
+      (t.task_id && updatedTask.task_id && t.task_id === updatedTask.task_id) ||
+      (t.temp_id && updatedTask.temp_id && t.temp_id === updatedTask.temp_id);
+
+    if (same) return updatedTask;
+
+    if (t.subtask?.length) {
+      return { ...t, subtask: updateTaskInTree(t.subtask, updatedTask) };
+    }
+    return t;
+  });
+};
   // ✅ 파일 핸들러
   const handleFileChange = e => {
     const file = e.target.files?.[0];
@@ -73,20 +88,18 @@ export default function ProjectRegistration({ onClose }) {
 
   // ✅ 업무 업데이트 (root 기준)
   const handleTaskUpdate = useCallback((i, updated) => {
-    setTasks(prev => {
-      const copy = [...prev];
-      if (updated === null) copy.splice(i, 1);
-      else copy[i] = updated;
-      return copy;
-    });
-  }, []);
+  setTasks(prev => updateTaskInTree(prev, updated));
+}, []);
 
   // ✅ 하위업무 직렬화 (재귀)
   const serializeTasks = (list = []) =>
     (list || []).map(t => ({
       title: (t.title || "").trim(),
       start_date: t.start_date?.trim?.() ? t.start_date : null,
-      end_date: t.end_date?.trim?.() ? t.end_date : null,
+      due_date:
+        t.due_date?.trim?.() ? t.due_date
+      : t.end_date?.trim?.() ? t.end_date
+      : null,
       priority: t.priority || "MEDIUM",
       progress: t.progress ?? 0,
       assignee_ids: Array.isArray(t.assignee_ids)
@@ -148,7 +161,13 @@ export default function ProjectRegistration({ onClose }) {
       start_date: startDate || null,
       end_date: endDate || null,
       status: "PLANNED",
-      main_assignees: mainAssignees,
+      main_assignees: (mainAssignees || [])
+        .filter(v => v !== null && v !== undefined && v !== "")
+        .map(v =>
+          typeof v === "object"
+          ? Number(v.emp_id ?? v.id ?? v.employee_id)
+          : Number(v)
+            ),
       tasks: serializeTasks(tasks),
     };
 

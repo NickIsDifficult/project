@@ -117,7 +117,6 @@ def create_project_full(
 # ✅ 프로젝트 수정
 # =====================================================
 @router.put("/{project_id}", response_model=schemas.project.Project)
-@router.put("/{project_id}", response_model=schemas.project.Project)
 def update_project(
     project_id: int,
     data: schemas.project.ProjectUpdate,

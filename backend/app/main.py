@@ -1,3 +1,4 @@
+# app/main.py
 import logging
 
 from fastapi import FastAPI
@@ -12,7 +13,6 @@ from app.routers import search  # ✅ 추가
 from app.routers import (
     activity_router,
     ai_router,
-    attachment_router,
     comment_router,
     department_router,
     employee_router,
@@ -47,10 +47,8 @@ app = FastAPI(title="업무툴 프로젝트 관리")
 origins = [
     "http://localhost:5173",
     "http://localhost:5174",
-    "http://localhost:8000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
-    "http://127.0.0.1:8000",
 ]
 
 # ---------------------------
@@ -73,6 +71,34 @@ logging.basicConfig(level=logging.INFO)
 logging.info("🚀 DB 연결 시도 중...")
 Base.metadata.create_all(bind=engine)
 logging.info("✅ DB 테이블 생성 완료")
+
+# ---------------------------
+# (추가) 기초코드 보정 헬퍼
+# ---------------------------
+
+def ensure_department(db, dept_no: str, dept_name: str):
+    """
+    부서 존재 보정. 없으면 생성 후 반환.
+    """
+    dept = db.scalar(select(models.Department).where(models.Department.dept_no == dept_no))
+    if not dept:
+        dept = models.Department(dept_no=dept_no, dept_name=dept_name)
+        db.add(dept)
+        db.commit()
+        db.refresh(dept)
+    return dept
+
+def ensure_role(db, role_no: str, role_name: str):
+    """
+    직급(역할) 존재 보정. 없으면 생성 후 반환.
+    """
+    role = db.scalar(select(models.Role).where(models.Role.role_no == role_no))
+    if not role:
+        role = models.Role(role_no=role_no, role_name=role_name)
+        db.add(role)
+        db.commit()
+        db.refresh(role)
+    return role
 
 # ---------------------------
 # 라우터 등록
@@ -102,13 +128,6 @@ app.include_router(trash_router)
 app.include_router(ai_router.router)
 app.include_router(search.router)
 app.include_router(preview_router.router)
-app.include_router(attachment_router.router)
-
-
-# ✅ notices (프런트가 /api 프록시를 탄다면 prefix="/api" 권장)
-# 프런트가 /api/notices 로 호출한다면 아래처럼:
-# app.include_router(notices_router.router, prefix="/api")
-# 이미 프런트가 /notices 로 부르고 있다면 prefix 없이 아래처럼:
 app.include_router(notices_router.router)
 
 
@@ -124,15 +143,30 @@ def root():
 def healthz():
     return {"ok": True}
 
+@app.on_event("startup")
+def ensure_base_codes():
+    db = SessionLocal()
+    try:
 
-# ---------------------------
-# 기본 관리자 계정/기초 데이터 생성
-# ---------------------------
+        # 관리자(99)
+        admin_dept = ensure_department(db, "99", "관리자")
+        admin_role = ensure_role(db, "99", "관리자")
+
+        # 외부인(90) — 변수명 그대로 dept / role 사용
+        dept = ensure_department(db, "90", "외부인")
+        role = ensure_role(db, "90", "외부인")
+
+        log.info("✅ 기초코드 보정 완료: 부서/직급 90·99 보정")
+    except Exception as e:
+        db.rollback()
+        log.exception("❌ 기초코드 보정 실패: %s", e)
+    finally:
+        db.close()
+
 @app.on_event("startup")
 def create_default_admin():
     db = SessionLocal()
     try:
-        # 이미 관리자 계정이 있으면 종료
         admin_exists = db.scalar(
             select(models.Member.member_id).where(models.Member.login_id == "0000")
         )
@@ -140,35 +174,21 @@ def create_default_admin():
             log.info("ℹ️ 기본 관리자(0000) 이미 존재. 초기화 스킵.")
             return
 
-        log.info("⚙️ 기본 관리자/부서/직급/사원/멤버 생성 시작...")
+        log.info("⚙️ 기본 관리자(사원/멤버) 생성 시작...")
 
-        # 1) 부서
-        dept = db.scalar(
-            select(models.Department).where(models.Department.dept_no == "99")
-        )
-        if not dept:
-            dept = models.Department(dept_no="99", dept_name="관리자")
-            db.add(dept)
-            db.commit()
-            db.refresh(dept)
+        # 99(관리자) 부서/직급 재확인(ensure_base_codes와 독립적으로 안전)
+        admin_dept = db.scalar(select(models.Department).where(models.Department.dept_no == "99"))
+        admin_role = db.scalar(select(models.Role).where(models.Role.role_no == "99"))
 
-        # 2) 직급/역할
-        role = db.scalar(select(models.Role).where(models.Role.role_no == "99"))
-        if not role:
-            role = models.Role(role_no="99", role_name="관리자")
-            db.add(role)
-            db.commit()
-            db.refresh(role)
-
-        # 3) 사원(직접 필요한 필드만 최소 생성 – 스키마에 맞춰 조정)
+        # 사원
         emp = db.scalar(select(models.Employee).where(models.Employee.emp_no == "0000"))
         if not emp:
             emp = models.Employee(
                 emp_no="0000",
-                dept_id=getattr(dept, "dept_id", None),
-                role_id=getattr(role, "role_id", None),
-                dept_no=dept.dept_no,
-                role_no=role.role_no,
+                dept_id=getattr(admin_dept, "dept_id", None),
+                role_id=getattr(admin_role, "role_id", None),
+                dept_no=admin_dept.dept_no,
+                role_no=admin_role.role_no,
                 name="관리자",
                 email="admin@example.com",
                 mobile="01000000000",
@@ -177,22 +197,21 @@ def create_default_admin():
             db.commit()
             db.refresh(emp)
 
-        # 4) 멤버
+        # 멤버
         admin_member = models.Member(
             login_id="0000",
             password_hash=bcrypt.hash("0000"),
-            user_type="EMPLOYEE",
-            emp_id=emp.emp_id,  # Employee PK
-            dept_no=dept.dept_no,
-            role_no=role.role_no,
+            user_type="EMPLOYEE",  # (Enum이면 models.UserType.EMPLOYEE 로 교체)
+            emp_id=emp.emp_id,
+            dept_no=admin_dept.dept_no,
+            role_no=admin_role.role_no,
         )
         db.add(admin_member)
         db.commit()
 
         log.info("✅ 기본 관리자 계정 생성 완료 (아이디: 0000 / 비밀번호: 0000)")
-
     except Exception as e:
         db.rollback()
-        log.exception("❌ 기본 관리자 초기화 중 오류 발생: %s", e)
+        log.exception("❌ 기본 관리자 초기화 중 오류: %s", e)
     finally:
         db.close()

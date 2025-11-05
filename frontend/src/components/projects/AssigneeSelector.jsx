@@ -38,9 +38,9 @@ function AssigneeSelector({ employees = [], selected = [], setSelected, disabled
   return (
     <div style={{ marginTop: 6, position: "relative" }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {safeSelected.map(sel => (
+        {safeSelected.map((sel, i) => (
           <span
-            key={sel.emp_id}
+            key={sel.emp_id ?? sel.id ?? `sel-${i}`}
             style={{
               background: "#e3f2fd",
               color: "#1976d2",
@@ -103,9 +103,9 @@ function AssigneeSelector({ employees = [], selected = [], setSelected, disabled
                 boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
               }}
             >
-              {filtered.map(emp => (
+              {filtered.map((emp, i) => (
                 <div
-                  key={emp.emp_id}
+                  key={emp.emp_id ?? emp.id ?? `emp-${i}`}
                   style={{
                     padding: 8,
                     cursor: "pointer",

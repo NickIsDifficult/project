@@ -90,6 +90,7 @@ class TaskBase(BaseModel):
     status: TaskStatus = TaskStatus.PLANNED
     priority: TaskPriority = TaskPriority.MEDIUM
     start_date: Optional[date] = None
+    model_config = ConfigDict(from_attributes=True)
     # ✅ due_date <-> end_date 양방향 허용 (입력은 둘 다 OK, 출력은 due_date로 직렬화)
     end_date: Optional[date] = None
     due_date: Optional[date] = Field(
@@ -105,6 +106,7 @@ class TaskBase(BaseModel):
     )
 
 
+
 class TaskCreate(TaskBase):
     project_id: Optional[int] = None
     parent_task_id: Optional[int] = None
@@ -112,12 +114,12 @@ class TaskCreate(TaskBase):
 
 
 class TaskUpdate(BaseModel):
+    """🧩 업무 수정용 입력 모델"""
     title: Optional[str] = None
     description: Optional[str] = None
     status: Optional[TaskStatus] = None
     priority: Optional[TaskPriority] = None
     start_date: Optional[date] = None
-    # ✅ 업데이트에서도 동일 규칙
     due_date: Optional[date] = Field(
         default=None,
         validation_alias=AliasChoices("due_date", "end_date"),
@@ -126,11 +128,15 @@ class TaskUpdate(BaseModel):
     estimate_hours: Optional[float] = None
     progress: Optional[int] = None
     assignee_ids: Optional[List[int]] = Field(default=None)
+    parent_task_id: Optional[int] = None  # ✅ 하위 업무 수정 허용
 
+    # ✅ ORM <-> Pydantic 간 변환 허용
+    model_config = ConfigDict(from_attributes=True)
+
+    # ✅ 날짜 직렬화 (기존 TaskBase와 동일)
     _ser_date = field_serializer("start_date", "due_date", when_used="always")(
         _serialize_date
     )
-
 
 class Task(TaskBase):
     task_id: int
@@ -153,7 +159,9 @@ class Task(TaskBase):
             }
             for m in (self.taskmember or [])
         ]
-
+    @property
+    def assignee_ids(self) -> List[int]:
+        return [m.emp_id for m in (self.taskmember or [])]
 
 class TaskStatusUpdate(BaseModel):
     status: TaskStatus

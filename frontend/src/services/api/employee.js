@@ -43,16 +43,16 @@ export const deleteEmployee = id => request(() => api.delete(`/employees/${id}`)
 export const getProjectMembers = projectId =>
   request(() => api.get(`/projects/${projectId}/members`), "프로젝트 멤버 목록");
 
-// ✅ 특정 업무의 담당자 목록
-export const getTaskAssignees = taskId =>
-  request(() => api.get(`/tasks/${taskId}/assignees`), "업무 담당자 목록");
+// ✅ 특정 업무의 담당자 목록 (프로젝트 ID 포함)
+export const getTaskAssignees = (projectId, taskId) =>
+  request(() => api.get(`/projects/${projectId}/tasks/${taskId}`), "업무 담당자 목록");
 
-// ✅ 업무 담당자 변경
-export const updateTaskAssignees = (taskId, assigneeIds) =>
+// ✅ 업무 담당자 변경 (FastAPI의 실제 라우트에 맞게 수정)
+export const updateTaskAssignees = (projectId, taskId, assigneeIds) =>
   request(
     () =>
-      api.put(`/tasks/${taskId}/assignees`, {
-        assignee_emp_ids: assigneeIds,
+      api.put(`/projects/${projectId}/tasks/${taskId}`, {
+        assignee_ids: assigneeIds, // ✅ FastAPI는 assignee_ids 필드 사용
       }),
     "업무 담당자 변경",
   );

@@ -12,8 +12,8 @@ from app.utils.token import hash_password, verify_password
 from fastapi import HTTPException, status
 
 INITIAL_PASSWORD = "0000"
-EXTERNAL_DEPT_NO = "10"  # 외부인 고정 코드
-EXTERNAL_ROLE_NO = "1"   # 외부인 고정 권한 코드
+EXTERNAL_DEPT_NO = "98"  # 외부인 고정 코드
+EXTERNAL_ROLE_NO = "98"   # 외부인 고정 권한 코드
 
 def _next_code(db: Session, table: str, no_col: str, prefix: str) -> str:
     """

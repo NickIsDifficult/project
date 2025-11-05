@@ -1,9 +1,9 @@
 // src/layout/Sidebar.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import API from "../services/api/http";
 import logo from "./colink-2.png";
 import "./sidebar.css";
-import API from "../services/api/http";
 
 const WORK_LINKS = [
   {
@@ -41,10 +41,9 @@ const PRIMARY_LINKS = [
       "https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68d62b16ff595e99e495402d/img/vector-14.svg",
   },
   {
-    label: "휴지통",
+    label: "CO Box",
     to: "/trashbin",
-    icon:
-      "https://cdn.animaapp.com/projects/68c7cf2d5056b4c85e8f3f40/releases/68da46ef5d1675b4fdbce4fc/img/vector-1.svg",
+
   },
   {
     label: "조직도",

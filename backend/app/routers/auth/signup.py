@@ -28,7 +28,7 @@ def list_departments(for_user: str = "EMPLOYEE", db: Session = Depends(get_db)):
     rows = db.scalars(select(Department).order_by(Department.dept_no.asc())).all()
     if for_user == "EMPLOYEE":
         # 외부인 전용 부서 코드를 '10'으로 가정
-        rows = [d for d in rows if d.dept_no != "10"]
+        rows = [d for d in rows if d.dept_no != "98"]
     return rows
 
 

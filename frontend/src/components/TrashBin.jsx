@@ -66,7 +66,7 @@ export default function TrashBin() {
   return (
     <AppShell>
       <div style={{ padding: "20px" }}>
-        <h2>휴지통</h2>
+        <h2>FIle Box</h2>
 
         {/* ✅ 파일 업로드 UI */}
         <div style={{ marginBottom: "15px" }}>
@@ -86,12 +86,12 @@ export default function TrashBin() {
               cursor: "pointer",
             }}
           >
-            업로드 후 휴지통 이동
+            업로드 후 이동
           </button>
         </div>
 
         {items.length === 0 ? (
-          <p>휴지통이 비어있습니다.</p>
+          <p>업로드된 파일이 없습니다.</p>
         ) : (
           <ul>
             {items.map(item => (

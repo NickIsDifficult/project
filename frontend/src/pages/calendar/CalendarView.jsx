@@ -50,6 +50,10 @@ export default function CalendarView({ projectId = 1 }) {
   const [endDate, setEndDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  // ✅ 제어형 뷰/날짜 상태
+  const [view, setView] = useState("month");
+  const [date, setDate] = useState(new Date());
+
   const mapEvent = ev => ({
     id: `event-${ev.id}`,
     type: "event",
@@ -100,7 +104,6 @@ export default function CalendarView({ projectId = 1 }) {
     if (endDate < startDate) return alert("종료 시각이 시작 시각보다 빠릅니다.");
 
     try {
-      // 빈 description은 아예 생략
       const payload = {
         project_id: projectId,
         title,
@@ -199,12 +202,19 @@ export default function CalendarView({ projectId = 1 }) {
 
         <RBCalendar
           localizer={localizer}
+          culture="ko"
           events={events}
           startAccessor="start"
           endAccessor="end"
           style={{ height: 500 }}
+
+          // ✅ 제어형: 버튼/뷰 전환 정상 동작
+          view={view}
+          onView={setView}
+          date={date}
+          onNavigate={setDate}
+
           views={["month", "week", "day"]}
-          defaultView="month"
           messages={{
             month: "월",
             week: "주",

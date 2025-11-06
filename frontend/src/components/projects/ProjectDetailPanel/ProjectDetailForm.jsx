@@ -142,20 +142,44 @@ export default function ProjectDetailForm({ projectId, onClose }) {
           getEmployees(),
         ]);
 
-        // 🔹 평면 배열 형태로 온 업무 데이터 정리
+        // ✅ 1) 직원 데이터 정규화 (emp_id / name / email 등 통일)
+        const normEmployees = (employeeData || []).map(e => ({
+          emp_id: Number(e.emp_id ?? e.id ?? e.employee_id),
+          name: e.name ?? e.username ?? "이름없음",
+          email: e.email ?? "",
+          position: e.position ?? "",
+          role: e.role ?? "",
+        }));
+
+        // ✅ 2) 평면 업무 데이터 → assignee_ids + assignees 객체 배열로 변환
         const flatTasks = Array.isArray(projectData.task)
-          ? projectData.task.map(t => ({
-              ...t,
-              assignees:
+          ? projectData.task.map(t => {
+              const ids =
                 Array.isArray(t.assignee_ids) && t.assignee_ids.length > 0
                   ? t.assignee_ids
                   : Array.isArray(t.taskmember)
-                    ? t.taskmember.map(m => m.emp_id)
-                    : [],
-            }))
+                    ? t.taskmember.map(m => Number(m.emp_id))
+                    : [];
+
+              const assignees = ids
+                .map(
+                  id =>
+                    normEmployees.find(e => Number(e.emp_id) === Number(id)) || {
+                      emp_id: Number(id),
+                      name: "미지정",
+                    },
+                )
+                .filter(Boolean);
+
+              return {
+                ...t,
+                assignee_ids: ids.map(Number),
+                assignees, // ✅ AssigneeSelector가 바로 처리 가능한 형태
+              };
+            })
           : [];
 
-        // 🔥 트리형으로 변환
+        // ✅ 3) 트리형으로 변환
         const treeTasks = buildTaskTree(flatTasks);
 
         setProject({
@@ -165,13 +189,16 @@ export default function ProjectDetailForm({ projectId, onClose }) {
 
         console.log("🌳 트리 변환된 project.task:", treeTasks);
 
-        setEmployees(employeeData);
+        // ✅ 직원 목록 상태 업데이트
+        setEmployees(normEmployees);
+
         setMainAssignees(projectData?.projectmember?.map(pm => pm.emp_id) || []);
       } catch (err) {
         console.error("❌ 데이터 로드 실패:", err);
         toast.error("프로젝트 데이터를 불러오지 못했습니다.");
       }
     };
+
     fetchData();
   }, [projectId]);
 

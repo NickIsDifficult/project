@@ -46,35 +46,38 @@ export default function TaskNode({
   } catch {}
 
   // ✅ 필드 변경
-  const handleFieldChange = useCallback((key, value) => {
-  // 🔁 due_date와 end_date를 항상 동기화
-  const patch = { [key]: value };
-  if (key === "due_date") patch.end_date = value || null;
-  if (key === "end_date") patch.due_date = value || null;
+  const handleFieldChange = useCallback(
+    (key, value) => {
+      // 🔁 due_date와 end_date를 항상 동기화
+      const patch = { [key]: value };
+      if (key === "due_date") patch.end_date = value || null;
+      if (key === "end_date") patch.due_date = value || null;
 
-  const updated = { ...task, ...patch };
-  onUpdate?.(updated);
-  if (task.task_id) updateTaskLocal?.(task.task_id, updated);
+      const updated = { ...task, ...patch };
+      onUpdate?.(updated);
+      if (task.task_id) updateTaskLocal?.(task.task_id, updated);
 
-  if (task.task_id) {
-    (async () => {
-      try {
-        // ✅ 서버에는 due_date만 보내기 (end_date 제거)
-        const payload = { ...updated };
-        if (payload.end_date && !payload.due_date) {
-          payload.due_date = payload.end_date;
-        }
-        delete payload.end_date;
+      if (task.task_id) {
+        (async () => {
+          try {
+            // ✅ 서버에는 due_date만 보내기 (end_date 제거)
+            const payload = { ...updated };
+            if (payload.end_date && !payload.due_date) {
+              payload.due_date = payload.end_date;
+            }
+            delete payload.end_date;
 
-        const saved = await updateTask(task.project_id, task.task_id, payload);
-        console.log("✅ [하위업무 PUT 완료]", saved);
-        if (saved) onUpdate?.(saved);
-      } catch (e) {
-        console.error("❌ 하위업무 저장 실패:", e);
+            const saved = await updateTask(task.project_id, task.task_id, payload);
+            console.log("✅ [하위업무 PUT 완료]", saved);
+            if (saved) onUpdate?.(saved);
+          } catch (e) {
+            console.error("❌ 하위업무 저장 실패:", e);
+          }
+        })();
       }
-    })();
-  }
-}, [task, onUpdate, updateTaskLocal]);
+    },
+    [task, onUpdate, updateTaskLocal],
+  );
 
   // ✅ 담당자 변경
   const handleAssigneesChange = async list => {
@@ -129,36 +132,36 @@ export default function TaskNode({
 
   // ✅ 자식 업데이트
   const handleChildUpdate = useCallback(
-  (index, updated) => {
-    const next = [...(task.subtask || [])];
-    if (updated === null) next.splice(index, 1);
-    else next[index] = updated;
-    onUpdate?.({ ...task, subtask: next });
+    (index, updated) => {
+      const next = [...(task.subtask || [])];
+      if (updated === null) next.splice(index, 1);
+      else next[index] = updated;
+      onUpdate?.({ ...task, subtask: next });
 
-    // ✅ 자식이 기존 태스크라면 서버에 즉시 반영
-    if (updated && updated.task_id) {
-      (async () => {
-        try {
-          const patch = { ...updated };
-          if ("end_date" in patch && !("due_date" in patch)) {
-            patch.due_date = patch.end_date || null;
+      // ✅ 자식이 기존 태스크라면 서버에 즉시 반영
+      if (updated && updated.task_id) {
+        (async () => {
+          try {
+            const patch = { ...updated };
+            if ("end_date" in patch && !("due_date" in patch)) {
+              patch.due_date = patch.end_date || null;
             }
-          const payload = { ...patch };
-          delete payload.end_date;
-          delete payload.end_date;
-          const saved = await handleSaveEdit(payload);
-          if (saved) {
-            next[index] = saved;
-            onUpdate?.({ ...task, subtask: next });
+            const payload = { ...patch };
+            delete payload.end_date;
+            delete payload.end_date;
+            const saved = await handleSaveEdit(payload);
+            if (saved) {
+              next[index] = saved;
+              onUpdate?.({ ...task, subtask: next });
+            }
+          } catch (e) {
+            console.error("❌ 하위업무 저장 실패:", e);
           }
-        } catch (e) {
-          console.error("❌ 하위업무 저장 실패:", e);
-        }
-      })();
-    }
-  },
-  [task, onUpdate, handleSaveEdit],
-);
+        })();
+      }
+    },
+    [task, onUpdate, handleSaveEdit],
+  );
 
   // ✅ 삭제 처리 (버튼 / Backspace 공통)
   const handleDelete = useCallback(
@@ -340,7 +343,7 @@ export default function TaskNode({
             <strong>담당자:</strong>
             <AssigneeSelector
               employees={employees}
-              selected={task.assignee_ids || []}
+              selected={task.assignees || []}
               setSelected={handleAssigneesChange}
               disabled={!isEditing}
             />
@@ -377,29 +380,29 @@ export default function TaskNode({
 
       {/* 재귀 렌더링 */}
       {Array.isArray(task.subtask) &&
-  task.subtask.map((sub, idx) => (
-    <TaskNode
-      key={sub.task_id ?? `sub-${idx}`}
-      task={{
-        ...sub,
-        due_date: sub.due_date || sub.end_date || null, // ✅ 종료일 보정
-        assignees:
-          sub.assignees && sub.assignees.length > 0
-            ? sub.assignees
-            : sub.taskmember?.map(m => ({
-                emp_id: m.emp_id,
-                name: m.employee?.name || "",
-                email: m.employee?.email || "",
-                position: m.employee?.position || "",
-              })) || [],
-      }}
-      employees={employees}
-      projectId={projectId}
-      depth={depth + 1}
-      onUpdate={onUpdate}
-      isEditing={isEditing}
-    />
-  ))}
+        task.subtask.map((sub, idx) => (
+          <TaskNode
+            key={sub.task_id ?? `sub-${idx}`}
+            task={{
+              ...sub,
+              due_date: sub.due_date || sub.end_date || null, // ✅ 종료일 보정
+              assignees:
+                sub.assignees && sub.assignees.length > 0
+                  ? sub.assignees
+                  : sub.taskmember?.map(m => ({
+                      emp_id: m.emp_id,
+                      name: m.employee?.name || "",
+                      email: m.employee?.email || "",
+                      position: m.employee?.position || "",
+                    })) || [],
+            }}
+            employees={employees}
+            projectId={projectId}
+            depth={depth + 1}
+            onUpdate={onUpdate}
+            isEditing={isEditing}
+          />
+        ))}
     </div>
   );
 }
